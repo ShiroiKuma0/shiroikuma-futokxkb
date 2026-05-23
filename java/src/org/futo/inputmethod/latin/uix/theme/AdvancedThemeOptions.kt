@@ -28,4 +28,6 @@ data class AdvancedThemeOptions(
     val font: Typeface? = null,
     val themeName: String? = null,
     val themeAuthor: String? = null,
+    // >0 enables a per-key border stroke (in dp) drawn in the theme's outline color.
+    val keyStrokeWidthDp: Float = 0f,
 )

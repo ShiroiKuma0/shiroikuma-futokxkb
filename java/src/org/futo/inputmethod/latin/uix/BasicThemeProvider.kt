@@ -228,11 +228,12 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         }
     }
 
-    private fun coloredRoundedRectangle(@ColorInt color: Int, radius: Float): GradientDrawable {
+    private fun coloredRoundedRectangle(@ColorInt color: Int, radius: Float, @ColorInt strokeColor: Int = 0, strokeWidth: Int = 0): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
             setColor(color)
+            if (strokeWidth > 0) setStroke(strokeWidth, strokeColor)
         }
     }
 
@@ -255,9 +256,9 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         addState(stateSet, drawable)
     }
 
-    private fun makeVisualStyle(background: Int, foreground: Int, highlight: Int, foregroundPressed: Int, roundedness: Dp): VisualStyleDescriptor {
-        val bg = coloredRoundedRectangle(background, dp(roundedness))
-        val bgPressed = coloredRoundedRectangle(Color(highlight).compositeOver(Color(background)).toArgb(), dp(roundedness))
+    private fun makeVisualStyle(background: Int, foreground: Int, highlight: Int, foregroundPressed: Int, roundedness: Dp, @ColorInt strokeColor: Int = 0, strokeWidth: Int = 0): VisualStyleDescriptor {
+        val bg = coloredRoundedRectangle(background, dp(roundedness), strokeColor, strokeWidth)
+        val bgPressed = coloredRoundedRectangle(Color(highlight).compositeOver(Color(background)).toArgb(), dp(roundedness), strokeColor, strokeWidth)
         val fgPressed = Color(foregroundPressed).compositeOver(Color(foreground)).toArgb()
 
         val flickBg = Color(foreground).let {
@@ -359,7 +360,7 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         val onKeyColorThird = Color(onKeyColor).copy(alpha = 0.33f).toArgb()
 
         val enterKeyBackground = if(expertMode) { functionalKeyColor } else { primary }
-        val enterKeyForeground = if(expertMode) { onBackgroundThird } else { onPrimary }
+        val enterKeyForeground = if(expertMode) { onBackgroundThird } else if(advanced.keyStrokeWidthDp > 0f) { onKeyColor } else { onPrimary }
 
         colors[R.styleable.Keyboard_Key_keyTextColor] = onKeyColor
         colors[R.styleable.Keyboard_Key_keyTextInactivatedColor] = onKeyColorHalf
@@ -427,6 +428,7 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
 
         val roundness = advanced.keyRoundness
         val keyCornerRadius = 9.dp * roundness
+        val keyStrokeWidthPx = dp(advanced.keyStrokeWidthDp.dp).toInt()
 
         val spaceCornerRadius = if(keyBorders) {
             keyCornerRadius
@@ -445,6 +447,14 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
                     backgroundDrawablePressed = coloredRoundedRectangle(colorScheme.outline.copy(alpha = 0.6f).toArgb(), dp(actionKeyRadius)),
                     foregroundColorPressed    = colorScheme.onSurface.toArgb()
                 )
+            } else if(advanced.keyStrokeWidthDp > 0f) {
+                makeVisualStyle(
+                    keyColor,
+                    onKeyColor,
+                    highlight, highlightForeground,
+                    keyCornerRadius,
+                    outline, keyStrokeWidthPx,
+                )
             } else {
                 VisualStyleDescriptor(
                     backgroundDrawable = coloredRoundedRectangle(colorScheme.primary.toArgb(), dp(actionKeyRadius)),
@@ -461,6 +471,7 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
                     if(expertMode) transparent else onKeyColor,
                     highlight, highlightForeground,
                     keyCornerRadius,
+                    outline, keyStrokeWidthPx,
                 )
             } else {
                 makeVisualStyle(
@@ -486,7 +497,8 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
                     functionalKeyColor,
                     if(expertMode) Color(onKeyColor).copy(alpha = 0.2f).toArgb() else onKeyColor,
                     highlight, highlightForeground,
-                    keyCornerRadius
+                    keyCornerRadius,
+                    outline, keyStrokeWidthPx,
                 )
             } else {
                 makeVisualStyle(
@@ -502,7 +514,8 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
                     keyColor,
                     if(expertMode) Color(onKeyColor).copy(alpha = 0.2f).toArgb() else onKeyColor,
                     highlight, highlightForeground,
-                    keyCornerRadius
+                    keyCornerRadius,
+                    outline, keyStrokeWidthPx,
                 )
             } else {
                 makeVisualStyle(
@@ -519,11 +532,12 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
                 colorScheme.secondary.toArgb(),
                 colorScheme.onSecondary.toArgb(),
                 highlight, highlightForeground,
-                keyCornerRadius
+                keyCornerRadius,
+                outline, keyStrokeWidthPx,
             ),
 
             KeyVisualStyle.Spacebar to when {
-                keyBorders -> makeVisualStyle(keyColor, onKeyColor, highlight, highlightForeground, spaceCornerRadius)
+                keyBorders -> makeVisualStyle(keyColor, onKeyColor, highlight, highlightForeground, spaceCornerRadius, outline, keyStrokeWidthPx)
                 expertMode -> makeVisualStyle(
                     colorScheme.outline.copy(alpha = 0.1f).toArgb(),
                     onKeyColor,
@@ -555,7 +569,11 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         colors[R.styleable.Keyboard_Key_keyPreviewTextColor] = colorScheme.onKeyboardContainer.toArgb()
 
         moreKeysTextColor = colorScheme.onKeyboardContainer.toArgb()
-        moreKeysKeyboardBackground = kdcMatcher.matchMoreKeysKeyboardBackground("") ?: coloredRoundedRectangle(colorScheme.keyboardPress.toArgb(), dp(keyCornerRadius))
+        moreKeysKeyboardBackground = kdcMatcher.matchMoreKeysKeyboardBackground("") ?: if(advanced.keyStrokeWidthDp > 0f) {
+            coloredRoundedRectangle(colorScheme.keyboardSurface.toArgb(), dp(keyCornerRadius), outline, keyStrokeWidthPx)
+        } else {
+            coloredRoundedRectangle(colorScheme.keyboardPress.toArgb(), dp(keyCornerRadius))
+        }
 
         assert(icons.keys == KeyboardIconsSet.validIcons) {
             "Icons differ. Missing: ${KeyboardIconsSet.validIcons - icons.keys}, extraneous: ${icons.keys - KeyboardIconsSet.validIcons}"

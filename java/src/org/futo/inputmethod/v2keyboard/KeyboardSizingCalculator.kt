@@ -30,6 +30,7 @@ import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.UixManager
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.getSettingBlocking
+import org.futo.inputmethod.latin.uix.THEME_KEY
 import org.futo.inputmethod.latin.uix.setSettingBlocking
 import org.futo.inputmethod.latin.utils.ResourceUtils
 import kotlin.math.roundToInt
@@ -560,6 +561,9 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
     }
 
     fun calculateGap(): Float {
+        // kxkb yellow theme: zero gap so adjacent key borders merge into one grid line
+        if (context.getSettingBlocking(THEME_KEY) == "HighContrastYellow") return 0.0f
+
         val displayMetrics = context.resources.displayMetrics
 
         val widthDp = displayMetrics.widthPixels / displayMetrics.density

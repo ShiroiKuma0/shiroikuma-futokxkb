@@ -7,12 +7,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.extendedDarkColorScheme
+import org.futo.inputmethod.latin.uix.theme.AdvancedThemeOptions
 import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.selector.ThemePreview
 import org.futo.inputmethod.latin.uix.wrapLightColorScheme
 
 private val darkScheme = extendedDarkColorScheme(
-    primary=Color(0xFFFFFFFF),
+    primary=Color(0xFFFFFF00),
     onPrimary=Color(0xFF000000),
     primaryContainer=Color(0xFF858585),
     onPrimaryContainer=Color(0xFF000000),
@@ -28,28 +29,32 @@ private val darkScheme = extendedDarkColorScheme(
     onError=Color(0xFF000000),
     errorContainer=Color(0xFFBE000F),
     onErrorContainer=Color(0xFFFFFFFF),
-    outline=Color(0xFFFFFFFF),
-    outlineVariant=Color(0xFFFFFFFF),
+    outline=Color(0xFFFFFF00),
+    outlineVariant=Color(0xFFFFFF00),
     surface=Color(0xFF000000),
-    onSurface=Color(0xFFFFFFFF),
-    onSurfaceVariant=Color(0xFFFFFFFF),
+    onSurface=Color(0xFFFFFF00),
+    onSurfaceVariant=Color(0xFFFFFF00),
     surfaceContainerHighest=Color(0xFF7A7A7A),
     shadow=Color(0xFF000000).copy(alpha = 0.5f),
     keyboardSurface=Color(0xFF000000),
     keyboardSurfaceDim=Color(0xFF000000),
-    keyboardContainer=Color(0xFFFFFF00),
-    keyboardContainerVariant=Color(0xFFFFFFFF),
-    onKeyboardContainer=Color(0xFF000000),
-    keyboardPress=Color(0xFFB9B9B9),
+    keyboardContainer=Color(0xFF000000),
+    keyboardContainerVariant=Color(0xFF000000),
+    onKeyboardContainer=Color(0xFFFFFF00),
+    keyboardPress=Color(0xFF000000),
     keyboardFade0=Color(0xFF000000),
     keyboardFade1=Color(0xFF000000),
-    primaryTransparent=Color(0xFFFFFF00),
-    onSurfaceTransparent=Color(0xFFFFFFFF),
+    primaryTransparent=Color(0xFFFFFF00).copy(alpha = 0.3f),
+    onSurfaceTransparent=Color(0xFFFFFF00).copy(alpha = 0.1f),
     keyboardContainerPressed=Color(0xFF777777),
     onKeyboardContainerPressed=Color(0xFFFFFFFF),
     hintColor=Color(0xFF0000FF),
     hintHiVis=true
-)
+).let { s ->
+    s.copy(extended = s.extended.copy(
+        advancedThemeOptions = s.extended.advancedThemeOptions.copy(keyStrokeWidthDp = 1.5f, keyRoundness = 0f)
+    ))
+}
 
 
 val HighContrastYellow = ThemeOption(

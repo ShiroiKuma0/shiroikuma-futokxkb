@@ -49,7 +49,8 @@ private object DefaultDataStore : DataStore<Preferences> {
     private var activePreferences = preferencesOf(
         ActiveSubtype.key to "en_US:KeyboardLayoutSet=kxkb",
         SubtypesSetting.key to setOf("en_US:KeyboardLayoutSet=kxkb"),
-        THEME_KEY.key to ClassicMaterialDark.key,
+        THEME_KEY.key to "HighContrastYellow",
+        KeyBordersSetting.key to true,
         KeyHintsSetting.key to true
     )
 
@@ -366,7 +367,7 @@ fun <T> LifecycleOwner.deferSetSetting(context: Context, key: SettingsKey<T>, va
 
 val THEME_KEY = SettingsKey(
     key = stringPreferencesKey("activeThemeOption"),
-    default = ""
+    default = "HighContrastYellow"
 )
 
 val USE_SYSTEM_VOICE_INPUT = SettingsKey(
