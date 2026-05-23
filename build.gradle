@@ -448,5 +448,9 @@ project.logger.lifecycle("versionName = ${android.defaultConfig.versionName}")
 // Quieter build logs: drop javac lint/deprecation noise (errors still print)
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-Xlint:none' << '-nowarn'
+    // -XDsuppressNotes: javac's mandatory deprecation notes ("uses or overrides a
+    // deprecated API" / "Recompile with -Xlint:deprecation") ignore -Xlint:none and
+    // -nowarn; this internal flag is the only thing that silences them. Errors are unaffected.
+    options.compilerArgs << '-XDsuppressNotes'
     options.deprecation = false
 }
