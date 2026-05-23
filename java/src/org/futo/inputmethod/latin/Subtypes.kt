@@ -256,26 +256,8 @@ object Subtypes {
     }
 
     fun getDirectBootInitialLayouts(context: Context): Set<String> {
-        val layouts = mutableSetOf("en_US:")
-
-        val locales = context.resources.configuration.locales
-        if(locales.size() == 0) return layouts
-
-        for(i in 0 until locales.size()) {
-            val locale = locales.get(i).stripExtensionsIfNeeded()
-            val layout = findClosestLocaleLayouts(context, locale).firstOrNull() ?: continue
-
-            val value = subtypeToString(
-                InputMethodSubtypeBuilder()
-                    .setSubtypeLocale(locale.stripExtensionsIfNeeded().toString())
-                    .setSubtypeExtraValue("KeyboardLayoutSet=$layout")
-                    .build()
-            )
-
-            layouts.add(value)
-        }
-
-        return layouts
+        // BFU (direct boot): expose only the kxkb layout for unlock-password entry.
+        return setOf("en_US:KeyboardLayoutSet=kxkb")
     }
 
     fun switchToNextLanguage(

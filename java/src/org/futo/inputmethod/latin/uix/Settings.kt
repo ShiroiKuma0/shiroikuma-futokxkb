@@ -47,8 +47,8 @@ import java.io.File
 // Used before first unlock (direct boot)
 private object DefaultDataStore : DataStore<Preferences> {
     private var activePreferences = preferencesOf(
-        ActiveSubtype.key to "en_US:",
-        SubtypesSetting.key to setOf("en_US:"),
+        ActiveSubtype.key to "en_US:KeyboardLayoutSet=kxkb",
+        SubtypesSetting.key to setOf("en_US:KeyboardLayoutSet=kxkb"),
         THEME_KEY.key to ClassicMaterialDark.key,
         KeyHintsSetting.key to true
     )

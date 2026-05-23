@@ -1,0 +1,176 @@
+name: kxkb
+rows:
+  - letters:
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 1
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 2
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 3
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 4
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 5
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 6
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 7
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 8
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 9
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: 0
+      moreKeys: ["@"]
+  - letters:
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: "-"
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: c
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: m
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: w
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: k
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: q
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: f
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: r
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: l
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: "'"
+      moreKeys: ["@"]
+  - letters:
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: i
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: o
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: a
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: e
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: v
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: b
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: t
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: n
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: s
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: h
+      moreKeys: ["@"]
+  - letters:
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: ":"
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: x
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: p
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: u
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: z
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: g
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: d
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: y
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: j
+      moreKeys: ["@"]
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: "/"
+      moreKeys: ["@"]
+  - bottom:
+    - $shift
+    - type: base
+      attributes: { moreKeyMode: OnlyExplicit }
+      spec: "."
+      moreKeys: [","]
+    - $space
+    - $shift
+    - $delete
+    - $enter
