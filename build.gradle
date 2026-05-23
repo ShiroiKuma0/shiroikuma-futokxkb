@@ -173,6 +173,12 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = false
         ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild {
+            cmake {
+                cppFlags '-w'
+                cFlags '-w'
+            }
+        }
     }
 
     bundle {
@@ -353,6 +359,7 @@ android {
 
     kotlinOptions {
         jvmTarget = '1.8'
+        suppressWarnings = true
     }
     buildFeatures {
         compose true
@@ -437,3 +444,9 @@ dependencies {
 
 project.logger.lifecycle("versionCode = ${android.defaultConfig.versionCode}")
 project.logger.lifecycle("versionName = ${android.defaultConfig.versionName}")
+
+// Quieter build logs: drop javac lint/deprecation noise (errors still print)
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xlint:none' << '-nowarn'
+    options.deprecation = false
+}
