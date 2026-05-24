@@ -548,7 +548,9 @@ public class KeyboardView extends View {
 
         // Draw key icon.
         if (icon != null) {
-            final float size = kdc.getTextSize() * 1.75f;
+            // Size key icons as a direct fraction of the smaller key dimension (square, centered),
+            // so glyph keys read as large as the letters. Bounded by the key so it never overflows.
+            final float size = Math.min(keyWidth, keyHeight) * 1.0f;
 
             int iconWidth;
             if (key.getCode() == Constants.CODE_SPACE && icon instanceof NinePatchDrawable) {
