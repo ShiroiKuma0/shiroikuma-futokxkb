@@ -256,6 +256,7 @@ public final class Constants {
     public static final int CODE_OUTPUT_TEXT_WITH_SPACES = -23;
     // Code value representing the code is not specified.
     public static final int CODE_UNSPECIFIED = -24;
+    public static final int CODE_ESCAPE = -25;
 
     public static final int CODE_ACTION_0 = -1050;
     public static final int CODE_ACTION_MAX = CODE_ACTION_0 + 100;

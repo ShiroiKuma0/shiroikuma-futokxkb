@@ -71,6 +71,7 @@ public final class KeyboardCodesSet {
         "key_to_alpha_2_layout",
         "key_to_alpha_3_layout",
         "key_unspecified",
+        "key_escape",
     };
 
     private static final int[] DEFAULT = {
@@ -99,6 +100,7 @@ public final class KeyboardCodesSet {
         Constants.CODE_TO_ALPHA_2_LAYOUT,
         Constants.CODE_TO_ALPHA_3_LAYOUT,
         Constants.CODE_UNSPECIFIED,
+        Constants.CODE_ESCAPE,
     };
 
     static {

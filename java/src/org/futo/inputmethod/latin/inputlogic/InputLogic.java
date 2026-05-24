@@ -854,6 +854,10 @@ public final class InputLogic {
                 // We need to switch to the shortcut IME. This is handled by LatinIME since the
                 // input logic has no business with IME switching.
                 break;
+            case Constants.CODE_ESCAPE:
+                // Send a real hardware Escape key event (for terminals, vim/emacs, etc.).
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_ESCAPE, 0);
+                break;
             case Constants.CODE_ACTION_NEXT:
                 performEditorAction(EditorInfo.IME_ACTION_NEXT);
                 break;
