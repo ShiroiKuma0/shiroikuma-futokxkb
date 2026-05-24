@@ -423,7 +423,7 @@ public class KeyboardView extends View {
 
         if (label != null && icon == null) {
             paint.setTypeface(mDrawableProvider.selectKeyTypeface(key.selectTypeface(params)));
-            paint.setTextSize(kdc.getTextSize());
+            paint.setTextSize(kdc.getTextSize() * mDrawableProvider.getKeyLetterScale());
             final float labelCharHeight = TypefaceUtils.getReferenceCharHeight(paint);
             final float labelCharWidth = TypefaceUtils.getReferenceCharWidth(paint);
 

@@ -66,6 +66,9 @@ interface DynamicThemeProvider {
     fun selectKeyTypeface(defaultTypeface: Typeface): Typeface =
         typefaceOverride ?: themeTypeface ?: defaultTypeface
 
+    /** Multiplier applied to key letter/label text size (1.0 = unchanged). */
+    val keyLetterScale: Float get() = 1.0f
+
     fun selectKeyDrawingConfiguration(keyboard: Keyboard?, params: KeyDrawParams, key: Key): KeyDrawingConfiguration
     fun getPreviewBackground(keyboard: Keyboard?, key: Key): KeyBackground
 

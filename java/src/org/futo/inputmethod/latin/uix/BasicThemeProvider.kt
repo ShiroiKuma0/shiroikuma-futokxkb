@@ -7,6 +7,7 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.os.Build
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -171,6 +172,8 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
 
     override var typefaceOverride: Typeface? = null
     override val themeTypeface: Typeface?
+    val keyLabelWeight: Int
+    override val keyLetterScale: Float
 
     val kdcMatcher = AdvancedThemeMatcher(context, this, colorScheme)
     override fun selectKeyDrawingConfiguration(
@@ -178,6 +181,13 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         params: KeyDrawParams,
         key: Key
     ): KeyDrawingConfiguration = kdcMatcher.matchKeyDrawingConfiguration(keyboard, params, key)
+
+    override fun selectKeyTypeface(defaultTypeface: Typeface): Typeface {
+        val base = typefaceOverride ?: themeTypeface ?: defaultTypeface
+        return if (keyLabelWeight in 1..1000 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Typeface.create(base, keyLabelWeight, false)
+        } else base
+    }
 
     override fun getPreviewBackground(
         keyboard: Keyboard?,
@@ -301,6 +311,8 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         displayDpi = context.resources.displayMetrics.densityDpi
 
         themeTypeface = advanced.font
+        keyLabelWeight = advanced.keyLabelWeight
+        keyLetterScale = advanced.keyLetterScale
 
         expertMode = context.getSettingBlocking(HiddenKeysSetting)
         keyBorders = advanced.keyBorders ?: context.getSettingBlocking(KeyBordersSetting)

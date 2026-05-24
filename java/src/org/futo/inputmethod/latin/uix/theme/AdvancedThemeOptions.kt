@@ -30,4 +30,8 @@ data class AdvancedThemeOptions(
     val themeAuthor: String? = null,
     // >0 enables a per-key border stroke (in dp) drawn in the theme's outline color.
     val keyStrokeWidthDp: Float = 0f,
+    // >0 overrides key label font weight (100..1000; 400 = regular, 700 = bold). 0 = leave default.
+    val keyLabelWeight: Int = 0,
+    // Multiplier applied to key letter/label text size (1.0 = unchanged).
+    val keyLetterScale: Float = 1.0f,
 )

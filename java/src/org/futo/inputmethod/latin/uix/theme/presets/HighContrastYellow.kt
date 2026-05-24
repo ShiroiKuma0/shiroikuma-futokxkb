@@ -52,7 +52,7 @@ private val darkScheme = extendedDarkColorScheme(
     hintHiVis=true
 ).let { s ->
     s.copy(extended = s.extended.copy(
-        advancedThemeOptions = s.extended.advancedThemeOptions.copy(keyStrokeWidthDp = 1.5f, keyRoundness = 0f)
+        advancedThemeOptions = s.extended.advancedThemeOptions.copy(keyStrokeWidthDp = 1.0f, keyRoundness = 0f, keyLabelWeight = 500, keyLetterScale = 1.4f)
     ))
 }
 
