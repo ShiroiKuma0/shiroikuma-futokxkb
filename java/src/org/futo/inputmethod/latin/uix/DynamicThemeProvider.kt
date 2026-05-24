@@ -69,6 +69,9 @@ interface DynamicThemeProvider {
     /** Multiplier applied to key letter/label text size (1.0 = unchanged). */
     val keyLetterScale: Float get() = 1.0f
 
+    /** Multiplier applied to the secondary (hint) characters drawn on keys (1.0 = unchanged). */
+    val keyHintScale: Float get() = 1.0f
+
     fun selectKeyDrawingConfiguration(keyboard: Keyboard?, params: KeyDrawParams, key: Key): KeyDrawingConfiguration
     fun getPreviewBackground(keyboard: Keyboard?, key: Key): KeyBackground
 

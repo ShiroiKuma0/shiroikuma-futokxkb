@@ -496,7 +496,7 @@ public class KeyboardView extends View {
         // Draw hint label.
         final String hintLabel = kdc.getHintLabel();
         if (hintLabel != null) {
-            paint.setTextSize(kdc.getHintSize());
+            paint.setTextSize(kdc.getHintSize() * mDrawableProvider.getKeyHintScale());
             paint.setColor(kdc.getHintColor());
 
             // Bold explicit hints
@@ -534,7 +534,7 @@ public class KeyboardView extends View {
             canvas.drawText(
                     hintLabel, 0, hintLabel.length(), hintX, hintBaseline + adjustmentY, paint);
         } else if(hintIcon != null) {
-            final float size = kdc.getHintSize();
+            final float size = kdc.getHintSize() * mDrawableProvider.getKeyHintScale();
 
             int iconWidth = (int)size;
             int iconHeight = (int)size;

@@ -188,6 +188,8 @@ data class SavedKeyboardSizingSettings(
     val labelWeight: Int = -1,
     val keyRoundness: Float = -1f,
     val borderWidthDp: Float = -1f,
+    // Scale for the secondary (hint) characters drawn on keys. -1 = inherit theme; >= 0 overrides.
+    val hintSizeMultiplier: Float = -1f,
 
     // Per-geometry sizing knobs (Multiling-style live knobs). Neutral defaults reproduce the
     // current look exactly, so old saved blobs and not-yet-configured geometries are unchanged.

@@ -296,6 +296,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         val a = scheme.extended.advancedThemeOptions
         val overlaid = a.copy(
             keyLetterScale = if (saved.fontSizeMultiplier >= 0f) saved.fontSizeMultiplier else a.keyLetterScale,
+            keyHintScale = if (saved.hintSizeMultiplier >= 0f) saved.hintSizeMultiplier else a.keyHintScale,
             keyLabelWeight = if (saved.labelWeight >= 0) saved.labelWeight else a.keyLabelWeight,
             keyRoundness = if (saved.keyRoundness >= 0f) saved.keyRoundness else a.keyRoundness,
             keyStrokeWidthDp = if (saved.borderWidthDp >= 0f) saved.borderWidthDp else a.keyStrokeWidthDp
@@ -314,7 +315,8 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         return a.fontSizeMultiplier != b.fontSizeMultiplier ||
                 a.labelWeight != b.labelWeight ||
                 a.keyRoundness != b.keyRoundness ||
-                a.borderWidthDp != b.borderWidthDp
+                a.borderWidthDp != b.borderWidthDp ||
+                a.hintSizeMultiplier != b.hintSizeMultiplier
     }
 
     private fun updateDrawableProvider(colorScheme: KeyboardColorScheme) {

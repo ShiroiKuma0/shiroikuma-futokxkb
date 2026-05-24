@@ -278,7 +278,8 @@ val KxkbSizingResetMenu = UserSettingsMenu(
                         bottomRowHeightFactor = 1f,
                         suggestionBarHeightFactor = 1f,
                         fontSizeMultiplier = -1f,
-                        keyRoundness = -1f
+                        keyRoundness = -1f,
+                        hintSizeMultiplier = -1f
                     ).toJsonString()
                 )
             }
@@ -411,6 +412,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                         { s, v -> s.copy(fontSizeMultiplier = v) }
                     ),
                     default = 1.4f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                // Secondary (hint) character scale. Stored -1 = inherit theme (keyHintScale 1.0x
+                // until set); writes an absolute multiplier. Feeds keyHintScale via withPerKindLook,
+                // applied at the on-key hint draw sites in KeyboardView.
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_secondary_text_size),
+                    item = floatItem(
+                        { if (it.hintSizeMultiplier >= 0f) it.hintSizeMultiplier else 1.0f },
+                        { s, v -> s.copy(hintSizeMultiplier = v) }
+                    ),
+                    default = 1.0f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
                 )
                 // Key corner roundness (0 = square, 1 = theme max). Stored -1 = inherit theme; the
                 // slider shows the effective value (HighContrastYellow uses 0 = square until set)

@@ -34,4 +34,5 @@ data class AdvancedThemeOptions(
     val keyLabelWeight: Int = 0,
     // Multiplier applied to key letter/label text size (1.0 = unchanged).
     val keyLetterScale: Float = 1.0f,
+    val keyHintScale: Float = 1.0f,
 )

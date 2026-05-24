@@ -174,6 +174,7 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
     override val themeTypeface: Typeface?
     val keyLabelWeight: Int
     override val keyLetterScale: Float
+    override val keyHintScale: Float
 
     val kdcMatcher = AdvancedThemeMatcher(context, this, colorScheme)
     override fun selectKeyDrawingConfiguration(
@@ -313,6 +314,7 @@ class BasicThemeProvider(val context: Context, val colorScheme: KeyboardColorSch
         themeTypeface = advanced.font
         keyLabelWeight = advanced.keyLabelWeight
         keyLetterScale = advanced.keyLetterScale
+        keyHintScale = advanced.keyHintScale
 
         expertMode = context.getSettingBlocking(HiddenKeysSetting)
         keyBorders = advanced.keyBorders ?: context.getSettingBlocking(KeyBordersSetting)
