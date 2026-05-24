@@ -235,6 +235,7 @@ val suggestionStyleCandidateDescription = TextStyle(
 
 @Composable
 fun actionBarColor(): Color =
+    LocalKeyboardScheme.current.extended.suggestionBarColorOverride ?:
     if(LocalInspectionMode.current) {
         LocalKeyboardScheme.current.keyboardSurface
     } else if(LocalKeyboardScheme.current.extended.advancedThemeOptions.backgroundImage != null) {
@@ -308,7 +309,7 @@ fun RowScope.SuggestionItem(words: SuggestedWords, idx: Int, isPrimary: Boolean,
 
     val isAutocorrect = forcePrimary || (isPrimary && words.mWillAutoCorrect)
 
-    val color = when(isAutocorrect) {
+    val color = LocalKeyboardScheme.current.extended.suggestionTextColorOverride ?: when(isAutocorrect) {
         true -> LocalKeyboardScheme.current.onSurface
         else -> LocalKeyboardScheme.current.onSurfaceVariant
     }
@@ -1088,7 +1089,7 @@ class ExampleListener : SuggestionStripViewListener {
 private fun CandidateItem(modifier: Modifier, it: SuggestedWordInfo, listener: SuggestionStripViewListener, width: Dp, last: Boolean = false) {
     val word = it.mWord
     val description = it.mCandidateDescription
-    val color = LocalKeyboardScheme.current.onSurface
+    val color = LocalKeyboardScheme.current.extended.suggestionTextColorOverride ?: LocalKeyboardScheme.current.onSurface
     val textStyle =
         suggestionStylePrimary.copy(color = color).withCustomFont()
     val descTextStyle =

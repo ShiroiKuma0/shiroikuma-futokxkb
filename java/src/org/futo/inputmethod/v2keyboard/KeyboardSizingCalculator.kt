@@ -191,6 +191,20 @@ data class SavedKeyboardSizingSettings(
     // Scale for the secondary (hint) characters drawn on keys. -1 = inherit theme; >= 0 overrides.
     val hintSizeMultiplier: Float = -1f,
 
+    // Per-geometry colour overrides — packed ARGB Int (0xAARRGGBB); null = inherit the theme.
+    // LatinIME.withPerKindLook overlays any non-null value onto BOTH the key-drawing provider's
+    // scheme (font / hint / key bg / functional-key bg / border / keyboard bg) AND the Compose
+    // chrome scheme (keyboard bg / suggestion-bar bg / suggestion text). All null by default, so
+    // existing blobs and not-yet-configured geometries render exactly as before.
+    val fontColor: Int? = null,
+    val secondaryFontColor: Int? = null,
+    val keyBackgroundColor: Int? = null,
+    val functionalKeyBackgroundColor: Int? = null,
+    val keyBorderColor: Int? = null,
+    val keyboardBackgroundColor: Int? = null,
+    val suggestionBarColor: Int? = null,
+    val suggestionTextColor: Int? = null,
+
     // Per-geometry sizing knobs (Multiling-style live knobs). Neutral defaults reproduce the
     // current look exactly, so old saved blobs and not-yet-configured geometries are unchanged.
     //  - gap *additions* in dp (neutral 0): added on top of the base gap in LayoutEngine, so

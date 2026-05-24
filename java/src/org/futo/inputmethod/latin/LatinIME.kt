@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.toArgb
@@ -208,9 +209,14 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     private var activeThemeOption: ThemeOption? = null
     private val activeColorScheme = mutableStateOf(DefaultDarkScheme.obtainColors(this))
+    // The clean scheme with the current geometry's per-kind colour overrides applied. The key
+    // provider uses it directly; the Compose chrome (suggestion bar) reads it via overlaidColorScheme
+    // so bar/text colour edits recompose live. Kept as state and refreshed in updateDrawableProvider.
+    private val activeOverlaidScheme = mutableStateOf(DefaultDarkScheme.obtainColors(this))
     private var pendingRecreateKeyboard: Boolean = false
 
     val colorScheme get() = activeColorScheme.value
+    val overlaidColorScheme get() = activeOverlaidScheme.value
     val keyboardColor get() = colorScheme.keyboardSurface.let { fallback ->
         drawableProvider?.keyboardColor?.let { androidx.compose.ui.graphics.Color(it) } ?: fallback
     }
@@ -225,6 +231,12 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     private var settingsRefreshRequired = false
     private fun recreateKeyboard() {
+        // The per-geometry look/colour overlay is baked into the drawable provider. Geometry can
+        // change (rotate / fold) without a look-field edit, so before rebuilding the keyboard ensure
+        // the provider matches the geometry we're about to draw — otherwise the legacy key view keeps
+        // the previous geometry's colours. This is the single chokepoint every recreate flows through.
+        if(currentSizeState.name != lastProviderSizeState) updateDrawableProvider(activeColorScheme.value)
+
         latinIMELegacy.updateTheme()
 
         if(settingsRefreshRequired) {
@@ -301,13 +313,32 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             keyRoundness = if (saved.keyRoundness >= 0f) saved.keyRoundness else a.keyRoundness,
             keyStrokeWidthDp = if (saved.borderWidthDp >= 0f) saved.borderWidthDp else a.keyStrokeWidthDp
         )
-        return if (overlaid == a) scheme
-            else scheme.copy(extended = scheme.extended.copy(advancedThemeOptions = overlaid))
+
+        // Per-geometry colour overrides (null = inherit). base.outline drives the key border;
+        // everything else lives on the extended scheme. keyboardBackgroundColor also clears the
+        // gradient so a chosen solid colour actually shows. The two suggestion-bar overrides ride
+        // dedicated ExtraColors fields the Compose action bar prefers.
+        var base = scheme.base
+        saved.keyBorderColor?.let { base = base.copy(outline = ComposeColor(it)) }
+
+        var ext = scheme.extended.copy(advancedThemeOptions = overlaid)
+        saved.fontColor?.let { ext = ext.copy(onKeyboardContainer = ComposeColor(it)) }
+        saved.secondaryFontColor?.let { ext = ext.copy(hintColor = ComposeColor(it)) }
+        saved.keyBackgroundColor?.let { ext = ext.copy(keyboardContainer = ComposeColor(it)) }
+        saved.functionalKeyBackgroundColor?.let { ext = ext.copy(keyboardContainerVariant = ComposeColor(it)) }
+        saved.keyboardBackgroundColor?.let {
+            ext = ext.copy(keyboardSurface = ComposeColor(it), keyboardSurfaceDim = ComposeColor(it), keyboardBackgroundGradient = null)
+        }
+        saved.suggestionBarColor?.let { ext = ext.copy(suggestionBarColorOverride = ComposeColor(it)) }
+        saved.suggestionTextColor?.let { ext = ext.copy(suggestionTextColorOverride = ComposeColor(it)) }
+
+        return if (base == scheme.base && ext == scheme.extended) scheme
+            else scheme.copy(base = base, extended = ext)
     }
 
     // True if two serialized per-geometry sizing blobs differ in any field that withPerKindLook()
-    // overlays onto the theme (font size / label weight / key roundness / border width). Used to
-    // decide whether a sizing change needs a drawable-provider rebuild or only a relayout.
+    // overlays onto the theme (font/hint/weight/roundness/border-width scales, or any colour). Used
+    // to decide whether a sizing change needs a drawable-provider + chrome rebuild or only a relayout.
     private fun lookFieldsDiffer(oldBlob: String?, newBlob: String?): Boolean {
         val a = oldBlob?.let { SavedKeyboardSizingSettings.fromJsonString(it) }
         val b = newBlob?.let { SavedKeyboardSizingSettings.fromJsonString(it) }
@@ -316,21 +347,32 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                 a.labelWeight != b.labelWeight ||
                 a.keyRoundness != b.keyRoundness ||
                 a.borderWidthDp != b.borderWidthDp ||
-                a.hintSizeMultiplier != b.hintSizeMultiplier
+                a.hintSizeMultiplier != b.hintSizeMultiplier ||
+                a.fontColor != b.fontColor ||
+                a.secondaryFontColor != b.secondaryFontColor ||
+                a.keyBackgroundColor != b.keyBackgroundColor ||
+                a.functionalKeyBackgroundColor != b.functionalKeyBackgroundColor ||
+                a.keyBorderColor != b.keyBorderColor ||
+                a.keyboardBackgroundColor != b.keyboardBackgroundColor ||
+                a.suggestionBarColor != b.suggestionBarColor ||
+                a.suggestionTextColor != b.suggestionTextColor
     }
 
     private fun updateDrawableProvider(colorScheme: KeyboardColorScheme) {
         activeColorScheme.value = colorScheme
-        drawableProvider = BasicThemeProvider(this, withPerKindLook(colorScheme))
+        val overlaid = withPerKindLook(colorScheme)
+        activeOverlaidScheme.value = overlaid
+        drawableProvider = BasicThemeProvider(this, overlaid)
+        lastProviderSizeState = currentSizeState.name
 
         updateNavigationBarVisibility()
         uixManager.onColorSchemeChanged()
     }
 
     override fun getDrawableProvider(): DynamicThemeProvider {
-        return drawableProvider ?: BasicThemeProvider(this, withPerKindLook(colorScheme)).let {
-            drawableProvider = it
-            it
+        return drawableProvider ?: withPerKindLook(colorScheme).let { overlaid ->
+            activeOverlaidScheme.value = overlaid
+            BasicThemeProvider(this, overlaid).also { drawableProvider = it }
         }
     }
 
@@ -369,18 +411,29 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
     }
 
+    // Geometry the drawable provider's per-kind look/colour overlay was last built for. onSizeUpdated
+    // compares it against the live geometry to know when the overlay is stale and must be rebuilt.
+    private var lastProviderSizeState: String? = null
+
     fun onSizeUpdated() {
         publishCurrentSizeState()
         uixManager.refreshActionBarHeight()
+
+        // A geometry change (rotate / fold) makes the baked-in per-geometry look/colour overlay stale.
+        // The orientation flag can lag the view resize, so detect the change by the geometry the
+        // provider was last built for and force a keyboard recreate — recreateKeyboard rebuilds the
+        // overlay for the new geometry. (Dimensions usually differ too, but force it regardless.)
+        val geometryChanged = currentSizeState.name != lastProviderSizeState
+
         val newSize = calculateSize() ?: return
-        val shouldInvalidateKeyboard = size.value?.let { oldSize ->
+        val shouldInvalidateKeyboard = (size.value?.let { oldSize ->
             when {
                 oldSize is FloatingKeyboardSize && newSize is FloatingKeyboardSize -> {
                     oldSize.width != newSize.width || oldSize.height != newSize.height
                 }
                 else -> !newSize.dimensionsSameAs(oldSize)
             }
-        } ?: true
+        } ?: true) || geometryChanged
 
         size.value = newSize
 
@@ -584,6 +637,11 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         latinIMELegacy.onConfigurationChanged(newConfig)
         super.onConfigurationChanged(newConfig)
         uixManager.updateLocaleOnCfgChanged()
+        // A configuration change (notably rotation) is a geometry change: republish the current size
+        // state + rebuild the per-geometry look/colour overlay. onConfigurationChanged is otherwise
+        // the one geometry-changing event that does NOT flow through onSizeUpdated, so without this
+        // the settings screen's per-geometry tracking (and edits) stay pinned to the old geometry.
+        onSizeUpdated()
     }
 
     override fun onInitializeInterface() {

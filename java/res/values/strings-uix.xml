@@ -713,5 +713,24 @@ Default is %1$s</string>
     <string name="kxkb_sizing_key_roundness">Key roundness</string>
     <string name="kxkb_sizing_split_width">Split width (landscape / unfolded)</string>
     <string name="kxkb_sizing_reset">Reset live sizing</string>
-    <string name="kxkb_sizing_reset_subtitle">Reset gaps, row heights, font sizes, roundness and suggestion bar for this geometry</string>
+    <string name="kxkb_sizing_reset_subtitle">Reset sizes, gaps, row heights, fonts, roundness, suggestion bar and colours for this geometry</string>
+
+    <!-- Per-geometry explainer shown at the top of the live sizing page. -->
+    <string name="kxkb_sizing_geometry_note">Everything on this page \u2014 sizes, gaps, row heights, fonts and colours \u2014 is stored separately for each screen geometry: portrait, landscape, and the unfolded inner display. Adjust them while you\u2019re in the geometry you want to change; each geometry keeps its own values and is unaffected by the others.</string>
+
+    <!-- kxkb per-geometry colour overrides -->
+    <string name="kxkb_color_section">Colours</string>
+    <string name="kxkb_color_inherited">Inherited</string>
+    <string name="kxkb_color_font">Key font</string>
+    <string name="kxkb_color_secondary">Secondary (hint) font</string>
+    <string name="kxkb_color_key_bg">Key background</string>
+    <string name="kxkb_color_functional_bg">Functional key background</string>
+    <string name="kxkb_color_border">Key border</string>
+    <string name="kxkb_color_keyboard_bg">Keyboard background</string>
+    <string name="kxkb_color_suggestion_bg">Suggestion bar background</string>
+    <string name="kxkb_color_suggestion_text">Suggestion font</string>
+    <string name="kxkb_color_alpha">Alpha</string>
+    <string name="kxkb_color_red">Red</string>
+    <string name="kxkb_color_green">Green</string>
+    <string name="kxkb_color_blue">Blue</string>
 </resources>

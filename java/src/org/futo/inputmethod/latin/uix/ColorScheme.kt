@@ -35,7 +35,13 @@ data class ExtraColors(
 
     val navigationBarColor: Color? = null,
     val navigationBarColorForTransparency: Color? = null,
-    val advancedThemeOptions: AdvancedThemeOptions
+    val advancedThemeOptions: AdvancedThemeOptions,
+
+    // Per-geometry kxkb overrides for the Compose suggestion bar (null = use the stock derivation).
+    // Kept separate because the bar background otherwise shares keyboardSurface with the keyboard
+    // background, and the suggestion text shares onSurface with other chrome.
+    val suggestionBarColorOverride: Color? = null,
+    val suggestionTextColorOverride: Color? = null
 )
 
 data class KeyboardColorScheme(

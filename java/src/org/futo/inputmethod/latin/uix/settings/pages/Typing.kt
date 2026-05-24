@@ -4,6 +4,8 @@ import android.content.Context
 import android.media.AudioManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,8 +45,10 @@ import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -280,13 +284,101 @@ val KxkbSizingResetMenu = UserSettingsMenu(
                         fontSizeMultiplier = -1f,
                         keyRoundness = -1f,
                         hintSizeMultiplier = -1f,
-                        splitWidthFraction = defaults.splitWidthFraction
+                        splitWidthFraction = defaults.splitWidthFraction,
+                        fontColor = null,
+                        secondaryFontColor = null,
+                        keyBackgroundColor = null,
+                        functionalKeyBackgroundColor = null,
+                        keyBorderColor = null,
+                        keyboardBackgroundColor = null,
+                        suggestionBarColor = null,
+                        suggestionTextColor = null
                     ).toJsonString()
                 )
             }
         )
     )
 )
+
+// One Alpha/Red/Green/Blue channel of a per-geometry colour, rendered with the same slider widget
+// as the size knobs. Reads its byte out of `effective` (the colour currently shown) and writes the
+// whole packed ARGB back: if this colour is still inheriting (current == null) the other three
+// channels are seeded from `inherited`, so the first drag promotes the inherited colour to an
+// explicit override rather than starting from black.
+@Composable
+private fun ColorChannelSlider(
+    label: String,
+    effective: Int,
+    current: Int?,
+    inherited: Int,
+    shift: Int,
+    onChange: (Int) -> Unit
+) {
+    SettingSliderForDataStoreItem(
+        title = label,
+        item = DataStoreItem(((effective ushr shift) and 0xFF).toFloat()) { v ->
+            val b = v.toInt().coerceIn(0, 255)
+            val base = current ?: inherited
+            onChange((base and (0xFF shl shift).inv()) or (b shl shift))
+        },
+        default = ((inherited ushr shift) and 0xFF).toFloat(),
+        range = 0f..255f,
+        transform = { it },
+        indicator = { it.toInt().toString() }
+    )
+}
+
+// One per-geometry colour override: a tappable header (title + live swatch) that expands to the four
+// channel sliders. `current` is the stored ARGB (null = inherit the theme); `inherited` is the
+// theme's effective colour, used for the swatch and as the seed on first edit. Channel edits write
+// the full ARGB through onChange, which drives LatinIME.withPerKindLook so the docked keyboard and
+// the suggestion bar recolour live.
+@Composable
+private fun ColorSetting(
+    title: String,
+    current: Int?,
+    inherited: Int,
+    onChange: (Int) -> Unit
+) {
+    val expanded = remember { mutableStateOf(false) }
+    val effective = current ?: inherited
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded.value = !expanded.value }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = CenterVertically
+    ) {
+        Text(
+            title,
+            style = Typography.Body.MediumMl,
+            color = LocalContentColor.current,
+            modifier = Modifier.weight(1f)
+        )
+        if (current == null) {
+            Text(
+                stringResource(R.string.kxkb_color_inherited),
+                style = Typography.SmallMl,
+                color = LocalContentColor.current.copy(alpha = 0.6f),
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+        Box(
+            Modifier
+                .size(48.dp, 28.dp)
+                .border(1.dp, LocalContentColor.current.copy(alpha = 0.4f))
+                .background(Color(effective))
+        )
+    }
+
+    if (expanded.value) {
+        ColorChannelSlider(stringResource(R.string.kxkb_color_alpha), effective, current, inherited, 24, onChange)
+        ColorChannelSlider(stringResource(R.string.kxkb_color_red), effective, current, inherited, 16, onChange)
+        ColorChannelSlider(stringResource(R.string.kxkb_color_green), effective, current, inherited, 8, onChange)
+        ColorChannelSlider(stringResource(R.string.kxkb_color_blue), effective, current, inherited, 0, onChange)
+    }
+}
 
 // kxkb live sizing-knob screen (Phase 1): docks the live keyboard like ResizeScreen and exposes
 // the five sizing sliders. Edits the per-geometry blob the docked keyboard is currently showing
@@ -352,6 +444,16 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
         blobItem.setValue(set(cur, v).toJsonString())
     }
 
+    // Whole-blob writer for the colour overrides (parallels floatItem; colours are packed ARGB Ints).
+    fun writeColor(set: (SavedKeyboardSizingSettings) -> SavedKeyboardSizingSettings) {
+        val cur = SavedKeyboardSizingSettings.fromJsonString(blobItem.value) ?: getDefaultSettingForKind(kind, context)
+        blobItem.setValue(set(cur).toJsonString())
+    }
+
+    // Active theme scheme — supplies each colour's inherited (default) value, shown in the swatch
+    // and used to seed the channel sliders until the user sets an explicit override.
+    val scheme = LocalKeyboardScheme.current
+
     // Geometry default, used as the neutral value for the overall "Keyboard height" slider
     // (heightMultiplier has no fixed neutral — it is device/geometry dependent).
     val defaultSizing = remember(kind) { getDefaultSettingForKind(kind, context) }
@@ -359,6 +461,13 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
     Box {
         ScrollableList {
             ScreenTitle(stringResource(R.string.kxkb_sizing_title), showBack = true, navController)
+
+            Text(
+                stringResource(R.string.kxkb_sizing_geometry_note),
+                style = Typography.SmallMl,
+                color = LocalContentColor.current.copy(alpha = 0.7f),
+                modifier = Modifier.padding(12.dp, 4.dp)
+            )
 
             Text(
                 stringResource(
@@ -448,6 +557,62 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     title = stringResource(R.string.kxkb_sizing_split_width),
                     item = floatItem({ it.splitWidthFraction }, { s, v -> s.copy(splitWidthFraction = v) }),
                     default = defaultSizing.splitWidthFraction, range = 0.4f..1.0f, transform = { it }, indicator = { "%.0f%%".format(it * 100) }
+                )
+
+                // ---- Colours (per-geometry; null = inherit the active theme) ----
+                Text(
+                    stringResource(R.string.kxkb_color_section),
+                    style = Typography.Body.MediumMl,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp)
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_font),
+                    current = parsed.fontColor,
+                    inherited = scheme.onKeyboardContainer.toArgb(),
+                    onChange = { v -> writeColor { it.copy(fontColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_secondary),
+                    current = parsed.secondaryFontColor,
+                    inherited = (scheme.hintColor ?: scheme.onSurfaceVariant).toArgb(),
+                    onChange = { v -> writeColor { it.copy(secondaryFontColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_key_bg),
+                    current = parsed.keyBackgroundColor,
+                    inherited = scheme.keyboardContainer.toArgb(),
+                    onChange = { v -> writeColor { it.copy(keyBackgroundColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_functional_bg),
+                    current = parsed.functionalKeyBackgroundColor,
+                    inherited = scheme.keyboardContainerVariant.toArgb(),
+                    onChange = { v -> writeColor { it.copy(functionalKeyBackgroundColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_border),
+                    current = parsed.keyBorderColor,
+                    inherited = scheme.outline.toArgb(),
+                    onChange = { v -> writeColor { it.copy(keyBorderColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_keyboard_bg),
+                    current = parsed.keyboardBackgroundColor,
+                    inherited = scheme.keyboardSurface.toArgb(),
+                    onChange = { v -> writeColor { it.copy(keyboardBackgroundColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_suggestion_bg),
+                    current = parsed.suggestionBarColor,
+                    inherited = scheme.keyboardSurface.toArgb(),
+                    onChange = { v -> writeColor { it.copy(suggestionBarColor = v) } }
+                )
+                ColorSetting(
+                    title = stringResource(R.string.kxkb_color_suggestion_text),
+                    current = parsed.suggestionTextColor,
+                    inherited = scheme.onSurface.toArgb(),
+                    onChange = { v -> writeColor { it.copy(suggestionTextColor = v) } }
                 )
             }
 

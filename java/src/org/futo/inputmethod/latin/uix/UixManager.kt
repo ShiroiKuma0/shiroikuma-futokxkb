@@ -1251,7 +1251,7 @@ class UixManager(private val latinIME: LatinIME) {
 
     @Composable
     private fun ProvidersAndWrapper(content: @Composable () -> Unit) {
-        UixThemeWrapper(latinIME.colorScheme) {
+        UixThemeWrapper(latinIME.overlaidColorScheme) {
             DataStoreCacheProvider {
                 CompositionLocalProvider(
                     LocalManager provides keyboardManagerForAction,
