@@ -221,6 +221,12 @@ data class LayoutEngine(
 
     private val bottomRegularKeyWidth = 0.1f * unsplitLayoutWidth
 
+    // Split snap: once the split is wide enough that the two halves would begin overlapping the
+    // duplicated middle column (split width past the "doubled column adjacent" point, ~maxCols/(maxCols+1)
+    // of the display), render the splittable rows continuous (un-split) and centred instead. This jumps
+    // straight from doubled-column-adjacent to a single merged column, skipping the partial-offset zone.
+    private val splitShouldMerge = isSplitLayout && (layoutWidth + regularKeyWidth > params.mId.mWidth)
+
 
     private fun computeRegularKeyWidth(layoutWidth: Int = this.layoutWidth): Float {
         return keyboard.overrideWidths[KeyWidth.Regular]?.let { it * layoutWidth.toFloat() } ?: run {
@@ -786,10 +792,17 @@ data class LayoutEngine(
 
     private fun addRow(idx: Int, row: LayoutRow, y: Int) {
         if(isSplitLayout && row.splittable) {
-            val splitRows = row.entries.splitRow()
+            if(splitShouldMerge) {
+                // Merged/continuous: lay the un-split row out once, centred. Un-splitting drops the
+                // duplicated middle column, so the two halves become one continuous column.
+                val offset = ((params.mId.mWidth - layoutWidth) / 2.0f).coerceAtLeast(0.0f)
+                addRow(idx, row.entries, offset, y, row.height.toInt())
+            } else {
+                val splitRows = row.entries.splitRow()
 
-            addRowAlignLeft(idx, splitRows.first,   y, row.height.toInt())
-            addRowAlignRight(idx, splitRows.second, y, row.height.toInt())
+                addRowAlignLeft(idx, splitRows.first,   y, row.height.toInt())
+                addRowAlignRight(idx, splitRows.second, y, row.height.toInt())
+            }
         } else {
             addRowAlignLeft(idx, row.entries, y, row.height.toInt())
         }
