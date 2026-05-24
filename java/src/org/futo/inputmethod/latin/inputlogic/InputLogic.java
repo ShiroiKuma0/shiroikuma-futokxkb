@@ -562,7 +562,7 @@ public final class InputLogic {
             if (!event.isFunctionalKeyEvent() && event.mCodePoint >= Constants.CODE_SPACE) {
                 return handleCtrlComboEvent(settingsValues, event, keyboardShiftMode);
             }
-            mCtrlActive = false;
+            setCtrlActive(false);
         }
 
         if(settingsValues.needsToLookupSuggestions()) {
@@ -874,7 +874,7 @@ public final class InputLogic {
             case Constants.CODE_CTRL:
                 // One-shot Ctrl modifier: arm it (or cancel if already armed). The next
                 // printable key is consumed in onCodeInput and sent as a Ctrl+<key> event.
-                mCtrlActive = !mCtrlActive;
+                setCtrlActive(!mCtrlActive);
                 break;
             case Constants.CODE_ACTION_NEXT:
                 performEditorAction(EditorInfo.IME_ACTION_NEXT);
@@ -931,9 +931,15 @@ public final class InputLogic {
      * real Ctrl+<key> hardware key event (so terminals, vim, emacs, etc. receive ^C, ^D, ...)
      * instead of typing the character. Disarms the modifier.
      */
+    /** Set the armed state of the one-shot Ctrl modifier and update the on-screen highlight. */
+    private void setCtrlActive(final boolean active) {
+        mCtrlActive = active;
+        KeyboardSwitcher.getInstance().setCtrlActive(active);
+    }
+
     private InputTransaction handleCtrlComboEvent(final SettingsValues settingsValues,
             final Event event, final int keyboardShiftMode) {
-        mCtrlActive = false;
+        setCtrlActive(false);
         // Flush any in-progress composition so the control event lands at the right spot.
         if (mWordComposer.isComposingWord()) {
             commitTyped(settingsValues, "");

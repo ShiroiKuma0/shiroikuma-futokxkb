@@ -38,6 +38,8 @@ import org.futo.inputmethod.latin.uix.DynamicThemeProvider;
 import org.futo.inputmethod.latin.R;
 import org.futo.inputmethod.latin.common.Constants;
 import org.futo.inputmethod.latin.uix.theme.KeyDrawingConfiguration;
+import org.futo.inputmethod.latin.uix.VisualStyleDescriptor;
+import org.futo.inputmethod.v2keyboard.KeyVisualStyle;
 import org.futo.inputmethod.latin.utils.TypefaceUtils;
 
 import java.util.HashSet;
@@ -104,6 +106,9 @@ public class KeyboardView extends View {
     // TODO: Consider having a base keyboard object to make this @Nonnull
     @Nullable
     private Keyboard mKeyboard;
+    // Highlight state for the one-shot Ctrl modifier: when armed, the Ctrl key is drawn
+    // with the bright StickyOn style (same visual language as shift-lock).
+    private boolean mCtrlActive = false;
     @Nonnull
     private final KeyDrawParams mKeyDrawParams = new KeyDrawParams();
 
@@ -357,7 +362,25 @@ public class KeyboardView extends View {
                 Math.min(key.getHeight(), key.getWidth()), attr);
         params.mAnimAlpha = Constants.Color.ALPHA_OPAQUE;
 
-        final KeyDrawingConfiguration kdc = mDrawableProvider.selectKeyDrawingConfiguration(mKeyboard, params, key);
+        KeyDrawingConfiguration kdc = mDrawableProvider.selectKeyDrawingConfiguration(mKeyboard, params, key);
+        if (mCtrlActive && key.getCode() == Constants.CODE_CTRL) {
+            // Armed one-shot Ctrl modifier: repaint with the bright StickyOn style so it's
+            // clear the next key press will be sent as Ctrl+<key>.
+            final VisualStyleDescriptor sticky =
+                    mDrawableProvider.getKeyStyleDescriptor(KeyVisualStyle.StickyOn);
+            final Drawable stickyBg = sticky.getBackgroundDrawable();
+            kdc = new KeyDrawingConfiguration(
+                    stickyBg != null ? stickyBg : kdc.getBackground(),
+                    kdc.getBackgroundPadding(),
+                    kdc.getIcon(),
+                    kdc.getHintIcon(),
+                    kdc.getLabel(),
+                    kdc.getHintLabel(),
+                    sticky.getForegroundColor(),
+                    kdc.getHintColor(),
+                    kdc.getTextSize(),
+                    kdc.getHintSize());
+        }
         final Drawable background = kdc.getBackground();
         if (background != null) {
             onDrawKeyBackground(key, canvas, background);
@@ -619,6 +642,23 @@ public class KeyboardView extends View {
      * @param key key in the attached {@link Keyboard}.
      * @see #invalidateAllKeys
      */
+    /** Arm/disarm the Ctrl-modifier highlight and repaint just the Ctrl key(s). */
+    public void setCtrlActive(final boolean active) {
+        if (mCtrlActive == active) {
+            return;
+        }
+        mCtrlActive = active;
+        final Keyboard keyboard = getKeyboard();
+        if (keyboard == null) {
+            return;
+        }
+        for (final Key key : keyboard.getSortedKeys()) {
+            if (key.getCode() == Constants.CODE_CTRL) {
+                invalidateKey(key);
+            }
+        }
+    }
+
     public void invalidateKey(@Nullable final Key key) {
         if (mInvalidateAllKeys || key == null) {
             return;

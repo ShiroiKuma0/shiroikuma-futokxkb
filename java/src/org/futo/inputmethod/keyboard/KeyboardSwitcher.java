@@ -87,6 +87,13 @@ public final class KeyboardSwitcher implements SwitchActions {
         return sInstance;
     }
 
+    /** Forward the Ctrl-modifier armed state to the keyboard view for the highlight. */
+    public void setCtrlActive(final boolean active) {
+        if (mKeyboardView != null) {
+            mKeyboardView.setCtrlActive(active);
+        }
+    }
+
     private KeyboardSwitcher() {
         // Intentional empty constructor for singleton.
     }
