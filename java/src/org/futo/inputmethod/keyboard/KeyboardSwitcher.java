@@ -54,6 +54,7 @@ import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetKt;
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2;
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2Params;
 import org.futo.inputmethod.v2keyboard.KeyboardSizingCalculator;
+import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings;
 
 import java.util.List;
 import java.util.Locale;
@@ -160,6 +161,10 @@ public final class KeyboardSwitcher implements SwitchActions {
             return;
         }
 
+        // Phase 0b live sizing knobs: read the current geometry's saved factors once and feed
+        // them through to LayoutEngine. Neutral 1.0 defaults => visually identical until set.
+        final SavedKeyboardSizingSettings savedSizing = sizingCalculator.getSavedSettings();
+
         final KeyboardLayoutSetV2Params params = new KeyboardLayoutSetV2Params(
                 computedSize,
                 layoutSetName,
@@ -173,7 +178,10 @@ public final class KeyboardSwitcher implements SwitchActions {
                 settingsValues.mIsUsingAlternativePeriodKey,
                 sizingCalculator.calculateGap(),
                 settingsValues.mShowsActionKey ? settingsValues.mActionKeyId : null,
-                LongPressKeySettings.load(mThemeContext)
+                LongPressKeySettings.load(mThemeContext),
+                savedSizing.getHorizontalGapFactor(),
+                savedSizing.getVerticalGapFactor(),
+                savedSizing.getBottomRowHeightFactor()
         );
 
         try {

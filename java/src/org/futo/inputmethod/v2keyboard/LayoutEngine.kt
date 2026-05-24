@@ -103,6 +103,13 @@ data class LayoutParams(
     val gap: Dp,
     val standardRowHeight: Double,
     val element: KeyboardLayoutElement,
+    // Phase 0b live sizing knobs, threaded from SavedKeyboardSizingSettings via
+    // KeyboardLayoutSetV2Params. Neutral 1.0 = exact no-op. topRowHeightFactor is NOT
+    // threaded here: in both bottom-row modes the top rows simply fill whatever total
+    // calculate() produced, so the top factor already takes effect through the grown total.
+    val horizontalGapFactor: Float = 1f,
+    val verticalGapFactor: Float = 1f,
+    val bottomRowHeightFactor: Float = 1f,
 )
 
 data class LayoutEngine(
@@ -111,8 +118,8 @@ data class LayoutEngine(
     val params: KeyboardParams,
     val layoutParams: LayoutParams
 ) {
-    val horizontalGap = layoutParams.gap
-    val verticalGap = layoutParams.gap * 2
+    val horizontalGap = layoutParams.gap * layoutParams.horizontalGapFactor
+    val verticalGap = layoutParams.gap * 2 * layoutParams.verticalGapFactor
 
     val effectiveRows = keyboard.getEffectiveRows(params.mId.mNumberRowMode)
 
@@ -145,10 +152,10 @@ data class LayoutEngine(
     private val horizontalGapPx = (horizontalGap.value * density)
     private val verticalGapPx = (verticalGap.value * density)
     private val rowHeightPx = computeRowHeight()
-    private val bottomRowHeightPx = when(keyboard.bottomRowHeightMode) {
+    private val bottomRowHeightPx = (when(keyboard.bottomRowHeightMode) {
         BottomRowHeightMode.Fixed -> layoutParams.standardRowHeight
         BottomRowHeightMode.Flexible -> rowHeightPx
-    }
+    }) * layoutParams.bottomRowHeightFactor.toDouble()
 
     private fun computeRowHeight(): Double {
         val normalKeyboardHeight = totalRowHeight

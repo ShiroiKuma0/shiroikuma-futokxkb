@@ -188,6 +188,21 @@ data class SavedKeyboardSizingSettings(
     val labelWeight: Int = -1,
     val keyRoundness: Float = -1f,
     val borderWidthDp: Float = -1f,
+
+    // Per-geometry sizing knobs (Multiling-style live knobs, Phase 0b). All are *factors*
+    // with a neutral default of 1.0, so old saved blobs and not-yet-configured geometries
+    // size exactly as before. Factors (not absolutes) are used so they ride on top of the
+    // existing adaptive gap / theme-aware zero-gap and the computed row heights without
+    // clobbering them: 1.0 is an exact no-op.
+    //  - horizontal/vertical gap factors multiply the base gap in LayoutEngine.
+    //  - top/bottom row-height factors grow the keyboard's total height (calculate()) and,
+    //    for the bottom factor, pin the bottom row's share in LayoutEngine.
+    //  - suggestion-bar factor multiplies the suggestion-bar height.
+    val horizontalGapFactor: Float = 1f,
+    val verticalGapFactor: Float = 1f,
+    val topRowHeightFactor: Float = 1f,
+    val bottomRowHeightFactor: Float = 1f,
+    val suggestionBarHeightFactor: Float = 1f,
 ) {
     fun toJsonString(): String =
         Json.encodeToString(this)
@@ -483,7 +498,16 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     else -> 0.0
                 }
 
-        val recommendedHeight = numRows * singularRowHeight + padding.bottom
+        // Phase 0b: grow the total by the per-geometry row-height factors. Written as an
+        // additive delta off the original numRows so the neutral case (both factors 1.0) is
+        // a bit-exact no-op: topUnits * 0f + 0f == 0.0, leaving scaledNumRows == numRows.
+        // topUnits = every row except the single bottom row; the bottom row contributes 1.0.
+        // (The HALF_OPENED forced-50% case and Floating mode keep the original numRows below.)
+        val topUnits = (numRows - 1.0).coerceAtLeast(0.0)
+        val scaledNumRows = numRows +
+                topUnits * (savedSettings.topRowHeightFactor.guardNaN(1.0f) - 1.0f) +
+                (savedSettings.bottomRowHeightFactor.guardNaN(1.0f) - 1.0f)
+        val recommendedHeight = scaledNumRows * singularRowHeight + padding.bottom
 
         val foldState = foldStateProvider.foldState.feature
 
@@ -584,7 +608,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
     }
 
     fun calculateSuggestionBarHeightDp(): Float {
-        return 40.0f
+        return 40.0f * getSavedSettings().suggestionBarHeightFactor.guardNaN(1.0f)
     }
 
     fun calculateTotalActionBarHeightPx(): Int =
