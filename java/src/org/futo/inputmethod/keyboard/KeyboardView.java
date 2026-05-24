@@ -41,6 +41,10 @@ import org.futo.inputmethod.latin.uix.theme.KeyDrawingConfiguration;
 import org.futo.inputmethod.latin.uix.VisualStyleDescriptor;
 import org.futo.inputmethod.v2keyboard.KeyVisualStyle;
 import org.futo.inputmethod.latin.utils.TypefaceUtils;
+import org.futo.inputmethod.v2keyboard.Direction;
+import org.futo.inputmethod.v2keyboard.KeyDataKt;
+import kotlin.Pair;
+import java.util.Map;
 
 import java.util.HashSet;
 
@@ -429,6 +433,13 @@ public class KeyboardView extends View {
         final float centerX = keyWidth * 0.5f;
         final float centerY = keyHeight * 0.5f;
 
+        // kxkb 4D: when key sliding is on, a flick key shows its eight directional labels on its
+        // face (drawn at the end of this method). The single corner hint and the "..." popup hint
+        // are suppressed on those keys so they don't collide with the corner directionals.
+        final Map<Direction, Key> atRestFlickKeys =
+                PointerTracker.isKeySlidingEnabled() ? key.getFlickKeys() : null;
+        final boolean drawFlickFace = atRestFlickKeys != null && !atRestFlickKeys.isEmpty();
+
         // Draw key label.
         final Drawable icon = kdc.getIcon();
         final Drawable hintIcon = kdc.getHintIcon();
@@ -495,7 +506,7 @@ public class KeyboardView extends View {
 
         // Draw hint label.
         final String hintLabel = kdc.getHintLabel();
-        if (hintLabel != null) {
+        if (hintLabel != null && !drawFlickFace) {
             paint.setTextSize(kdc.getHintSize() * mDrawableProvider.getKeyHintScale());
             paint.setColor(kdc.getHintColor());
 
@@ -533,7 +544,7 @@ public class KeyboardView extends View {
             final float adjustmentY = params.mHintLabelVerticalAdjustment * labelCharHeight;
             canvas.drawText(
                     hintLabel, 0, hintLabel.length(), hintX, hintBaseline + adjustmentY, paint);
-        } else if(hintIcon != null) {
+        } else if(hintIcon != null && !drawFlickFace) {
             final float size = kdc.getHintSize() * mDrawableProvider.getKeyHintScale();
 
             int iconWidth = (int)size;
@@ -579,9 +590,75 @@ public class KeyboardView extends View {
             drawIcon(canvas, icon, iconX, iconY, iconWidth, iconHeight);
         }
 
-        if (key.getHasPopupHint() && !key.getMoreKeys().isEmpty()) {
+        if (key.getHasPopupHint() && !key.getMoreKeys().isEmpty() && !drawFlickFace) {
             drawKeyPopupHint(key, canvas, paint, params);
         }
+
+        if (drawFlickFace) {
+            drawAtRestFlickLabels(key, canvas, paint, params, kdc, keyWidth, keyHeight, centerX, centerY);
+        }
+    }
+
+    // kxkb 4D: at-rest directional-label positions, as fractions of the key dimension from center,
+    // pushed from the current geometry's blob by LatinIME.withPerKindLook (top/bottom and left/right
+    // independent). Defaults match SavedKeyboardSizingSettings so the look is right before first push.
+    private static float sFlickTopOff = 0.30f;
+    private static float sFlickBotOff = 0.40f;
+    private static float sFlickLeftOff = 0.34f;
+    private static float sFlickRightOff = 0.34f;
+    public static void setFlickLabelOffsets(final float top, final float bottom,
+            final float left, final float right) {
+        sFlickTopOff = top;
+        sFlickBotOff = bottom;
+        sFlickLeftOff = left;
+        sFlickRightOff = right;
+    }
+
+    // kxkb 4D: draw a flick key's eight directional labels on its face, mirroring the hold-popup
+    // (KeyPreviewView.drawFlickKeys) but snapped to a Multiling-style 3x3 grid. The primary stays
+    // centered (drawn above); the directionals sit at column/row offsets given by the per-geometry
+    // sliders, sized by the secondary-font (hint-size) knob. Empty directions draw nothing.
+    private void drawAtRestFlickLabels(@Nonnull final Key key, @Nonnull final Canvas canvas,
+            @Nonnull final Paint paint, @Nonnull final KeyDrawParams params,
+            @Nonnull final KeyDrawingConfiguration kdc, final int keyWidth, final int keyHeight,
+            final float centerX, final float centerY) {
+        final Map<Direction, Key> flickKeys = key.getFlickKeys();
+        if (flickKeys == null || flickKeys.isEmpty()) {
+            return;
+        }
+
+        paint.setTextSize(kdc.getHintSize() * mDrawableProvider.getKeyHintScale());
+        paint.setColor(kdc.getHintColor());
+        paint.setTypeface(key.selectHintTypeface(mDrawableProvider, params));
+        paint.setTextAlign(Align.CENTER);
+        blendAlpha(paint, params.mAnimAlpha);
+
+        // 3x3 grid placement (Multiling-style): snap each direction to the sign of its vector, then
+        // place columns/rows by the per-geometry offsets (left/right and top/bottom independent), so
+        // the top three share a horizontal line, the bottom three another, diagonals in the corners.
+        final float charHeight = TypefaceUtils.getReferenceCharHeight(paint);
+        final float cx = centerX;
+        final float cy = centerY + charHeight / 2.0f;
+
+        for (final Map.Entry<Direction, Key> entry : flickKeys.entrySet()) {
+            final Key target = entry.getValue();
+            if (target == null) {
+                continue;
+            }
+            final String label = target.getPreviewLabel();
+            if (label == null || label.isEmpty()) {
+                continue;
+            }
+            final Pair<Double, Double> vec = KeyDataKt.toVector(entry.getKey());
+            final double sx = Math.signum(vec.getFirst());   // +1 = left column, -1 = right column
+            final double sy = Math.signum(vec.getSecond());  // +1 = top row, -1 = bottom row
+            final float x = sx > 0 ? cx - sFlickLeftOff * keyWidth
+                    : (sx < 0 ? cx + sFlickRightOff * keyWidth : cx);
+            final float y = sy > 0 ? cy - sFlickTopOff * keyHeight
+                    : (sy < 0 ? cy + sFlickBotOff * keyHeight : cy);
+            canvas.drawText(label, x, y, paint);
+        }
+        paint.setTextScaleX(1.0f);
     }
 
     // Draw popup hint "..." at the bottom right corner of the key.

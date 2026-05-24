@@ -305,6 +305,14 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
      */
     private fun withPerKindLook(scheme: KeyboardColorScheme): KeyboardColorScheme {
         val saved = sizingCalculator.getSavedSettings()
+
+        // kxkb 4D: push the per-geometry at-rest directional-label offsets to the draw path. Done
+        // here because withPerKindLook runs on every provider (re)build, including on geometry change.
+        org.futo.inputmethod.keyboard.KeyboardView.setFlickLabelOffsets(
+            saved.flickLabelTopOffset, saved.flickLabelBottomOffset,
+            saved.flickLabelLeftOffset, saved.flickLabelRightOffset
+        )
+
         val a = scheme.extended.advancedThemeOptions
         val overlaid = a.copy(
             keyLetterScale = if (saved.fontSizeMultiplier >= 0f) saved.fontSizeMultiplier else a.keyLetterScale,
@@ -348,6 +356,10 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                 a.keyRoundness != b.keyRoundness ||
                 a.borderWidthDp != b.borderWidthDp ||
                 a.hintSizeMultiplier != b.hintSizeMultiplier ||
+                a.flickLabelTopOffset != b.flickLabelTopOffset ||
+                a.flickLabelBottomOffset != b.flickLabelBottomOffset ||
+                a.flickLabelLeftOffset != b.flickLabelLeftOffset ||
+                a.flickLabelRightOffset != b.flickLabelRightOffset ||
                 a.fontColor != b.fontColor ||
                 a.secondaryFontColor != b.secondaryFontColor ||
                 a.keyBackgroundColor != b.keyBackgroundColor ||

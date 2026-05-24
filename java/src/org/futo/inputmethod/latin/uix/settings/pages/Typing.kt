@@ -546,6 +546,30 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     ),
                     default = 1.0f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
                 )
+                // kxkb 4D: at-rest directional-label grid positions, as fractions of the key from
+                // center. Top/bottom and left/right independent (so the bottom row can sit lower than
+                // the top sits high). Only visible while key sliding is on. Fed to KeyboardView via
+                // withPerKindLook -> setFlickLabelOffsets.
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_flick_top),
+                    item = floatItem({ it.flickLabelTopOffset }, { s, v -> s.copy(flickLabelTopOffset = v) }),
+                    default = 0.30f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_flick_bottom),
+                    item = floatItem({ it.flickLabelBottomOffset }, { s, v -> s.copy(flickLabelBottomOffset = v) }),
+                    default = 0.40f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_flick_left),
+                    item = floatItem({ it.flickLabelLeftOffset }, { s, v -> s.copy(flickLabelLeftOffset = v) }),
+                    default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_flick_right),
+                    item = floatItem({ it.flickLabelRightOffset }, { s, v -> s.copy(flickLabelRightOffset = v) }),
+                    default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                )
                 // Key corner roundness (0 = square, 1 = theme max). Stored -1 = inherit theme; the
                 // slider shows the effective value (HighContrastYellow uses 0 = square until set)
                 // and writes an absolute value. Feeds keyRoundness via withPerKindLook.

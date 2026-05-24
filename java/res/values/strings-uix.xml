@@ -719,6 +719,10 @@ Default is %1$s</string>
     <string name="kxkb_sizing_suggestion_bar_height">Suggestion bar height</string>
     <string name="kxkb_sizing_key_font_size">Key font size</string>
     <string name="kxkb_sizing_secondary_text_size">Secondary text size</string>
+    <string name="kxkb_sizing_flick_top">4D label: top row position</string>
+    <string name="kxkb_sizing_flick_bottom">4D label: bottom row position</string>
+    <string name="kxkb_sizing_flick_left">4D label: left column position</string>
+    <string name="kxkb_sizing_flick_right">4D label: right column position</string>
     <string name="kxkb_sizing_key_roundness">Key roundness</string>
     <string name="kxkb_sizing_split_width">Split width (landscape / unfolded)</string>
     <string name="kxkb_sizing_reset">Reset live sizing</string>

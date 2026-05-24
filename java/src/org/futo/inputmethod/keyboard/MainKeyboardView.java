@@ -575,6 +575,9 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
 
     public void setKeySlidingEnabled(final boolean value) {
         PointerTracker.setKeySlidingEnabled(value);
+        // Redraw so the at-rest 4D labels appear/disappear immediately on toggle, instead of only
+        // after the next touch triggers a redraw.
+        invalidateAllKeys();
     }
 
     public void setGestureHandlingEnabledByUser(final boolean isGestureHandlingEnabledByUser,

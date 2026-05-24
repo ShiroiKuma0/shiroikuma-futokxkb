@@ -557,10 +557,13 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
         .width(width)
         .fillMaxHeight()
 
-    val contentCol = LocalKeyboardScheme.current.onBackground
+    val active = action.activeStateProvider?.invoke() ?: false
+    val contentCol = if (active) LocalKeyboardScheme.current.onPrimary
+        else LocalKeyboardScheme.current.onBackground
 
     Box(modifier = modifier
         .clip(CircleShape)
+        .background(if (active) LocalKeyboardScheme.current.primary else Color.Transparent)
         .combinedClickable(
             onLongClick = action.altPressImpl?.let { { onLongSelect(action) } },
             onClick = { onSelect(action) }), contentAlignment = Center) {
@@ -576,8 +579,11 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (Action) -> Unit) {
-    val bgCol = LocalKeyboardScheme.current.keyboardContainer
-    val fgCol = LocalKeyboardScheme.current.onKeyboardContainer
+    val active = action.activeStateProvider?.invoke() ?: false
+    val bgCol = if (active) LocalKeyboardScheme.current.primary
+        else LocalKeyboardScheme.current.keyboardContainer
+    val fgCol = if (active) LocalKeyboardScheme.current.onPrimary
+        else LocalKeyboardScheme.current.onKeyboardContainer
 
     val circleRadius = with(LocalDensity.current) {
         16.dp.toPx()

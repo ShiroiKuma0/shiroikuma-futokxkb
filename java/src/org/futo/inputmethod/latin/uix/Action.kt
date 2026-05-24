@@ -187,6 +187,11 @@ data class Action(
     val persistentStateInitialization: PersistentStateInitialization = PersistentStateInitialization.OnActionTrigger,
     val altPressImpl: ((KeyboardManagerForAction, PersistentActionState?) -> Unit)? = null,
 
+    // kxkb: optional reactive hint that the action is in an "on" state (e.g. the key-sliding
+    // toggle). When it returns true, the action bar accent-tints the icon. Composable so it can
+    // read a pref/DataStore and recompose live as the state flips.
+    val activeStateProvider: (@Composable () -> Boolean)? = null,
+
     val shownInEditor: Boolean = true,
 
     val settingsMenu: UserSettingsMenu? = null,

@@ -191,6 +191,15 @@ data class SavedKeyboardSizingSettings(
     // Scale for the secondary (hint) characters drawn on keys. -1 = inherit theme; >= 0 overrides.
     val hintSizeMultiplier: Float = -1f,
 
+    // Per-geometry at-rest 4D directional-label positions, as fractions of the key dimension from
+    // center. Top/bottom are independent (so the bottom row can sit lower than the top sits high),
+    // as are left/right. Defaults give a Multiling-style 3x3 grid; older saved blobs pick these up
+    // via the serializer defaults. Read by LatinIME.withPerKindLook -> KeyboardView.drawAtRestFlickLabels.
+    val flickLabelTopOffset: Float = 0.30f,
+    val flickLabelBottomOffset: Float = 0.40f,
+    val flickLabelLeftOffset: Float = 0.34f,
+    val flickLabelRightOffset: Float = 0.34f,
+
     // Per-geometry colour overrides — packed ARGB Int (0xAARRGGBB); null = inherit the theme.
     // LatinIME.withPerKindLook overlays any non-null value onto BOTH the key-drawing provider's
     // scheme (font / hint / key bg / functional-key bg / border / keyboard bg) AND the Compose

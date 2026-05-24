@@ -217,6 +217,9 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     public static void setKeySlidingEnabled(final boolean enabled) {
         sKeySlidingEnabled = enabled;
     }
+    public static boolean isKeySlidingEnabled() {
+        return sKeySlidingEnabled;
+    }
 
     public static PointerTracker getPointerTracker(final int id) {
         final ArrayList<PointerTracker> trackers = sTrackers;
