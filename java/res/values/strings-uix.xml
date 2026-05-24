@@ -709,6 +709,7 @@ Default is %1$s</string>
     <string name="kxkb_sizing_bottom_row_height">Bottom row</string>
     <string name="kxkb_sizing_suggestion_bar_height">Suggestion bar height</string>
     <string name="kxkb_sizing_key_font_size">Key font size</string>
+    <string name="kxkb_sizing_key_roundness">Key roundness</string>
     <string name="kxkb_sizing_reset">Reset live sizing</string>
-    <string name="kxkb_sizing_reset_subtitle">Reset gaps, row heights, font size and suggestion bar for this geometry</string>
+    <string name="kxkb_sizing_reset_subtitle">Reset gaps, row heights, font size, roundness and suggestion bar for this geometry</string>
 </resources>

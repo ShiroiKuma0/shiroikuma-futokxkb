@@ -277,7 +277,8 @@ val KxkbSizingResetMenu = UserSettingsMenu(
                         topRowHeightFactor = 1f,
                         bottomRowHeightFactor = 1f,
                         suggestionBarHeightFactor = 1f,
-                        fontSizeMultiplier = -1f
+                        fontSizeMultiplier = -1f,
+                        keyRoundness = -1f
                     ).toJsonString()
                 )
             }
@@ -410,6 +411,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                         { s, v -> s.copy(fontSizeMultiplier = v) }
                     ),
                     default = 1.4f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                // Key corner roundness (0 = square, 1 = theme max). Stored -1 = inherit theme; the
+                // slider shows the effective value (HighContrastYellow uses 0 = square until set)
+                // and writes an absolute value. Feeds keyRoundness via withPerKindLook.
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_key_roundness),
+                    item = floatItem(
+                        { if (it.keyRoundness >= 0f) it.keyRoundness else 0f },
+                        { s, v -> s.copy(keyRoundness = v) }
+                    ),
+                    default = 0f, range = 0f..5f, transform = { it }, indicator = { "%.2f".format(it) }
                 )
                 SettingSliderForDataStoreItem(
                     title = stringResource(R.string.kxkb_sizing_suggestion_bar_height),
