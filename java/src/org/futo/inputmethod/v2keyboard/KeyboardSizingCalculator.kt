@@ -213,7 +213,8 @@ fun getDefaultSettingForKind(kind: KeyboardSizeSettingKind, context: Context): S
                 }
 
     val extraSidePadding = when {
-        minDimDp > 600.dp -> 24.dp
+        // Full-width keyboard: no extra side inset on large screens (BFU / unresized default).
+        minDimDp > 600.dp -> 0.dp
         else -> 0.dp
     }
 

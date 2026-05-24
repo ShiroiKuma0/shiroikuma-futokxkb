@@ -42,6 +42,7 @@ import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
 import org.futo.inputmethod.latin.uix.theme.presets.ClassicMaterialDark
 import org.futo.inputmethod.v2keyboard.LayoutManager
+import org.futo.inputmethod.v2keyboard.OldKeyboardHeightMultiplierSetting
 import java.io.File
 
 // Used before first unlock (direct boot)
@@ -51,7 +52,10 @@ private object DefaultDataStore : DataStore<Preferences> {
         SubtypesSetting.key to setOf("en_US:KeyboardLayoutSet=kxkb"),
         THEME_KEY.key to "HighContrastYellow",
         KeyBordersSetting.key to true,
-        KeyHintsSetting.key to true
+        KeyHintsSetting.key to true,
+        // Taller keyboard before first unlock (computed default uses this; counters the
+        // 0.8 large-screen factor on the unfolded Mate XT). Post-unlock uses your own resize.
+        OldKeyboardHeightMultiplierSetting.key to 1.4f
     )
 
     var subtypesInitialized = false
