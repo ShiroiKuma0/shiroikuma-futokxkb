@@ -101,6 +101,9 @@ public final class InputLogic {
     private final RecapitalizeStatus mRecapitalizeStatus = new RecapitalizeStatus();
 
     private int mDeleteCount;
+    // One-shot Ctrl modifier: armed by the Ctrl key, consumed by the next printable key
+    // (which is then sent as a real Ctrl+<key> hardware event instead of being typed).
+    private boolean mCtrlActive = false;
     private long mLastKeyTime;
     public final TreeSet<Long> mCurrentlyPressedHardwareKeys = new TreeSet<>();
 
@@ -552,6 +555,16 @@ public final class InputLogic {
             final int currentKeyboardScriptId) {
         mWordBeingCorrectedByCursor = null;
 
+        // Ctrl modifier (one-shot): if armed, route the next printable key as a real
+        // Ctrl+<key> hardware key event (terminals/vim/emacs) instead of typing it. A
+        // functional key or a second Ctrl press cancels the armed state.
+        if (mCtrlActive && event.mKeyCode != Constants.CODE_CTRL) {
+            if (!event.isFunctionalKeyEvent() && event.mCodePoint >= Constants.CODE_SPACE) {
+                return handleCtrlComboEvent(settingsValues, event, keyboardShiftMode);
+            }
+            mCtrlActive = false;
+        }
+
         if(settingsValues.needsToLookupSuggestions()) {
             if (mLastEvents.size() >= 8) mLastEvents.removeFirst();
             if(event.mKeyCode == Constants.CODE_DELETE) {
@@ -858,6 +871,11 @@ public final class InputLogic {
                 // Send a real hardware Escape key event (for terminals, vim/emacs, etc.).
                 sendDownUpKeyEvent(KeyEvent.KEYCODE_ESCAPE, 0);
                 break;
+            case Constants.CODE_CTRL:
+                // One-shot Ctrl modifier: arm it (or cancel if already armed). The next
+                // printable key is consumed in onCodeInput and sent as a Ctrl+<key> event.
+                mCtrlActive = !mCtrlActive;
+                break;
             case Constants.CODE_ACTION_NEXT:
                 performEditorAction(EditorInfo.IME_ACTION_NEXT);
                 break;
@@ -908,6 +926,53 @@ public final class InputLogic {
      * @param event The event to handle.
      * @param inputTransaction The transaction in progress.
      */
+    /**
+     * Handle a printable key pressed while the one-shot Ctrl modifier is armed: send it as a
+     * real Ctrl+<key> hardware key event (so terminals, vim, emacs, etc. receive ^C, ^D, ...)
+     * instead of typing the character. Disarms the modifier.
+     */
+    private InputTransaction handleCtrlComboEvent(final SettingsValues settingsValues,
+            final Event event, final int keyboardShiftMode) {
+        mCtrlActive = false;
+        // Flush any in-progress composition so the control event lands at the right spot.
+        if (mWordComposer.isComposingWord()) {
+            commitTyped(settingsValues, "");
+        }
+        mConnection.send();
+        final int keyCode = androidKeyCodeForCodePoint(event.mCodePoint);
+        if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
+            sendDownUpKeyEvent(keyCode, KeyEvent.META_CTRL_ON | KeyEvent.META_CTRL_LEFT_ON);
+        }
+        final InputTransaction inputTransaction = new InputTransaction(settingsValues, event,
+                SystemClock.uptimeMillis(), mSpaceState,
+                getActualCapsMode(settingsValues, keyboardShiftMode));
+        inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
+        inputTransaction.setRequiresUpdateSuggestions();
+        return inputTransaction;
+    }
+
+    /** Map a printable code point to the Android KEYCODE_* used for a Ctrl+<key> combo. */
+    private static int androidKeyCodeForCodePoint(final int codePoint) {
+        final int c = Character.toLowerCase(codePoint);
+        if (c >= 'a' && c <= 'z') return KeyEvent.KEYCODE_A + (c - 'a');
+        if (c >= '0' && c <= '9') return KeyEvent.KEYCODE_0 + (c - '0');
+        switch (c) {
+            case ' ':  return KeyEvent.KEYCODE_SPACE;
+            case '[':  return KeyEvent.KEYCODE_LEFT_BRACKET;
+            case ']':  return KeyEvent.KEYCODE_RIGHT_BRACKET;
+            case '\\': return KeyEvent.KEYCODE_BACKSLASH;
+            case '/':  return KeyEvent.KEYCODE_SLASH;
+            case '-':  return KeyEvent.KEYCODE_MINUS;
+            case '=':  return KeyEvent.KEYCODE_EQUALS;
+            case ';':  return KeyEvent.KEYCODE_SEMICOLON;
+            case '\'': return KeyEvent.KEYCODE_APOSTROPHE;
+            case ',':  return KeyEvent.KEYCODE_COMMA;
+            case '.':  return KeyEvent.KEYCODE_PERIOD;
+            case '`':  return KeyEvent.KEYCODE_GRAVE;
+            default:   return KeyEvent.KEYCODE_UNKNOWN;
+        }
+    }
+
     private void handleNonFunctionalEvent(final Event event,
             final InputTransaction inputTransaction) {
         inputTransaction.setDidAffectContents();

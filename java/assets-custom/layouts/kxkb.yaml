@@ -57,7 +57,7 @@ rows:
 
   # ---- Row 3 : Ctrl | i o a e v | < ~ > | b t n s h | bksp ----
   - letters:
-    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: "Ctrl" }  # placeholder (types "Ctrl" for now)
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: "Ctrl|!code/key_ctrl" }  # one-shot Ctrl modifier: next key sent as Ctrl+<key>
     - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: i, moreKeys: ["í", "î"] }
     - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: o, moreKeys: ["ó", "ö", "ô"] }
     - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: a, moreKeys: ["á", "ä", "à"] }
