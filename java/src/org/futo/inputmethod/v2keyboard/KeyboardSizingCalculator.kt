@@ -189,35 +189,42 @@ data class SavedKeyboardSizingSettings(
     val keyRoundness: Float = -1f,
     val borderWidthDp: Float = -1f,
 
-    // Per-geometry sizing knobs (Multiling-style live knobs, Phase 0b). All are *factors*
-    // with a neutral default of 1.0, so old saved blobs and not-yet-configured geometries
-    // size exactly as before. Factors (not absolutes) are used so they ride on top of the
-    // existing adaptive gap / theme-aware zero-gap and the computed row heights without
-    // clobbering them: 1.0 is an exact no-op.
-    //  - horizontal/vertical gap factors multiply the base gap in LayoutEngine.
-    //  - top/bottom row-height factors grow the keyboard's total height (calculate()) and,
-    //    for the bottom factor, pin the bottom row's share in LayoutEngine.
-    //  - suggestion-bar factor multiplies the suggestion-bar height.
-    val horizontalGapFactor: Float = 1f,
-    val verticalGapFactor: Float = 1f,
+    // Per-geometry sizing knobs (Multiling-style live knobs). Neutral defaults reproduce the
+    // current look exactly, so old saved blobs and not-yet-configured geometries are unchanged.
+    //  - gap *additions* in dp (neutral 0): added on top of the base gap in LayoutEngine, so
+    //    they introduce gap even on the zero-gap HighContrastYellow theme (gap + 0.dp == base).
+    //  - top/bottom row-height factors (neutral 1.0) REDISTRIBUTE within the keyboard's fixed
+    //    total height (set by heightMultiplier): the top row / bottom row grows or shrinks and the
+    //    remaining rows absorb the difference proportionally, applied entirely in LayoutEngine.
+    //    Overall keyboard height is the existing heightMultiplier (the "Keyboard height" slider).
+    //  - suggestion-bar factor (neutral 1.0) multiplies the suggestion-bar height.
+    // (These replaced the earlier horizontal/verticalGapFactor fields; fromJsonString ignores
+    // unknown keys so any blob written with the old names degrades gracefully to neutral.)
+    val horizontalGapAddDp: Float = 0f,
+    val verticalGapAddDp: Float = 0f,
     val topRowHeightFactor: Float = 1f,
     val bottomRowHeightFactor: Float = 1f,
     val suggestionBarHeightFactor: Float = 1f,
 ) {
     fun toJsonString(): String =
-        Json.encodeToString(this)
+        SizingSettingsJson.encodeToString(this)
 
     companion object {
         @JvmStatic
         fun fromJsonString(s: String): SavedKeyboardSizingSettings? =
             try {
-                Json.decodeFromString(s)
+                SizingSettingsJson.decodeFromString(s)
             } catch (e: Exception) {
                 //e.printStackTrace()
                 null
             }
     }
 }
+
+// Lenient so that renamed/removed fields (e.g. the former horizontal/verticalGapFactor) in an
+// already-persisted blob are ignored rather than failing the whole parse and resetting the
+// geometry to defaults. Added fields with defaults already deserialize cleanly.
+private val SizingSettingsJson = Json { ignoreUnknownKeys = true }
 
 fun getDefaultSettingForKind(kind: KeyboardSizeSettingKind, context: Context): SavedKeyboardSizingSettings {
     val oldBottomOffset = context.getSettingBlocking(OldKeyboardBottomOffsetSetting).dp
@@ -339,6 +346,12 @@ val KeyboardSettings = mapOf(
     KeyboardSizeSettingKind.FoldableInnerDisplay to SettingsKey(
         stringPreferencesKey("keyboard_settings_fold"), ""),
 )
+
+// The IME publishes its current geometry bucket here on each (re)layout so the sizing settings
+// screen can auto-select the bucket the docked live keyboard is actually showing. Holds a
+// KeyboardSizeSettingKind name; readers fall back to Portrait if it fails to parse.
+val LastUsedSizeStateSetting = SettingsKey(
+    stringPreferencesKey("last_used_size_state"), KeyboardSizeSettingKind.Portrait.name)
 
 internal fun Double.guardNaN(default: Double): Double = when {
     isNaN() -> default
@@ -498,16 +511,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     else -> 0.0
                 }
 
-        // Phase 0b: grow the total by the per-geometry row-height factors. Written as an
-        // additive delta off the original numRows so the neutral case (both factors 1.0) is
-        // a bit-exact no-op: topUnits * 0f + 0f == 0.0, leaving scaledNumRows == numRows.
-        // topUnits = every row except the single bottom row; the bottom row contributes 1.0.
-        // (The HALF_OPENED forced-50% case and Floating mode keep the original numRows below.)
-        val topUnits = (numRows - 1.0).coerceAtLeast(0.0)
-        val scaledNumRows = numRows +
-                topUnits * (savedSettings.topRowHeightFactor.guardNaN(1.0f) - 1.0f) +
-                (savedSettings.bottomRowHeightFactor.guardNaN(1.0f) - 1.0f)
-        val recommendedHeight = scaledNumRows * singularRowHeight + padding.bottom
+        val recommendedHeight = numRows * singularRowHeight + padding.bottom
 
         val foldState = foldStateProvider.foldState.feature
 

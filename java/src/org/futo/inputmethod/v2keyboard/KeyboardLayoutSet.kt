@@ -90,11 +90,12 @@ data class KeyboardLayoutSetV2Params(
     val gap: Float = 4.0f,
     val bottomActionKey: Int?,
     val longPressKeySettings: LongPressKeySettings? = null,
-    // Phase 0b live sizing knobs. Defaulted so the Kotlin preview caller (named args) and any
-    // other caller stay at neutral 1.0; the real keyboard path (KeyboardSwitcher) feeds the
-    // current geometry's saved values.
-    val horizontalGapFactor: Float = 1f,
-    val verticalGapFactor: Float = 1f,
+    // Phase 1 live sizing knobs. Defaulted so the Kotlin preview caller (named args) and any
+    // other caller stay neutral; the real keyboard path (KeyboardSwitcher) feeds the current
+    // geometry's saved values.
+    val horizontalGapAddDp: Float = 0f,
+    val verticalGapAddDp: Float = 0f,
+    val topRowHeightFactor: Float = 1f,
     val bottomRowHeightFactor: Float = 1f
 )
 
@@ -331,8 +332,9 @@ Layout: $layoutName
             gap = params.gap.dp,
             standardRowHeight = singularRowHeight,
             element = element,
-            horizontalGapFactor = params.horizontalGapFactor,
-            verticalGapFactor = params.verticalGapFactor,
+            horizontalGapAddDp = params.horizontalGapAddDp,
+            verticalGapAddDp = params.verticalGapAddDp,
+            topRowHeightFactor = params.topRowHeightFactor,
             bottomRowHeightFactor = params.bottomRowHeightFactor
         )
 

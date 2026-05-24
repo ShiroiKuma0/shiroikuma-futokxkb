@@ -693,4 +693,21 @@ Default is %1$s</string>
     <string name="personal_dictionary_delete_additional_file">Delete extra dictionary file?</string>
     <!-- %1$s will be replaced with the custom dictionary name -->
     <string name="personal_dictionary_delete_additional_file_text">%1$s will be deleted</string>
+
+    <!-- kxkb live sizing knobs -->
+    <string name="kxkb_sizing_title">Live sizing (kxkb)</string>
+    <string name="kxkb_sizing_subtitle">Per-geometry gaps, row heights, suggestion bar</string>
+    <!-- %1$s will be replaced with the active geometry name -->
+    <string name="kxkb_sizing_active_geometry">Editing: %1$s</string>
+    <string name="kxkb_sizing_geometry_portrait">Portrait</string>
+    <string name="kxkb_sizing_geometry_landscape">Landscape</string>
+    <string name="kxkb_sizing_geometry_fold">Foldable inner display</string>
+    <string name="kxkb_sizing_horizontal_gap">Horizontal gap</string>
+    <string name="kxkb_sizing_vertical_gap">Vertical gap</string>
+    <string name="kxkb_sizing_keyboard_height">Keyboard height</string>
+    <string name="kxkb_sizing_top_row_height">Top row</string>
+    <string name="kxkb_sizing_bottom_row_height">Bottom row</string>
+    <string name="kxkb_sizing_suggestion_bar_height">Suggestion bar height</string>
+    <string name="kxkb_sizing_reset">Reset live sizing</string>
+    <string name="kxkb_sizing_reset_subtitle">Reset gaps, row heights and suggestion bar for this geometry</string>
 </resources>

@@ -33,6 +33,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
+import android.view.WindowManager
+import org.futo.inputmethod.latin.uix.settings.findActivity
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -114,6 +116,7 @@ import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.SettingItem
 import org.futo.inputmethod.latin.uix.settings.SettingRadio
 import org.futo.inputmethod.latin.uix.settings.SettingSlider
+import org.futo.inputmethod.latin.uix.settings.SettingSliderForDataStoreItem
 import org.futo.inputmethod.latin.uix.settings.SettingSliderSharedPrefsInt
 import org.futo.inputmethod.latin.uix.settings.SettingToggleRaw
 import org.futo.inputmethod.latin.uix.settings.SyncDataStoreToPreferencesFloat
@@ -131,6 +134,10 @@ import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleSharedPrefs
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
+import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
+import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
+import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings
+import org.futo.inputmethod.v2keyboard.getDefaultSettingForKind
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -235,6 +242,174 @@ fun ResizeScreen(navController: NavHostController = rememberNavController()) {
             ResizeMenuLite.render(showTitle = false)
 
             AndroidTextInput(allowPredictions = false, customOptions = setOf("org.futo.inputmethod.latin.ResizeMode"), autoshow = false)
+        }
+    }
+}
+
+// Resets only the kxkb live sizing knobs (gaps, row heights, suggestion bar) for the geometry
+// the docked keyboard is currently showing, leaving the stock resize fields (padding, height)
+// intact. Recomputes the bucket from LastUsedSizeStateSetting so it needs no captured state.
+val KxkbSizingResetMenu = UserSettingsMenu(
+    title = R.string.kxkb_sizing_title,
+    navPath = "kxkbSizingReset", registerNavPath = false,
+    settings = listOf(
+        userSettingNavigationItem(
+            title = R.string.kxkb_sizing_reset,
+            subtitle = R.string.kxkb_sizing_reset_subtitle,
+            style = NavigationItemStyle.Misc,
+            icon = R.drawable.close,
+            navigate = { nav ->
+                val kind = try {
+                    KeyboardSizeSettingKind.valueOf(nav.context.getSettingBlocking(LastUsedSizeStateSetting))
+                } catch (e: Exception) {
+                    KeyboardSizeSettingKind.Portrait
+                }
+                val key = KeyboardSettings[kind]!!
+                val cur = SavedKeyboardSizingSettings.fromJsonString(nav.context.getSettingBlocking(key))
+                    ?: getDefaultSettingForKind(kind, nav.context)
+                val defaults = getDefaultSettingForKind(kind, nav.context)
+                nav.context.setSettingBlocking(
+                    key.key,
+                    cur.copy(
+                        heightMultiplier = defaults.heightMultiplier,
+                        horizontalGapAddDp = 0f,
+                        verticalGapAddDp = 0f,
+                        topRowHeightFactor = 1f,
+                        bottomRowHeightFactor = 1f,
+                        suggestionBarHeightFactor = 1f
+                    ).toJsonString()
+                )
+            }
+        )
+    )
+)
+
+// kxkb live sizing-knob screen (Phase 1): docks the live keyboard like ResizeScreen and exposes
+// the five sizing sliders. Edits the per-geometry blob the docked keyboard is currently showing
+// (auto-tracked via LastUsedSizeStateSetting), so dragging a slider updates the real keyboard live.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun KxkbSizingScreen(navController: NavHostController = rememberNavController()) {
+    val textInputService = LocalTextInputService.current
+    val session = remember { mutableStateOf<TextInputSession?>(null) }
+
+    DisposableEffect(Unit) {
+        // Dock the live keyboard WITHOUT ResizeMode: that private option makes inputStarted()
+        // auto-open the stock KeyboardModeAction window (the Standard/One Hand/Split/Float toggle
+        // row + drag-resizer), which is tall and pushes this screen's sliders off the top. We just
+        // want a plain docked keyboard whose layout reflects the sliders; suggestions/action bar
+        // stay on so the suggestion-bar-height slider has something visible to resize.
+        session.value = textInputService?.startInput(
+            TextFieldValue(""),
+            imeOptions = ImeOptions.Default,
+            onEditCommand = { },
+            onImeActionPerformed = { }
+        )
+
+        onDispose {
+            textInputService?.stopInput(session.value ?: return@onDispose)
+        }
+    }
+
+    val context = LocalContext.current
+
+    // Force ADJUST_RESIZE while this screen is open so the docked keyboard's IME inset shrinks the
+    // content (consumed by the activity's edge-to-edge safeDrawingPadding) instead of panning the
+    // whole window up and carrying the sliders off the top. Restore the previous mode on leave.
+    DisposableEffect(Unit) {
+        val window = context.findActivity()?.window
+        val previousMode = window?.attributes?.softInputMode
+        window?.setSoftInputMode(
+            ((previousMode ?: 0) and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST.inv()) or
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
+        onDispose {
+            if (previousMode != null) window?.setSoftInputMode(previousMode)
+        }
+    }
+
+    // Auto-track the bucket the docked keyboard is currently showing.
+    val (lastStateName, _) = useDataStore(LastUsedSizeStateSetting, blocking = true)
+    val kind = remember(lastStateName) {
+        try { KeyboardSizeSettingKind.valueOf(lastStateName) } catch (e: Exception) { KeyboardSizeSettingKind.Portrait }
+    }
+
+    // Per-geometry blob (reactive). Sliders read fields out of it and write the whole blob back.
+    val blobItem = useDataStore(KeyboardSettings[kind]!!, blocking = true)
+    val parsed = remember(blobItem.value) {
+        SavedKeyboardSizingSettings.fromJsonString(blobItem.value) ?: getDefaultSettingForKind(kind, context)
+    }
+
+    fun floatItem(
+        get: (SavedKeyboardSizingSettings) -> Float,
+        set: (SavedKeyboardSizingSettings, Float) -> SavedKeyboardSizingSettings
+    ) = DataStoreItem(get(parsed)) { v ->
+        val cur = SavedKeyboardSizingSettings.fromJsonString(blobItem.value) ?: getDefaultSettingForKind(kind, context)
+        blobItem.setValue(set(cur, v).toJsonString())
+    }
+
+    // Geometry default, used as the neutral value for the overall "Keyboard height" slider
+    // (heightMultiplier has no fixed neutral — it is device/geometry dependent).
+    val defaultSizing = remember(kind) { getDefaultSettingForKind(kind, context) }
+
+    Box {
+        ScrollableList {
+            ScreenTitle(stringResource(R.string.kxkb_sizing_title), showBack = true, navController)
+
+            Text(
+                stringResource(
+                    R.string.kxkb_sizing_active_geometry,
+                    stringResource(
+                        when (kind) {
+                            KeyboardSizeSettingKind.Portrait -> R.string.kxkb_sizing_geometry_portrait
+                            KeyboardSizeSettingKind.Landscape -> R.string.kxkb_sizing_geometry_landscape
+                            KeyboardSizeSettingKind.FoldableInnerDisplay -> R.string.kxkb_sizing_geometry_fold
+                        }
+                    )
+                ),
+                style = Typography.Body.MediumMl,
+                color = LocalContentColor.current,
+                modifier = Modifier.padding(12.dp, 8.dp)
+            )
+
+            // Fresh slider instances per geometry so their internal value seed resyncs on fold/rotate.
+            key(kind) {
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_horizontal_gap),
+                    item = floatItem({ it.horizontalGapAddDp }, { s, v -> s.copy(horizontalGapAddDp = v) }),
+                    default = 0f, range = 0f..10f, transform = { it }, indicator = { "%.1f dp".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_vertical_gap),
+                    item = floatItem({ it.verticalGapAddDp }, { s, v -> s.copy(verticalGapAddDp = v) }),
+                    default = 0f, range = 0f..10f, transform = { it }, indicator = { "%.1f dp".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_keyboard_height),
+                    item = floatItem({ it.heightMultiplier }, { s, v -> s.copy(heightMultiplier = v) }),
+                    default = defaultSizing.heightMultiplier, range = 0.5f..2.5f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_top_row_height),
+                    item = floatItem({ it.topRowHeightFactor }, { s, v -> s.copy(topRowHeightFactor = v) }),
+                    default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_bottom_row_height),
+                    item = floatItem({ it.bottomRowHeightFactor }, { s, v -> s.copy(bottomRowHeightFactor = v) }),
+                    default = 1f, range = 0.2f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_suggestion_bar_height),
+                    item = floatItem({ it.suggestionBarHeightFactor }, { s, v -> s.copy(suggestionBarHeightFactor = v) }),
+                    default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            KxkbSizingResetMenu.render(showTitle = false)
+
+            AndroidTextInput(allowPredictions = false, autoshow = false)
         }
     }
 }
@@ -799,6 +974,13 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             subtitle = R.string.size_settings_subtitle2,
             style = NavigationItemStyle.Misc,
             navigateTo = "resize",
+            icon = R.drawable.maximize
+        ),
+        userSettingNavigationItem(
+            title = R.string.kxkb_sizing_title,
+            subtitle = R.string.kxkb_sizing_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "kxkbSizing",
             icon = R.drawable.maximize
         ),
         userSettingToggleSharedPrefs(

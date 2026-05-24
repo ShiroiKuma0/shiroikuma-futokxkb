@@ -96,6 +96,7 @@ import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
 import org.futo.inputmethod.v2keyboard.ComputedKeyboardSize
 import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
+import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
 import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
 import org.futo.inputmethod.v2keyboard.KeyboardSizeStateProvider
 import org.futo.inputmethod.v2keyboard.KeyboardSizingCalculator
@@ -337,7 +338,23 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
     }
 
+    // Publishes the current geometry bucket so the sizing settings screen can auto-track which
+    // bucket the docked live keyboard is showing. Guarded so it only writes on an actual change
+    // (geometry transitions are rare; slider drags within one geometry do not re-write it).
+    // The write MUST be async: this runs on the main thread inside the keyboard-show / size-collect
+    // path, and a blocking DataStore write here stalls the IME from showing and deadlocks against
+    // the dataStore.data collector.
+    private var lastPublishedSizeState: String? = null
+    private fun publishCurrentSizeState() {
+        val name = currentSizeState.name
+        if(name != lastPublishedSizeState) {
+            lastPublishedSizeState = name
+            lifecycleScope.launch { setSetting(LastUsedSizeStateSetting, name) }
+        }
+    }
+
     fun onSizeUpdated() {
+        publishCurrentSizeState()
         val newSize = calculateSize() ?: return
         val shouldInvalidateKeyboard = size.value?.let { oldSize ->
             when {
@@ -358,6 +375,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     fun invalidateKeyboard(refreshSettings: Boolean = false) {
         if(destroying) return
+        publishCurrentSizeState()
         size.value = calculateSize()
         updateNavigationBarVisibility()
         settingsRefreshRequired = settingsRefreshRequired || refreshSettings
@@ -493,7 +511,12 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                 prev.keys.toList().forEach {
                     if(data[KeyboardSettings[it]!!.key] != prev[it]) {
                         prev[it] = data[KeyboardSettings[it]!!.key]
-                        onSizeUpdated()
+                        // The current geometry must relayout even when ComputedKeyboardSize
+                        // dimensions are unchanged: gap / suggestion-bar / look knobs live outside
+                        // the size struct, so onSizeUpdated's dimension diff would short-circuit
+                        // them. Other geometries keep the optimized path (a no-op off screen).
+                        if(it == currentSizeState) invalidateKeyboard(refreshSettings = true)
+                        else onSizeUpdated()
                     }
                 }
             }

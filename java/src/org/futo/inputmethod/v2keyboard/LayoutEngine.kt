@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Rect
 import android.util.Log
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import org.futo.inputmethod.keyboard.KeyConsts
 import org.futo.inputmethod.keyboard.internal.KeyboardLayoutElement
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
@@ -103,12 +104,13 @@ data class LayoutParams(
     val gap: Dp,
     val standardRowHeight: Double,
     val element: KeyboardLayoutElement,
-    // Phase 0b live sizing knobs, threaded from SavedKeyboardSizingSettings via
-    // KeyboardLayoutSetV2Params. Neutral 1.0 = exact no-op. topRowHeightFactor is NOT
-    // threaded here: in both bottom-row modes the top rows simply fill whatever total
-    // calculate() produced, so the top factor already takes effect through the grown total.
-    val horizontalGapFactor: Float = 1f,
-    val verticalGapFactor: Float = 1f,
+    // Phase 1 live sizing knobs, threaded from SavedKeyboardSizingSettings via
+    // KeyboardLayoutSetV2Params. Neutral defaults (gap add 0dp, row factors 1.0) = exact no-op.
+    // top/bottom row factors REDISTRIBUTE within the fixed total: one row grows/shrinks and the
+    // others absorb it; overall height is heightMultiplier (folded into standardRowHeight/total).
+    val horizontalGapAddDp: Float = 0f,
+    val verticalGapAddDp: Float = 0f,
+    val topRowHeightFactor: Float = 1f,
     val bottomRowHeightFactor: Float = 1f,
 )
 
@@ -118,8 +120,8 @@ data class LayoutEngine(
     val params: KeyboardParams,
     val layoutParams: LayoutParams
 ) {
-    val horizontalGap = layoutParams.gap * layoutParams.horizontalGapFactor
-    val verticalGap = layoutParams.gap * 2 * layoutParams.verticalGapFactor
+    val horizontalGap = layoutParams.gap + layoutParams.horizontalGapAddDp.dp
+    val verticalGap = layoutParams.gap * 2 + layoutParams.verticalGapAddDp.dp
 
     val effectiveRows = keyboard.getEffectiveRows(params.mId.mNumberRowMode)
 
@@ -151,19 +153,39 @@ data class LayoutEngine(
 
     private val horizontalGapPx = (horizontalGap.value * density)
     private val verticalGapPx = (verticalGap.value * density)
+    private val topRowHeightFactorD = layoutParams.topRowHeightFactor.toDouble()
+    private val bottomRowHeightFactorD = layoutParams.bottomRowHeightFactor.toDouble()
+
+    // True when the user has dialed in a non-neutral top/bottom row factor. While active we let
+    // each key fill its (redistributed) cell instead of clamping to standardRowHeight, so the
+    // resized row actually grows and the rows absorbing it don't leave a phantom gap. At neutral
+    // this is false, so the original ClampHeight behaviour is preserved bit-for-bit. (Keyboard
+    // height / heightMultiplier scales standardRowHeight in lockstep, so it never needs this.)
+    private val liveRowSizingActive = topRowHeightFactorD != 1.0 || bottomRowHeightFactorD != 1.0
+
+    // The top (first non-bottom) row, scaled by topRowHeightFactor. -1 if there is none.
+    private val topRowIndex = rows.indexOfFirst { !it.isBottomRow }
+    private val topRowExtraWeight =
+        if (topRowIndex >= 0) rows[topRowIndex].rowHeight * (topRowHeightFactorD - 1.0) else 0.0
+
     private val rowHeightPx = computeRowHeight()
-    private val bottomRowHeightPx = (when(keyboard.bottomRowHeightMode) {
-        BottomRowHeightMode.Fixed -> layoutParams.standardRowHeight
-        BottomRowHeightMode.Flexible -> rowHeightPx
-    }) * layoutParams.bottomRowHeightFactor.toDouble()
+    private val bottomRowHeightPx = when(keyboard.bottomRowHeightMode) {
+        BottomRowHeightMode.Fixed -> layoutParams.standardRowHeight * bottomRowHeightFactorD
+        BottomRowHeightMode.Flexible -> rowHeightPx * bottomRowHeightFactorD
+    }
 
     private fun computeRowHeight(): Double {
         val normalKeyboardHeight = totalRowHeight
 
-        // divide by total row height
+        // REDISTRIBUTION (total height is fixed; set by heightMultiplier). The bottom row takes its
+        // scaled share, and the non-bottom rows split the remainder by their rowHeight weights —
+        // with the top row's weight inflated by topRowExtraWeight so growing/shrinking it pulls
+        // proportionally from the other rows instead of changing the keyboard's total height.
+        // At neutral (both factors 1.0) topRowExtraWeight == 0 and bottom == standardRowHeight, so
+        // this is bit-identical to the original distribution.
         return when(keyboard.bottomRowHeightMode) {
-            BottomRowHeightMode.Fixed -> ((normalKeyboardHeight - layoutParams.standardRowHeight) / rows.filter { !it.isBottomRow }.sumOf { it.rowHeight })
-            BottomRowHeightMode.Flexible -> (normalKeyboardHeight) / rows.sumOf { it.rowHeight }
+            BottomRowHeightMode.Fixed -> ((normalKeyboardHeight - layoutParams.standardRowHeight * bottomRowHeightFactorD) / (rows.filter { !it.isBottomRow }.sumOf { it.rowHeight } + topRowExtraWeight))
+            BottomRowHeightMode.Flexible -> (normalKeyboardHeight) / (rows.sumOf { it.rowHeight } + topRowExtraWeight)
         }
     }
 
@@ -467,10 +489,10 @@ data class LayoutEngine(
 
 
         val computedRowWithWidths = computedRowWithoutWidths.mapIndexed { i, row ->
-            val height = if(rows[i].isBottomRow) {
-                bottomRowHeightPx
-            } else {
-                (rows[i].rowHeight * rowHeightPx)
+            val height = when {
+                rows[i].isBottomRow -> bottomRowHeightPx
+                i == topRowIndex -> rows[i].rowHeight * rowHeightPx * topRowHeightFactorD
+                else -> rows[i].rowHeight * rowHeightPx
             }
 
             buildLayoutRow(
@@ -623,7 +645,7 @@ data class LayoutEngine(
                 if(data.repeatable) { KeyConsts.ACTION_FLAGS_IS_REPEATABLE } else { 0 }
 
         val verticalGapForKey = when {
-            keyboard.rowHeightMode.clampHeight && height > data.rowSpan * layoutParams.standardRowHeight ->
+            keyboard.rowHeightMode.clampHeight && !liveRowSizingActive && height > data.rowSpan * layoutParams.standardRowHeight ->
                 height - data.rowSpan * layoutParams.standardRowHeight
 
             else ->

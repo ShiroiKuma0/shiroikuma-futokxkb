@@ -179,8 +179,9 @@ public final class KeyboardSwitcher implements SwitchActions {
                 sizingCalculator.calculateGap(),
                 settingsValues.mShowsActionKey ? settingsValues.mActionKeyId : null,
                 LongPressKeySettings.load(mThemeContext),
-                savedSizing.getHorizontalGapFactor(),
-                savedSizing.getVerticalGapFactor(),
+                savedSizing.getHorizontalGapAddDp(),
+                savedSizing.getVerticalGapAddDp(),
+                savedSizing.getTopRowHeightFactor(),
                 savedSizing.getBottomRowHeightFactor()
         );
 
