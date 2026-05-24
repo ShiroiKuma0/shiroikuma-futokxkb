@@ -86,6 +86,10 @@ final def translationsWithoutEngValues = { final String path ->
             include 'values-*/**'
 
             filter { String line ->
+                // Drop the translated app/IME name from every locale so it always falls
+                // back to our default brand (java/res/values/strings-appname.xml) instead of
+                // the upstream "FUTO キーボード" / etc. Returning null removes the line.
+                if (line.contains('name="english_ime_name"')) return null
                 line
                 // Fix duplicate <string> tags
                         .replaceAll(/(<string [^>]+>)&lt;string [^&]+&gt;(.+)&lt;\/string&gt;<\/string>/, '$1$2</string>')
