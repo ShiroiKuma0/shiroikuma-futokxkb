@@ -371,6 +371,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     fun onSizeUpdated() {
         publishCurrentSizeState()
+        uixManager.refreshActionBarHeight()
         val newSize = calculateSize() ?: return
         val shouldInvalidateKeyboard = size.value?.let { oldSize ->
             when {
@@ -540,6 +541,9 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                             // alone won't pick them up. Rebuild the provider only when a look field
                             // actually changed, so plain gap/height drags keep the cheap path.
                             if(lookFieldsDiffer(oldBlob, newBlob)) updateDrawableProvider(activeColorScheme.value)
+                            // Suggestion-bar height lives in the Compose chrome (LocalActionBarHeight),
+                            // not the keyboard layout — push the new value so the bar resizes live.
+                            uixManager.refreshActionBarHeight()
                             invalidateKeyboard(refreshSettings = true)
                         }
                         else onSizeUpdated()

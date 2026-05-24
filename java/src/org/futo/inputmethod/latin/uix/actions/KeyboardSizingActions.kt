@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.Action
-import org.futo.inputmethod.latin.uix.ActionBarHeight
+import org.futo.inputmethod.latin.uix.LocalActionBarHeight
 import org.futo.inputmethod.latin.uix.ActionWindow
 import org.futo.inputmethod.latin.uix.CloseResult
 import org.futo.inputmethod.latin.uix.TutorialMode
@@ -82,7 +82,7 @@ val KeyboardModeAction = Action(
                 get() = true
 
             override val fixedWindowHeight: Dp?
-                get() = 54.dp + ActionBarHeight
+                get() = 54.dp + sizeCalculator.calculateSuggestionBarHeightDp().dp
 
             @Composable
             override fun windowName(): String =
@@ -92,7 +92,7 @@ val KeyboardModeAction = Action(
             override fun WindowContents(keyboardShown: Boolean) {
                 val currMode = sizeCalculator.getSavedSettings().currentMode
                 Column {
-                    Row(Modifier.height(ActionBarHeight)) {
+                    Row(Modifier.height(LocalActionBarHeight.current)) {
                         // Hide the back button in the resize tutorial
                         if(manager.getTutorialMode() != TutorialMode.ResizerTutorial) {
                             IconButton(onClick = {

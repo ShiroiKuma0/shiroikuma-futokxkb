@@ -334,7 +334,7 @@ object QuickClip {
 @Preview
 @Composable
 private fun PreviewQuickClips() {
-    Row(Modifier.height(ActionBarHeight)) {
+    Row(Modifier.height(LocalActionBarHeight.current)) {
         QuickClipView(QuickClipState(
             texts = listOf(QuickClipItem(
                 kind = QuickClipKind.FullString,

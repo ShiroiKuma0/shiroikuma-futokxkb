@@ -61,6 +61,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -230,12 +231,13 @@ fun BoxScope.KeyboardBackground(
         shader != null -> KeyboardSurfaceShaderBackground(shader, modifier = Modifier.matchParentSize())
         image != null && rect != null -> {
             val navbarHeight = navBarHeight()
+            val actionBarHeight = LocalActionBarHeight.current
             Canvas(Modifier.matchParentSize()) {
                 drawRect(colorScheme.keyboardSurface)
 
                 val fixedWidth = computedSize?.width?.toFloat() ?: size.width
                 val fixedHeight = when {
-                    (computedSize != null) -> computedSize.height + ActionBarHeight.toPx() + navbarHeight.toPx()
+                    (computedSize != null) -> computedSize.height + actionBarHeight.toPx() + navbarHeight.toPx()
                     else -> size.height
                 }
 
@@ -834,7 +836,7 @@ class UixManager(private val latinIME: LatinIME) {
                             currWindowActionWindow.value?.fixedWindowHeight ?: ((latinIME
                                 .getInputViewHeight()
                                 .toFloat() / heightDiv.toFloat()).toDp() +
-                                    if (actionsExpanded) ActionBarHeight else 0.dp)
+                                    if (actionsExpanded) LocalActionBarHeight.current else 0.dp)
                         })
                         .safeKeyboardPadding()
                 ) {
@@ -1156,7 +1158,7 @@ class UixManager(private val latinIME: LatinIME) {
             Column(modifier = Modifier
                 .matchParentSize()
                 .absolutePadding(
-                    top = if (isActionsExpanded.value) ActionBarHeight else 0.dp
+                    top = if (isActionsExpanded.value) LocalActionBarHeight.current else 0.dp
                 ), horizontalAlignment = when(size.direction) {
                 // Aligned opposite of the keyboard
                 OneHandedDirection.Left -> Alignment.End
@@ -1238,6 +1240,15 @@ class UixManager(private val latinIME: LatinIME) {
     }
 
     var prevSize: IntSize = IntSize.Zero
+
+    // Live action/suggestion-bar height in dp for the current geometry (40 * suggestionBarHeightFactor).
+    // LatinIME calls refreshActionBarHeight() whenever the sizing blob or geometry changes; reading
+    // it in ProvidersAndWrapper makes the whole bar recompose. Default 40f == neutral.
+    val actionBarHeightState = mutableFloatStateOf(ActionBarHeight.value)
+    fun refreshActionBarHeight() {
+        actionBarHeightState.floatValue = latinIME.sizingCalculator.calculateSuggestionBarHeightDp()
+    }
+
     @Composable
     private fun ProvidersAndWrapper(content: @Composable () -> Unit) {
         UixThemeWrapper(latinIME.colorScheme) {
@@ -1246,7 +1257,8 @@ class UixManager(private val latinIME: LatinIME) {
                     LocalManager provides keyboardManagerForAction,
                     LocalThemeProvider provides latinIME.getDrawableProvider(),
                     LocalLayoutDirection provides LayoutDirection.Ltr,
-                    LocalFoldingState provides foldingOptions.value
+                    LocalFoldingState provides foldingOptions.value,
+                    LocalActionBarHeight provides actionBarHeightState.floatValue.dp
                 ) {
                     Box(Modifier
                         .fillMaxSize()

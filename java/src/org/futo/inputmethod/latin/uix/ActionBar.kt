@@ -169,6 +169,14 @@ import kotlin.math.roundToInt
 
 val ActionBarHeight = 40.dp
 
+/**
+ * Live, per-geometry action/suggestion-bar height. Defaults to [ActionBarHeight] (40dp) and is
+ * provided at the keyboard root (UixManager) as 40dp * suggestionBarHeightFactor for the current
+ * geometry. All action-bar-derived heights read this so the kxkb "Suggestion bar height" slider
+ * scales the whole bar live; neutral factor 1.0 == ActionBarHeight, i.e. byte-identical to stock.
+ */
+val LocalActionBarHeight = androidx.compose.runtime.compositionLocalOf { ActionBarHeight }
+
 val ActionBarScrollIndexSetting = SettingsKey(
     intPreferencesKey("action_bar_scroll_index"),
     0
@@ -835,7 +843,7 @@ fun ActionBar(
 
     Column(Modifier
         .height(
-            ActionBarHeight * (if (useDoubleHeight) 2 else 1).let {
+            LocalActionBarHeight.current * (if (useDoubleHeight) 2 else 1).let {
                 if(needToUseExpandableSuggestionUi) {
                     it - 1
                 } else {
@@ -941,7 +949,7 @@ fun ActionWindowBar(
     onBack: () -> Unit,
     onExpand: () -> Unit
 ) {
-    Column(Modifier.height(ActionBarHeight)) {
+    Column(Modifier.height(LocalActionBarHeight.current)) {
         ActionSep()
         Surface(
             modifier = Modifier
@@ -1004,7 +1012,7 @@ fun CollapsibleSuggestionsBar(
     words: SuggestedWords?,
     suggestionStripListener: SuggestionStripViewListener,
 ) {
-    Column(Modifier.height(ActionBarHeight)) {
+    Column(Modifier.height(LocalActionBarHeight.current)) {
         ActionSep()
         Surface(
             modifier = Modifier
@@ -1265,7 +1273,7 @@ private fun RowScope.InlineCandidates(
                 }
             }
             itemsIndexed(wordList) { i, it ->
-                CandidateItem(Modifier.height(ActionBarHeight), it,
+                CandidateItem(Modifier.height(LocalActionBarHeight.current), it,
                     listener = suggestionStripListener,
                     last = i == wordList.size-1,
                     width = with(LocalDensity.current) {
@@ -1386,7 +1394,7 @@ fun BoxScope.ActionBarWithExpandableCandidates(
 
     if(canShowSuggest) {
         Surface(
-            Modifier.fillMaxWidth().padding(0.dp, ActionBarHeight, 0.dp, 0.dp)
+            Modifier.fillMaxWidth().padding(0.dp, LocalActionBarHeight.current, 0.dp, 0.dp)
                 .heightIn(max = with(density) { keyboardOffset?.intValue?.toDp() ?: 0.dp })
                 .safeKeyboardPadding()
         ) {
@@ -1394,7 +1402,7 @@ fun BoxScope.ActionBarWithExpandableCandidates(
                 listToRender ?: emptyList(),
                 itemMeasurer = { measureWord(density, widths, it) }
             ) { allocatedWidth, item, isLast ->
-                CandidateItem(Modifier.height(ActionBarHeight), item, listener = suggestionStripListener, width=with(density) { allocatedWidth.toDp()  }, last=isLast)
+                CandidateItem(Modifier.height(LocalActionBarHeight.current), item, listener = suggestionStripListener, width=with(density) { allocatedWidth.toDp()  }, last=isLast)
             }
         }
     }
@@ -1404,7 +1412,7 @@ fun BoxScope.ActionBarWithExpandableCandidates(
                 testTag = "ActionBar"
                 testTagsAsResourceId = true
             }
-            .height(ActionBarHeight)
+            .height(LocalActionBarHeight.current)
             .align(Alignment.TopCenter)
     ) {
         ActionSep()
