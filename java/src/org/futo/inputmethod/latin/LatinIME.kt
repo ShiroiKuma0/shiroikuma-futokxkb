@@ -614,6 +614,19 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             if (differs) {
                 invalidateKeyboard(refreshSettings = true)
             }
+
+            // kxkb: key sliding and glide typing are pushed to the keyboard view only by
+            // updateMainKeyboardViewSettings(), which otherwise runs on keyboard (re)load. A live
+            // flip — the action-bar "Key sliding on/off" icon, or the Typing settings switch while
+            // the keyboard is up — changes these prefs with no reload, so re-push them here.
+            // Guarded: updateMainKeyboardViewSettings() dereferences the main keyboard view with no
+            // null check, and this listener also fires when the keyboard is hidden.
+            if ((oldSettings.mKeySlidingEnabled != newSettings.mKeySlidingEnabled
+                        || oldSettings.mGestureInputEnabled != newSettings.mGestureInputEnabled)
+                && latinIMELegacy.mKeyboardSwitcher.mainKeyboardView != null
+            ) {
+                latinIMELegacy.updateMainKeyboardViewSettings()
+            }
         }
     }
 

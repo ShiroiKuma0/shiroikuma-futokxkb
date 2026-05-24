@@ -462,6 +462,18 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
         ScrollableList {
             ScreenTitle(stringResource(R.string.kxkb_sizing_title), showBack = true, navController)
 
+            // kxkb: jump straight back to the keyboard. This page is usually opened from the
+            // action-bar "Live sizing" icon while typing; finishing the activity returns to the app
+            // (and its keyboard) in one tap, instead of several Back presses up the settings stack.
+            Button(
+                onClick = { context.findActivity()?.finish() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp, 4.dp)
+            ) {
+                Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
+            }
+
             Text(
                 stringResource(R.string.kxkb_sizing_geometry_note),
                 style = Typography.SmallMl,
@@ -618,6 +630,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
 
             Spacer(Modifier.height(8.dp))
             KxkbSizingResetMenu.render(showTitle = false)
+
+            // kxkb: second close button at the bottom, so a one-tap return to the keyboard is
+            // reachable whether the user is at the top of the page or has scrolled down to Reset.
+            Button(
+                onClick = { context.findActivity()?.finish() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp, 4.dp)
+            ) {
+                Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
+            }
 
             AndroidTextInput(allowPredictions = false, autoshow = false)
         }

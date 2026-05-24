@@ -222,27 +222,35 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
             updateEdgeToEdge()
         }
 
-        val intent = intent
-        if(intent != null) {
-            val destination = intent.getStringExtra("navDest")
-            if(destination != null) {
-                lifecycleScope.launch {
-                    // The navigation graph has to initialize, and this can take some time.
-                    // For now, just keep trying every 100ms until it doesn't throw an exception
-                    // for up to 10 seconds
-                    var navigated = false
-                    for(i in 0 until 100) {
-                        delay(100L)
-                        try {
-                            navController.navigate(destination)
-                            navigated = true
-                        } catch (ignored: Exception) {
+        navigateToNavDest(intent)
+    }
 
-                        }
+    // Handle deep-link navigation on both first launch and reuse. The action-bar "Live sizing" icon
+    // (and other navDest deep-links) can hit an already-running SettingsActivity, which arrives via
+    // onNewIntent rather than onCreate — without handling it there, a reused instance would land on
+    // the root settings page instead of the requested screen on every tap after the first.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        navigateToNavDest(intent)
+    }
 
-                        if(navigated) break
-                    }
+    private fun navigateToNavDest(intent: Intent?) {
+        val destination = intent?.getStringExtra("navDest") ?: return
+        lifecycleScope.launch {
+            // The navigation graph has to initialize, and this can take some time.
+            // Keep trying every 100ms until navigate() doesn't throw, for up to 10 seconds.
+            var navigated = false
+            for(i in 0 until 100) {
+                delay(100L)
+                try {
+                    navController.navigate(destination)
+                    navigated = true
+                } catch (ignored: Exception) {
+
                 }
+
+                if(navigated) break
             }
         }
     }

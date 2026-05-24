@@ -462,6 +462,8 @@
     <string name="typing_settings_swipe_disabled_by_key_sliding">Disabled while Key sliding is on (both use a slide off a key).</string>
     <string name="key_sliding_title">Key sliding (4D keys)</string>
     <string name="key_sliding_subtitle">Short-slide a key in any of 8 directions to type its side characters. Replaces swipe typing while on.</string>
+    <string name="action_key_sliding_toggle">Key sliding on/off</string>
+    <string name="action_live_resize">Live sizing</string>
     <string name="typing_settings_suggest_emojis">Emoji Suggestions</string>
     <string name="typing_settings_suggest_emojis_subtitle">Suggest emojis while you\'re typing</string>
     <string name="typing_settings_vibration_strength">Vibration</string>
@@ -702,6 +704,7 @@ Default is %1$s</string>
 
     <!-- kxkb live sizing knobs -->
     <string name="kxkb_sizing_title">Live sizing (kxkb)</string>
+    <string name="kxkb_sizing_close_to_keyboard">✕ Close — back to keyboard</string>
     <string name="kxkb_sizing_subtitle">Per-geometry gaps, row heights, suggestion bar</string>
     <!-- %1$s will be replaced with the active geometry name -->
     <string name="kxkb_sizing_active_geometry">Editing: %1$s</string>
