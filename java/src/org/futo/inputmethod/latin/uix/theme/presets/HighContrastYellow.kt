@@ -48,7 +48,7 @@ private val darkScheme = extendedDarkColorScheme(
     onSurfaceTransparent=Color(0xFFFFFF00).copy(alpha = 0.1f),
     keyboardContainerPressed=Color(0xFF777777),
     onKeyboardContainerPressed=Color(0xFFFFFFFF),
-    hintColor=Color(0xFF0000FF),
+    hintColor=Color(0xFFFFFF00),
     hintHiVis=true
 ).let { s ->
     s.copy(extended = s.extended.copy(
