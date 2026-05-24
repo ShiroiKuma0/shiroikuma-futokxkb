@@ -96,6 +96,7 @@ import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
 import org.futo.inputmethod.v2keyboard.ComputedKeyboardSize
 import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
+import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings
 import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
 import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
 import org.futo.inputmethod.v2keyboard.KeyboardSizeStateProvider
@@ -301,6 +302,19 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         )
         return if (overlaid == a) scheme
             else scheme.copy(extended = scheme.extended.copy(advancedThemeOptions = overlaid))
+    }
+
+    // True if two serialized per-geometry sizing blobs differ in any field that withPerKindLook()
+    // overlays onto the theme (font size / label weight / key roundness / border width). Used to
+    // decide whether a sizing change needs a drawable-provider rebuild or only a relayout.
+    private fun lookFieldsDiffer(oldBlob: String?, newBlob: String?): Boolean {
+        val a = oldBlob?.let { SavedKeyboardSizingSettings.fromJsonString(it) }
+        val b = newBlob?.let { SavedKeyboardSizingSettings.fromJsonString(it) }
+        if (a == null || b == null) return true
+        return a.fontSizeMultiplier != b.fontSizeMultiplier ||
+                a.labelWeight != b.labelWeight ||
+                a.keyRoundness != b.keyRoundness ||
+                a.borderWidthDp != b.borderWidthDp
     }
 
     private fun updateDrawableProvider(colorScheme: KeyboardColorScheme) {
@@ -509,13 +523,23 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
             dataStore.data.collect { data ->
                 prev.keys.toList().forEach {
-                    if(data[KeyboardSettings[it]!!.key] != prev[it]) {
-                        prev[it] = data[KeyboardSettings[it]!!.key]
+                    val newBlob = data[KeyboardSettings[it]!!.key]
+                    if(newBlob != prev[it]) {
+                        val oldBlob = prev[it]
+                        prev[it] = newBlob
                         // The current geometry must relayout even when ComputedKeyboardSize
                         // dimensions are unchanged: gap / suggestion-bar / look knobs live outside
                         // the size struct, so onSizeUpdated's dimension diff would short-circuit
                         // them. Other geometries keep the optimized path (a no-op off screen).
-                        if(it == currentSizeState) invalidateKeyboard(refreshSettings = true)
+                        if(it == currentSizeState) {
+                            // Look knobs (font size / weight / roundness / border) live in the
+                            // theme's AdvancedThemeOptions via withPerKindLook(), which is only
+                            // re-read when the drawable provider is rebuilt — invalidateKeyboard
+                            // alone won't pick them up. Rebuild the provider only when a look field
+                            // actually changed, so plain gap/height drags keep the cheap path.
+                            if(lookFieldsDiffer(oldBlob, newBlob)) updateDrawableProvider(activeColorScheme.value)
+                            invalidateKeyboard(refreshSettings = true)
+                        }
                         else onSizeUpdated()
                     }
                 }

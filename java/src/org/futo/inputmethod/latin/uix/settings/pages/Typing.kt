@@ -276,7 +276,8 @@ val KxkbSizingResetMenu = UserSettingsMenu(
                         verticalGapAddDp = 0f,
                         topRowHeightFactor = 1f,
                         bottomRowHeightFactor = 1f,
-                        suggestionBarHeightFactor = 1f
+                        suggestionBarHeightFactor = 1f,
+                        fontSizeMultiplier = -1f
                     ).toJsonString()
                 )
             }
@@ -398,6 +399,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     title = stringResource(R.string.kxkb_sizing_bottom_row_height),
                     item = floatItem({ it.bottomRowHeightFactor }, { s, v -> s.copy(bottomRowHeightFactor = v) }),
                     default = 1f, range = 0.2f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                // Key label font scale. The stored field is -1 = "inherit theme"; the slider shows
+                // the effective value (HighContrastYellow's keyLetterScale, 1.4x, until first set)
+                // and writes an absolute scale once dragged. Feeds keyLetterScale via withPerKindLook.
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_key_font_size),
+                    item = floatItem(
+                        { if (it.fontSizeMultiplier >= 0f) it.fontSizeMultiplier else 1.4f },
+                        { s, v -> s.copy(fontSizeMultiplier = v) }
+                    ),
+                    default = 1.4f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
                 )
                 SettingSliderForDataStoreItem(
                     title = stringResource(R.string.kxkb_sizing_suggestion_bar_height),
