@@ -1240,6 +1240,13 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             navigateTo = "kxkbSizing",
             icon = R.drawable.maximize
         ),
+        userSettingNavigationItem(
+            title = R.string.special_keys_title,
+            subtitle = R.string.special_keys_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "specialKeys",
+            icon = R.drawable.book
+        ),
         userSettingToggleSharedPrefs(
             title = R.string.keyboard_settings_show_number_row,
             subtitle = R.string.keyboard_settings_show_number_row_subtitle,

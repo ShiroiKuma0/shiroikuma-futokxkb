@@ -464,6 +464,8 @@
     <string name="key_sliding_subtitle">Short-slide a key in any of 8 directions to type its side characters. Replaces swipe typing while on.</string>
     <string name="action_key_sliding_toggle">Key sliding on/off</string>
     <string name="action_live_resize">Live sizing</string>
+    <string name="special_keys_title">Special keys</string>
+    <string name="special_keys_subtitle">Esc, Ctrl, 4D keys — what they do and how to add them</string>
     <string name="typing_settings_suggest_emojis">Emoji Suggestions</string>
     <string name="typing_settings_suggest_emojis_subtitle">Suggest emojis while you\'re typing</string>
     <string name="typing_settings_vibration_strength">Vibration</string>

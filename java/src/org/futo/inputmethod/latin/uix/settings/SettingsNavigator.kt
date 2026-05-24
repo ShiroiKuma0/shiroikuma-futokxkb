@@ -52,6 +52,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.ProjectInfoView
 import org.futo.inputmethod.latin.uix.settings.pages.ResizeMenuLite
 import org.futo.inputmethod.latin.uix.settings.pages.ResizeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KxkbSizingScreen
+import org.futo.inputmethod.latin.uix.settings.pages.SpecialKeysScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SearchScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SelectLanguageScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SelectLayoutsScreen
@@ -170,6 +171,7 @@ fun SettingsNavigator(
             composable("keyboardAndTyping") { KeyboardAndTypingScreen(navController) }
             composable("resize") { ResizeScreen(navController) }
             composable("kxkbSizing") { KxkbSizingScreen(navController) }
+            composable("specialKeys") { SpecialKeysScreen(navController) }
             composable("themes") { ThemeScreen(navController) }
             composable("developer") { DeveloperScreen(navController) }
             composable("devtextedit") { DevEditTextVariationsScreen(navController) }
