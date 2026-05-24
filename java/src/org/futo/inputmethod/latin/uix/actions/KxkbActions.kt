@@ -77,3 +77,23 @@ val LiveResizeAction = Action(
     },
     windowImpl = null,
 )
+
+// Open the kxkb "Special keys" reference page (Esc / Ctrl / 4D) directly, deep-linked via the
+// SettingsActivity "navDest" extra to the "specialKeys" route. Same flags as LiveResizeAction so a
+// reused SettingsActivity still navigates there (handled by SettingsActivity.onNewIntent).
+val SpecialKeysAction = Action(
+    icon = R.drawable.book,
+    name = R.string.action_special_keys,
+    simplePressImpl = { manager, _ ->
+        val intent = Intent()
+        intent.setClass(manager.getContext(), SettingsActivity::class.java)
+        intent.putExtra("navDest", "specialKeys")
+        intent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK
+                    or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        manager.getContext().startActivity(intent)
+    },
+    windowImpl = null,
+)

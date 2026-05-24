@@ -25,7 +25,10 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -465,11 +468,13 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
             // kxkb: jump straight back to the keyboard. This page is usually opened from the
             // action-bar "Live sizing" icon while typing; finishing the activity returns to the app
             // (and its keyboard) in one tap, instead of several Back presses up the settings stack.
-            Button(
+            OutlinedButton(
                 onClick = { context.findActivity()?.finish() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp, 4.dp)
+                    .padding(16.dp, 4.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
             ) {
                 Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
             }
@@ -657,11 +662,13 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
 
             // kxkb: second close button at the bottom, so a one-tap return to the keyboard is
             // reachable whether the user is at the top of the page or has scrolled down to Reset.
-            Button(
+            OutlinedButton(
                 onClick = { context.findActivity()?.finish() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp, 4.dp)
+                    .padding(16.dp, 4.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
             ) {
                 Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
             }

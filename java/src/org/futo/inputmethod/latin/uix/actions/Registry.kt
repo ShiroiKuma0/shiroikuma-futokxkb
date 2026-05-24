@@ -46,6 +46,7 @@ val AllActionsMap = mapOf(
     // kxkb quick-access actions (appended — indices above must stay stable)
     "key_sliding_toggle" to KeySlidingToggleAction,
     "live_resize" to LiveResizeAction,
+    "special_keys" to SpecialKeysAction,
 )
 
 val ActionToId = AllActionsMap.entries.associate { it.value to it.key }
@@ -266,7 +267,7 @@ fun String.toActionList(): List<Action> = split(",").mapNotNull { AllActionsMap[
 
 val DefaultActionSettings = mapOf(
     ActionCategory.ActionKey to listOf(EmojiAction),
-    ActionCategory.PinnedKey to listOf(VoiceInputAction, KeySlidingToggleAction, LiveResizeAction),
+    ActionCategory.PinnedKey to listOf(VoiceInputAction, KeySlidingToggleAction, LiveResizeAction, SpecialKeysAction),
     ActionCategory.Favorites to listOfNotNull(if(IsDebug) MemoryDebugAction else null, SwitchLanguageAction, UndoAction, RedoAction, TextEditAction, ClipboardHistoryAction, ThemeAction, KeyboardModeAction),
     ActionCategory.More to listOf(), // Remaining actions get populated automatically by ensureWellFormed
     ActionCategory.Disabled to listOf(MemoryDebugAction, SystemVoiceInputAction, BugViewerAction)

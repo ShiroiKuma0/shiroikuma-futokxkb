@@ -1,13 +1,17 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -15,6 +19,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.settings.CollapsibleSection
+import org.futo.inputmethod.latin.uix.settings.findActivity
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.Tip
@@ -52,9 +57,27 @@ private fun Yaml(text: String) {
 }
 
 @Composable
+private fun CloseToKeyboardButton() {
+    val context = LocalContext.current
+    // Finish the settings activity to return straight to the keyboard, matching the Live sizing page.
+    OutlinedButton(
+        onClick = { context.findActivity()?.finish() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp, 4.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+    ) {
+        Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
+    }
+}
+
+@Composable
 fun SpecialKeysScreen(navController: NavHostController = rememberNavController()) {
     ScrollableList {
         ScreenTitle(stringResource(R.string.special_keys_title), showBack = true, navController)
+
+        CloseToKeyboardButton()
 
         Tip("These go in your custom-layout YAML (dev layouts). Each section says what the key does and gives the exact snippet to drop into a key slot.")
 
@@ -75,5 +98,7 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Yaml("- { type: flick, primary: o, left: e, up: O, right: ó,\n    down: Ō, upLeft: Ó, upRight: ö, downRight: ō }")
             Para("Note: key sliding and swipe/glide typing are mutually exclusive — turning one on turns the other off.")
         }
+
+        CloseToKeyboardButton()
     }
 }
