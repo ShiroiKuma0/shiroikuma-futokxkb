@@ -1,176 +1,108 @@
-name: kxkb
+name: "kxkb 5r15c 1.3.4"
+
+# 5-row, 15-column layout modelled on your Unexpected-Keyboard reference.
+# Base keys only (your swipe/extended keys are added as moreKeys where known).
+numberRowMode: AlwaysDisabled        # row 1 IS your custom top row
+
+# Width control (all YAML — no code needed):
+#   functional keys (shift/delete/enter) are forced to a wide minimum by default;
+#   set both minimums to 0 so they render at regular width, then opt specific keys
+#   wider with `attributes: {width: Grow}`. Identical mode makes the bottom row use
+#   the same 15-column grid as the letter rows.
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+# Each spacebar is pinned to exactly 3 letter-columns (3/15 = 0.2); every other
+# bottom-row key stays standard and the row fills the remainder evenly.
+overrideWidths: { Custom1: 0.2 }
+
+# Esc / Ctrl are visible placeholders (they TYPE their label for now — key_unspecified
+# would render as an invisible gap). Code phase: Esc -> KEYCODE_ESCAPE, Ctrl -> modifier.
+
 rows:
+  # ---- Row 1 : symbols + numbers ----
   - letters:
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 1
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 2
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 3
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 4
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 5
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 6
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 7
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 8
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 9
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: 0
-      moreKeys: ["@"]
+    - { type: base, spec: "+", moreKeys: ["-", "±"] }
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    - "5"
+    - { type: base, spec: "(", moreKeys: ["{", "<"] }
+    - { type: base, spec: "$", moreKeys: ["€", "£", "¥"] }
+    - { type: base, spec: ")", moreKeys: ["}", ">"] }
+    - "6"
+    - "7"
+    - "8"
+    - "9"
+    - "0"
+    - { type: base, spec: "*", moreKeys: ["×"] }
+
+  # ---- Row 2 : Esc | Tab | c m w k | [ ^ ] | q f r l | ' ? ----
   - letters:
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: "-"
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: c
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: m
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: w
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: k
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: q
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: f
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: r
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: l
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: "'"
-      moreKeys: ["@"]
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: "Esc|!code/key_escape" }   # real Escape (needs the esc-keycode build)
+    - { type: base, spec: "!icon/tab_key|!code/key_tab" }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: c, moreKeys: ["č", "ç"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: m, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: w, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: k, moreKeys: ["@"] }
+    - { type: base, spec: "[", moreKeys: ["{"] }
+    - { type: base, spec: "!icon/action_up|!code/action_up" }
+    - { type: base, spec: "]", moreKeys: ["}"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: q, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: f, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: r, moreKeys: ["ř"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: l, moreKeys: ["ĺ", "ľ"] }
+    - { type: base, spec: "'", moreKeys: ["´", "`"] }
+    - { type: base, spec: "?", moreKeys: ["!", "¿"] }
+
+  # ---- Row 3 : Ctrl | i o a e v | < ~ > | b t n s h | bksp ----
   - letters:
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: i
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: o
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: a
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: e
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: v
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: b
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: t
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: n
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: s
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: h
-      moreKeys: ["@"]
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: "Ctrl" }  # placeholder (types "Ctrl" for now)
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: i, moreKeys: ["í", "î"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: o, moreKeys: ["ó", "ö", "ô"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: a, moreKeys: ["á", "ä", "à"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: e, moreKeys: ["ě", "é", "ë"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: v, moreKeys: ["@"] }
+    - { type: base, spec: "!icon/action_left|!code/action_left" }
+    - { type: base, spec: "~" }
+    - { type: base, spec: "!icon/action_right|!code/action_right" }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: b, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: t, moreKeys: ["ť"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: n, moreKeys: ["ň", "ñ"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: s, moreKeys: ["š", "ß"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: h, moreKeys: ["@"] }
+    - $delete
+
+  # ---- Row 4 : Tab | ; x p u z | ` v # | g d y j | / \ ----
   - letters:
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: ":"
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: x
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: p
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: u
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: z
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: g
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: d
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: y
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: j
-      moreKeys: ["@"]
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: "/"
-      moreKeys: ["@"]
+    - { type: base, spec: "!icon/tab_key|!code/key_tab" }
+    - { type: base, spec: ";", moreKeys: [":", "…"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: x, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: p, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: u, moreKeys: ["ú", "ů", "ü"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: z, moreKeys: ["ž", "ź", "ż"] }
+    - { type: base, spec: "`" }
+    - { type: base, spec: "!icon/action_down|!code/action_down" }
+    - { type: base, spec: "#" }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: g, moreKeys: ["@"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: d, moreKeys: ["ď", "đ"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: y, moreKeys: ["ý", "ÿ"] }
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: j, moreKeys: ["@"] }
+    - { type: base, spec: "/", moreKeys: ["\\"] }
+    - { type: base, spec: "\\", moreKeys: ["|"] }
+
+  # ---- Row 5 : bottom — Shift | Space | Tab ? Kbd | | bksp Enter | Space | Shift ----
+  # spaces grow to fill; everything else regular. enter = fixed return arrow;
+  # globe = SwitchLanguageAction (yellow icon, long-press = system keyboard picker).
   - bottom:
     - $shift
-    - type: base
-      attributes: { moreKeyMode: OnlyExplicit }
-      spec: "."
-      moreKeys: [","]
-    - $space
-    - $shift
+    - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+    - { type: base, spec: "!icon/tab_key|!code/key_tab" }
+    - { type: base, spec: "?", moreKeys: ["!", ",", ";"] }
+    - { type: base, spec: ":", moreKeys: [";", "::"] }
+    - { type: base, attributes: { longPressEnabled: true }, spec: "!icon/action_switch_language|!code/action_switch_language" }
+    - { type: base, spec: "\\|" }
     - $delete
-    - $enter
+    - { type: base, spec: "!icon/enter_key|!code/key_enter" }
+    - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+    - $shift
