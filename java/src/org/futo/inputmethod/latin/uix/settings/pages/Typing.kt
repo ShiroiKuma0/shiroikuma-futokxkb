@@ -1254,6 +1254,28 @@ val TypingSettingsMenu = UserSettingsMenu(
                 AutoSpacesSetting()
             }
         ),
+        userSettingToggleSharedPrefs(
+            title = R.string.typing_settings_swipe,
+            subtitle = R.string.typing_settings_swipe_subtitle,
+            disabledSubtitle = R.string.typing_settings_swipe_disabled_by_key_sliding,
+            disabled = { useSharedPrefsBool(Settings.PREF_KEY_SLIDING, false).value },
+            key = Settings.PREF_GESTURE_INPUT,
+            default = {true},
+            icon = {
+                Icon(painterResource(id = R.drawable.swipe_icon), contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f))
+            }
+        ),
+        userSettingToggleSharedPrefs(
+            title = R.string.key_sliding_title,
+            subtitle = R.string.key_sliding_subtitle,
+            key = Settings.PREF_KEY_SLIDING,
+            default = {false},
+            icon = {
+                Icon(painterResource(id = R.drawable.swipe_icon), contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f))
+            }
+        ),
         userSettingToggleDataStore(
             title = R.string.typing_settings_suggest_emojis,
             subtitle = R.string.typing_settings_suggest_emojis_subtitle,

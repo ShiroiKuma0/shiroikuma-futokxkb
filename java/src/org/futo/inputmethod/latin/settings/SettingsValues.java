@@ -84,6 +84,7 @@ public class SettingsValues {
     public final boolean mBigramPredictionEnabled;
     public final boolean mTransformerPredictionEnabled;
     public final boolean mGestureInputEnabled;
+    public final boolean mKeySlidingEnabled;
     public final boolean mGestureTrailEnabled;
     public final boolean mGestureFloatingPreviewTextEnabled;
     public final boolean mSlidingKeyInputPreviewEnabled;
@@ -228,7 +229,11 @@ public class SettingsValues {
         mAutoCorrectionThreshold = readAutoCorrectionThreshold(res,
                 autoCorrectionThresholdRawValue);
         mPlausibilityThreshold = Settings.readPlausibilityThreshold(res);
-        mGestureInputEnabled = Settings.readGestureInputEnabled(prefs, res);
+        mKeySlidingEnabled = Settings.readKeySlidingEnabled(prefs);
+        // Key sliding and swipe/gesture typing both claim a slide off a key, so they are mutually
+        // exclusive: when key sliding is on, glide is forced off here (PointerTracker still consumes
+        // the flick). The swipe toggle keeps its own stored value; this only gates the effect.
+        mGestureInputEnabled = Settings.readGestureInputEnabled(prefs, res) && !mKeySlidingEnabled;
         mGestureTrailEnabled = prefs.getBoolean(Settings.PREF_GESTURE_PREVIEW_TRAIL, true);
         mCloudSyncEnabled = prefs.getBoolean(LocalSettingsConstants.PREF_ENABLE_CLOUD_SYNC, false);
         mAccount = prefs.getString(LocalSettingsConstants.PREF_ACCOUNT_NAME,

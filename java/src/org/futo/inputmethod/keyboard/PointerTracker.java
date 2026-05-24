@@ -211,6 +211,13 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         sGestureEnabler.setGestureHandlingEnabledByUser(gestureHandlingEnabledByUser);
     }
 
+    // kxkb: when true, a short slide off a key consumes its flick (4D) direction instead of being
+    // ignored. Mutually exclusive with glide (the caller forces glide off when this is on).
+    private static boolean sKeySlidingEnabled = false;
+    public static void setKeySlidingEnabled(final boolean enabled) {
+        sKeySlidingEnabled = enabled;
+    }
+
     public static PointerTracker getPointerTracker(final int id) {
         final ArrayList<PointerTracker> trackers = sTrackers;
 
@@ -760,7 +767,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             mSpacebarLongPressed = false;
 
             mIsSlidingCursor = key.getCode() == Constants.CODE_DELETE || key.getCode() == Constants.CODE_SPACE;
-            mIsFlickingKey = !mIsSlidingCursor && key.getHasFlick();
+            mIsFlickingKey = sKeySlidingEnabled && !mIsSlidingCursor && key.getHasFlick();
             mFlickDirection = key.flickDirection(0, 0);
             mCurrentKey = key;
         }

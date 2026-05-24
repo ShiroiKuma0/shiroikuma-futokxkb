@@ -573,6 +573,10 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         PointerTracker.setImeAllowsGestureInput(value);
     }
 
+    public void setKeySlidingEnabled(final boolean value) {
+        PointerTracker.setKeySlidingEnabled(value);
+    }
+
     public void setGestureHandlingEnabledByUser(final boolean isGestureHandlingEnabledByUser,
             final boolean isGestureTrailEnabled,
             final boolean isGestureFloatingPreviewTextEnabled) {
