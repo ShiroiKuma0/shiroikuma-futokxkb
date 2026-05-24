@@ -206,7 +206,10 @@ data class LayoutEngine(
         layoutWidth
     }
 
-    private val minimumBottomFunctionalKeyWidth = (layoutWidth * keyboard.minimumBottomRowFunctionalKeyWidth)
+    // Bottom (action) row is laid out at full width regardless of split, so its key-width
+    // bounds must derive from the full width too — otherwise regular and functional keys
+    // scale at different rates as split width changes and the row's key sizes deform.
+    private val minimumBottomFunctionalKeyWidth = (unsplitLayoutWidth * keyboard.minimumBottomRowFunctionalKeyWidth)
 
     private val regularKeyWidth = computeRegularKeyWidth()
     private val unsplitRegularKeyWidth = computeRegularKeyWidth(unsplitLayoutWidth)
@@ -216,7 +219,7 @@ data class LayoutEngine(
     private val maxFunctionalKeyWidth = (layoutWidth * maxOf(0.15f,
         keyboard.overrideWidths[KeyWidth.FunctionalKey] ?: 0.15f))
 
-    private val bottomRegularKeyWidth = 0.1f * layoutWidth
+    private val bottomRegularKeyWidth = 0.1f * unsplitLayoutWidth
 
 
     private fun computeRegularKeyWidth(layoutWidth: Int = this.layoutWidth): Float {
@@ -479,7 +482,12 @@ data class LayoutEngine(
                     regularKeyWidth = rowRegularKeyWidths[i],
                     layoutWidth = rowLayoutWidths[i],
                     functionalWidth = if (rows[i].isBottomRow && keyboard.bottomRowWidthMode.separateFunctional) {
-                        maxOf(minimumBottomFunctionalKeyWidth, functionalWidth)
+                        // The shared functionalWidth is capped against the split layout width, so on a
+                        // split layout the bottom row's functional keys (shift/delete) would shrink with
+                        // the split while its regular keys stay full-scale — deforming them. The bottom
+                        // row is laid out at full width, so rescale the functional width to that width.
+                        // (unsplitLayoutWidth == layoutWidth off split and at 100%, so this is a no-op there.)
+                        maxOf(minimumBottomFunctionalKeyWidth, functionalWidth * unsplitLayoutWidth / layoutWidth)
                     } else {
                         functionalWidth
                     }

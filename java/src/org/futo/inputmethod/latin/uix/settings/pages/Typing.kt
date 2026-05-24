@@ -279,7 +279,8 @@ val KxkbSizingResetMenu = UserSettingsMenu(
                         suggestionBarHeightFactor = 1f,
                         fontSizeMultiplier = -1f,
                         keyRoundness = -1f,
-                        hintSizeMultiplier = -1f
+                        hintSizeMultiplier = -1f,
+                        splitWidthFraction = defaults.splitWidthFraction
                     ).toJsonString()
                 )
             }
@@ -439,6 +440,14 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     title = stringResource(R.string.kxkb_sizing_suggestion_bar_height),
                     item = floatItem({ it.suggestionBarHeightFactor }, { s, v -> s.copy(suggestionBarHeightFactor = v) }),
                     default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                )
+                // Split-mode half width as a fraction of the display width (only affects split mode,
+                // i.e. landscape / inner display). Higher = wider halves and a smaller centre gap;
+                // the size calc hard-caps the effective value at 90%, so the halves never fully meet.
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_split_width),
+                    item = floatItem({ it.splitWidthFraction }, { s, v -> s.copy(splitWidthFraction = v) }),
+                    default = defaultSizing.splitWidthFraction, range = 0.4f..1.0f, transform = { it }, indicator = { "%.0f%%".format(it * 100) }
                 )
             }
 

@@ -557,7 +557,11 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,
                     splitLayoutWidth = (displayWidth * savedSettings.splitWidthFraction).toInt()
-                        .coerceInLoosely(dp(48), displayWidth * 9 / 10)
+                        // Upper bound is the full display width: at that point the two halves (each
+                        // carrying the duplicated middle column on an odd layout) overlap by exactly
+                        // that column, so the keyboard reads as continuous; just below it the halves
+                        // touch with the doubled column visible. The old 9/10 cap left a permanent gap.
+                        .coerceInLoosely(dp(48), displayWidth)
                 )
 
             savedSettings.currentMode == KeyboardMode.OneHanded ->
