@@ -180,6 +180,14 @@ data class SavedKeyboardSizingSettings(
     val floatingBottomOriginDp: Pair<Float, Float>,
     val floatingWidthDp: Float,
     val floatingHeightDp: Float,
+
+    // Per-geometry look overrides (Multiling-style live knobs). A negative value means
+    // "inherit the active theme's value"; a value >= 0 overrides it. All default to inherit,
+    // so existing saved blobs and not-yet-configured geometries render exactly as before.
+    val fontSizeMultiplier: Float = -1f,
+    val labelWeight: Int = -1,
+    val keyRoundness: Float = -1f,
+    val borderWidthDp: Float = -1f,
 ) {
     fun toJsonString(): String =
         Json.encodeToString(this)

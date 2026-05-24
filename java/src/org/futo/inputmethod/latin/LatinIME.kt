@@ -282,16 +282,36 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
     }
 
+    /**
+     * Overlay the current geometry's per-kind look knobs (font size, label weight, key
+     * roundness, border width) onto a color scheme's [AdvancedThemeOptions] before it is handed
+     * to [BasicThemeProvider]. A negative saved value inherits the theme's own value, so this is
+     * a no-op until a knob is set. Only the key-render options are touched; Compose UI colors are
+     * untouched.
+     */
+    private fun withPerKindLook(scheme: KeyboardColorScheme): KeyboardColorScheme {
+        val saved = sizingCalculator.getSavedSettings()
+        val a = scheme.extended.advancedThemeOptions
+        val overlaid = a.copy(
+            keyLetterScale = if (saved.fontSizeMultiplier >= 0f) saved.fontSizeMultiplier else a.keyLetterScale,
+            keyLabelWeight = if (saved.labelWeight >= 0) saved.labelWeight else a.keyLabelWeight,
+            keyRoundness = if (saved.keyRoundness >= 0f) saved.keyRoundness else a.keyRoundness,
+            keyStrokeWidthDp = if (saved.borderWidthDp >= 0f) saved.borderWidthDp else a.keyStrokeWidthDp
+        )
+        return if (overlaid == a) scheme
+            else scheme.copy(extended = scheme.extended.copy(advancedThemeOptions = overlaid))
+    }
+
     private fun updateDrawableProvider(colorScheme: KeyboardColorScheme) {
         activeColorScheme.value = colorScheme
-        drawableProvider = BasicThemeProvider(this, colorScheme)
+        drawableProvider = BasicThemeProvider(this, withPerKindLook(colorScheme))
 
         updateNavigationBarVisibility()
         uixManager.onColorSchemeChanged()
     }
 
     override fun getDrawableProvider(): DynamicThemeProvider {
-        return drawableProvider ?: BasicThemeProvider(this, colorScheme).let {
+        return drawableProvider ?: BasicThemeProvider(this, withPerKindLook(colorScheme)).let {
             drawableProvider = it
             it
         }
