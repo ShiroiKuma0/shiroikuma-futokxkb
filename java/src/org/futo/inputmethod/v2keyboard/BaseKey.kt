@@ -238,14 +238,23 @@ data class KeyAttributes(
             MoreKeyMode.OnlyFromLetter
         }
 
+        // kxkb: a Spacebar-styled key should default to TemplateSpaceKey's behaviour even when written
+        // out longhand as a base key — NO key preview (a wide spacebar preview renders as a useless
+        // black box) and long-press ENABLED (the language switcher). `configured` is `attrs` minus the
+        // trailing DefaultKeyAttributes, so an explicit per-key / row / keyboard value still wins; only
+        // the hardcoded fallback is swapped. The non-spacebar fallbacks are unchanged: showPopup → true
+        // (= !isSpacebar) and longPressEnabled → false (= isSpacebar==false).
+        val isSpacebar = resolve(attrs) { it.style } == KeyVisualStyle.Spacebar
+        val configured = attrs.dropLast(1)
+
         return KeyAttributes(
             width               = resolve(attrs) { it.width              },
             style               = resolve(attrs) { it.style              },
             anchored            = resolve(attrs) { it.anchored           },
-            showPopup           = resolve(attrs) { it.showPopup          },
+            showPopup           = resolve(configured) { it.showPopup     } ?: !isSpacebar,
             moreKeyMode         = resolve(attrs) { it.moreKeyMode        } ?: defaultMoreKeyMode,
             useKeySpecShortcut  = resolve(attrs) { it.useKeySpecShortcut },
-            longPressEnabled    = resolve(attrs) { it.longPressEnabled   },
+            longPressEnabled    = resolve(configured) { it.longPressEnabled } ?: isSpacebar,
             labelFlags          = resolve(attrs) { it.labelFlags         },
             repeatableEnabled   = resolve(attrs) { it.repeatableEnabled  },
             shiftable           = resolve(attrs) { it.shiftable          },
