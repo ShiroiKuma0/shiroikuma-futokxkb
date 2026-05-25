@@ -9,11 +9,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -394,6 +397,35 @@ private fun ColorSetting(
 // the five sizing sliders. Edits the per-geometry blob the docked keyboard is currently showing
 // (auto-tracked via LastUsedSizeStateSetting), so dragging a slider updates the real keyboard live.
 @OptIn(ExperimentalLayoutApi::class)
+// kxkb: Jami-style section header — large accent title + a full-width accent rule beneath it.
+@Composable
+private fun KxkbSection(title: String) {
+    Column(Modifier.fillMaxWidth().padding(16.dp, 24.dp, 16.dp, 4.dp)) {
+        Text(title, style = Typography.Heading.MediumMl, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(4.dp))
+        HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+// kxkb: Jami-style subgroup — accent title with a SHORT underline matching the text width
+// (IntrinsicSize.Min sizes the column to its single-line text), then its controls indented one step
+// deeper, so section (0) > subgroup (1) > controls (2) reads as a cascade.
+@Composable
+private fun KxkbSubgroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.padding(24.dp, 16.dp, 16.dp, 2.dp).width(IntrinsicSize.Min)) {
+        Text(
+            title,
+            style = Typography.Body.MediumMl,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            softWrap = false
+        )
+        Spacer(Modifier.height(2.dp))
+        HorizontalDivider(thickness = 1.5.dp, color = MaterialTheme.colorScheme.primary)
+    }
+    Column(Modifier.fillMaxWidth().padding(start = 32.dp)) { content() }
+}
+
 @Composable
 fun KxkbSizingScreen(navController: NavHostController = rememberNavController()) {
     val textInputService = LocalTextInputService.current
@@ -541,188 +573,214 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                 modifier = Modifier.padding(12.dp, 8.dp)
             )
 
-            // Fresh slider instances per combo (geometry × subtype) so their internal value seed
-            // resyncs on fold/rotate AND on a language/layout switch.
+            // All per-combo controls live inside key(kind, activeSub) so each slider's internal seed
+            // resyncs on a geometry or language/layout switch. Grouped Jami-style: KxkbSection (big
+            // header + full-width rule) > KxkbSubgroup (accent header + short underline, controls
+            // indented one step deeper) > controls, with each colour beside the element it affects.
             key(kind, activeSub) {
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_horizontal_gap),
-                    item = floatItem({ it.horizontalGapAddDp }, { s, v -> s.copy(horizontalGapAddDp = v) }),
-                    default = 0f, range = 0f..10f, transform = { it }, indicator = { "%.1f dp".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_vertical_gap),
-                    item = floatItem({ it.verticalGapAddDp }, { s, v -> s.copy(verticalGapAddDp = v) }),
-                    default = 0f, range = 0f..10f, transform = { it }, indicator = { "%.1f dp".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_keyboard_height),
-                    item = floatItem({ it.heightMultiplier }, { s, v -> s.copy(heightMultiplier = v) }),
-                    default = defaultSizing.heightMultiplier, range = 0.5f..2.5f, transform = { it }, indicator = { "%.2fx".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_top_row_height),
-                    item = floatItem({ it.topRowHeightFactor }, { s, v -> s.copy(topRowHeightFactor = v) }),
-                    default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_bottom_row_height),
-                    item = floatItem({ it.bottomRowHeightFactor }, { s, v -> s.copy(bottomRowHeightFactor = v) }),
-                    default = 1f, range = 0.2f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
-                )
-                // Key label font scale. The stored field is -1 = "inherit theme"; the slider shows
-                // the effective value (HighContrastYellow's keyLetterScale, 1.4x, until first set)
-                // and writes an absolute scale once dragged. Feeds keyLetterScale via withPerKindLook.
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_key_font_size),
-                    item = floatItem(
-                        { if (it.fontSizeMultiplier >= 0f) it.fontSizeMultiplier else 1.4f },
-                        { s, v -> s.copy(fontSizeMultiplier = v) }
-                    ),
-                    default = 1.4f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
-                )
-                // Secondary (hint) character scale. Stored -1 = inherit theme (keyHintScale 1.0x
-                // until set); writes an absolute multiplier. Feeds keyHintScale via withPerKindLook,
-                // applied at the on-key hint draw sites in KeyboardView.
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_secondary_text_size),
-                    item = floatItem(
-                        { if (it.hintSizeMultiplier >= 0f) it.hintSizeMultiplier else 1.0f },
-                        { s, v -> s.copy(hintSizeMultiplier = v) }
-                    ),
-                    default = 1.0f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
-                )
-                // kxkb 4D: at-rest directional-label grid positions, as fractions of the key from
-                // center. Top/bottom and left/right independent (so the bottom row can sit lower than
-                // the top sits high). Only visible while key sliding is on. Fed to KeyboardView via
-                // withPerKindLook -> setFlickLabelOffsets.
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_flick_top),
-                    item = floatItem({ it.flickLabelTopOffset }, { s, v -> s.copy(flickLabelTopOffset = v) }),
-                    default = 0.30f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_flick_bottom),
-                    item = floatItem({ it.flickLabelBottomOffset }, { s, v -> s.copy(flickLabelBottomOffset = v) }),
-                    default = 0.40f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_flick_left),
-                    item = floatItem({ it.flickLabelLeftOffset }, { s, v -> s.copy(flickLabelLeftOffset = v) }),
-                    default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_flick_right),
-                    item = floatItem({ it.flickLabelRightOffset }, { s, v -> s.copy(flickLabelRightOffset = v) }),
-                    default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                // kxkb cluster: how far the left / right outer mains of a cluster (predictive multi-key)
-                // sit from the centre, as a fraction of key width per column-step. 0.333 = evenly tiled.
-                // Display only — does not affect prediction. Fed via withPerKindLook -> setClusterMainOffsets.
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_cluster_left),
-                    item = floatItem({ it.clusterLeftOffset }, { s, v -> s.copy(clusterLeftOffset = v) }),
-                    default = 0.333f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_cluster_right),
-                    item = floatItem({ it.clusterRightOffset }, { s, v -> s.copy(clusterRightOffset = v) }),
-                    default = 0.333f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                // Key corner roundness (0 = square, 1 = theme max). Stored -1 = inherit theme; the
-                // slider shows the effective value (HighContrastYellow uses 0 = square until set)
-                // and writes an absolute value. Feeds keyRoundness via withPerKindLook.
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_key_roundness),
-                    item = floatItem(
-                        { if (it.keyRoundness >= 0f) it.keyRoundness else 0f },
-                        { s, v -> s.copy(keyRoundness = v) }
-                    ),
-                    default = 0f, range = 0f..5f, transform = { it }, indicator = { "%.2f".format(it) }
-                )
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_suggestion_bar_height),
-                    item = floatItem({ it.suggestionBarHeightFactor }, { s, v -> s.copy(suggestionBarHeightFactor = v) }),
-                    default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
-                )
-                // Split-mode half width as a fraction of the display width (only affects split mode,
-                // i.e. landscape / inner display). Higher = wider halves and a smaller centre gap;
-                // the size calc hard-caps the effective value at 90%, so the halves never fully meet.
-                SettingSliderForDataStoreItem(
-                    title = stringResource(R.string.kxkb_sizing_split_width),
-                    item = floatItem({ it.splitWidthFraction }, { s, v -> s.copy(splitWidthFraction = v) }),
-                    default = defaultSizing.splitWidthFraction, range = 0.4f..1.0f, transform = { it }, indicator = { "%.0f%%".format(it * 100) }
-                )
+                KxkbSection("Size")
 
-                // ---- Colours (per-geometry; null = inherit the active theme) ----
-                Text(
-                    stringResource(R.string.kxkb_color_section),
-                    style = Typography.Body.MediumMl,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp)
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_font),
-                    current = parsed.fontColor,
-                    inherited = scheme.onKeyboardContainer.toArgb(),
-                    onChange = { v -> writeColor { it.copy(fontColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_secondary),
-                    current = parsed.secondaryFontColor,
-                    inherited = (scheme.hintColor ?: scheme.onSurfaceVariant).toArgb(),
-                    onChange = { v -> writeColor { it.copy(secondaryFontColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_key_bg),
-                    current = parsed.keyBackgroundColor,
-                    inherited = scheme.keyboardContainer.toArgb(),
-                    onChange = { v -> writeColor { it.copy(keyBackgroundColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_functional_bg),
-                    current = parsed.functionalKeyBackgroundColor,
-                    inherited = scheme.keyboardContainerVariant.toArgb(),
-                    onChange = { v -> writeColor { it.copy(functionalKeyBackgroundColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_border),
-                    current = parsed.keyBorderColor,
-                    inherited = scheme.outline.toArgb(),
-                    onChange = { v -> writeColor { it.copy(keyBorderColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_keyboard_bg),
-                    current = parsed.keyboardBackgroundColor,
-                    inherited = scheme.keyboardSurface.toArgb(),
-                    onChange = { v -> writeColor { it.copy(keyboardBackgroundColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_suggestion_bg),
-                    current = parsed.suggestionBarColor,
-                    inherited = scheme.keyboardSurface.toArgb(),
-                    onChange = { v -> writeColor { it.copy(suggestionBarColor = v) } }
-                )
-                ColorSetting(
-                    title = stringResource(R.string.kxkb_color_suggestion_text),
-                    current = parsed.suggestionTextColor,
-                    inherited = scheme.onSurface.toArgb(),
-                    onChange = { v -> writeColor { it.copy(suggestionTextColor = v) } }
-                )
+                KxkbSubgroup("Height") {
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_keyboard_height),
+                        item = floatItem({ it.heightMultiplier }, { s, v -> s.copy(heightMultiplier = v) }),
+                        default = defaultSizing.heightMultiplier, range = 0.5f..2.5f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_top_row_height),
+                        item = floatItem({ it.topRowHeightFactor }, { s, v -> s.copy(topRowHeightFactor = v) }),
+                        default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_bottom_row_height),
+                        item = floatItem({ it.bottomRowHeightFactor }, { s, v -> s.copy(bottomRowHeightFactor = v) }),
+                        default = 1f, range = 0.2f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                }
+
+                KxkbSubgroup("Spacing") {
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_horizontal_gap),
+                        item = floatItem({ it.horizontalGapAddDp }, { s, v -> s.copy(horizontalGapAddDp = v) }),
+                        default = 0f, range = 0f..10f, transform = { it }, indicator = { "%.1f dp".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_vertical_gap),
+                        item = floatItem({ it.verticalGapAddDp }, { s, v -> s.copy(verticalGapAddDp = v) }),
+                        default = 0f, range = 0f..10f, transform = { it }, indicator = { "%.1f dp".format(it) }
+                    )
+                }
+
+                KxkbSubgroup("Split mode") {
+                    // Split-mode half width as a fraction of the display width (only affects split mode,
+                    // i.e. landscape / inner display). Higher = wider halves and a smaller centre gap;
+                    // the size calc hard-caps the effective value at 90%, so the halves never fully meet.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_split_width),
+                        item = floatItem({ it.splitWidthFraction }, { s, v -> s.copy(splitWidthFraction = v) }),
+                        default = defaultSizing.splitWidthFraction, range = 0.4f..1.0f, transform = { it }, indicator = { "%.0f%%".format(it * 100) }
+                    )
+                }
+
+                KxkbSection("Keys")
+
+                KxkbSubgroup("Text") {
+                    // Key label font scale. Stored -1 = "inherit theme"; the slider shows the effective
+                    // value (HighContrastYellow's keyLetterScale, 1.4x, until set) and writes an absolute
+                    // scale once dragged. Feeds keyLetterScale via withPerKindLook.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_key_font_size),
+                        item = floatItem(
+                            { if (it.fontSizeMultiplier >= 0f) it.fontSizeMultiplier else 1.4f },
+                            { s, v -> s.copy(fontSizeMultiplier = v) }
+                        ),
+                        default = 1.4f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_font),
+                        current = parsed.fontColor,
+                        inherited = scheme.onKeyboardContainer.toArgb(),
+                        onChange = { v -> writeColor { it.copy(fontColor = v) } }
+                    )
+                }
+
+                KxkbSubgroup("Shape & background") {
+                    // Key corner roundness (0 = square, 1 = theme max). Stored -1 = inherit theme; the
+                    // slider shows the effective value (HighContrastYellow uses 0 = square until set)
+                    // and writes an absolute value. Feeds keyRoundness via withPerKindLook.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_key_roundness),
+                        item = floatItem(
+                            { if (it.keyRoundness >= 0f) it.keyRoundness else 0f },
+                            { s, v -> s.copy(keyRoundness = v) }
+                        ),
+                        default = 0f, range = 0f..5f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_key_bg),
+                        current = parsed.keyBackgroundColor,
+                        inherited = scheme.keyboardContainer.toArgb(),
+                        onChange = { v -> writeColor { it.copy(keyBackgroundColor = v) } }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_functional_bg),
+                        current = parsed.functionalKeyBackgroundColor,
+                        inherited = scheme.keyboardContainerVariant.toArgb(),
+                        onChange = { v -> writeColor { it.copy(functionalKeyBackgroundColor = v) } }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_border),
+                        current = parsed.keyBorderColor,
+                        inherited = scheme.outline.toArgb(),
+                        onChange = { v -> writeColor { it.copy(keyBorderColor = v) } }
+                    )
+                }
+
+                KxkbSubgroup("Hint labels") {
+                    // Secondary (hint) character scale. Stored -1 = inherit theme (keyHintScale 1.0x
+                    // until set); writes an absolute multiplier. Feeds keyHintScale via withPerKindLook,
+                    // applied at the on-key hint draw sites in KeyboardView.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_secondary_text_size),
+                        item = floatItem(
+                            { if (it.hintSizeMultiplier >= 0f) it.hintSizeMultiplier else 1.0f },
+                            { s, v -> s.copy(hintSizeMultiplier = v) }
+                        ),
+                        default = 1.0f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_secondary),
+                        current = parsed.secondaryFontColor,
+                        inherited = (scheme.hintColor ?: scheme.onSurfaceVariant).toArgb(),
+                        onChange = { v -> writeColor { it.copy(secondaryFontColor = v) } }
+                    )
+                }
+
+                KxkbSection("Sliding labels")
+
+                KxkbSubgroup("Flick positions") {
+                    // kxkb 4D: at-rest directional-label grid positions, as fractions of the key from
+                    // centre. Top/bottom and left/right independent. Only visible while key sliding is on.
+                    // Fed to KeyboardView via withPerKindLook -> setFlickLabelOffsets.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_flick_top),
+                        item = floatItem({ it.flickLabelTopOffset }, { s, v -> s.copy(flickLabelTopOffset = v) }),
+                        default = 0.30f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_flick_bottom),
+                        item = floatItem({ it.flickLabelBottomOffset }, { s, v -> s.copy(flickLabelBottomOffset = v) }),
+                        default = 0.40f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_flick_left),
+                        item = floatItem({ it.flickLabelLeftOffset }, { s, v -> s.copy(flickLabelLeftOffset = v) }),
+                        default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_flick_right),
+                        item = floatItem({ it.flickLabelRightOffset }, { s, v -> s.copy(flickLabelRightOffset = v) }),
+                        default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                }
+
+                KxkbSubgroup("Cluster positions") {
+                    // kxkb cluster: how far the left / right outer mains of a cluster (predictive multi-key)
+                    // sit from the centre, as a fraction of key width per column-step. 0.333 = evenly tiled.
+                    // Display only - does not affect prediction. Fed via withPerKindLook -> setClusterMainOffsets.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_cluster_left),
+                        item = floatItem({ it.clusterLeftOffset }, { s, v -> s.copy(clusterLeftOffset = v) }),
+                        default = 0.333f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_cluster_right),
+                        item = floatItem({ it.clusterRightOffset }, { s, v -> s.copy(clusterRightOffset = v) }),
+                        default = 0.333f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                }
+
+                KxkbSection("Surfaces & suggestion bar")
+
+                KxkbSubgroup("Keyboard background") {
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_keyboard_bg),
+                        current = parsed.keyboardBackgroundColor,
+                        inherited = scheme.keyboardSurface.toArgb(),
+                        onChange = { v -> writeColor { it.copy(keyboardBackgroundColor = v) } }
+                    )
+                }
+
+                KxkbSubgroup("Suggestion bar") {
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_suggestion_bar_height),
+                        item = floatItem({ it.suggestionBarHeightFactor }, { s, v -> s.copy(suggestionBarHeightFactor = v) }),
+                        default = 1f, range = 0.5f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_suggestion_bg),
+                        current = parsed.suggestionBarColor,
+                        inherited = scheme.keyboardSurface.toArgb(),
+                        onChange = { v -> writeColor { it.copy(suggestionBarColor = v) } }
+                    )
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_suggestion_text),
+                        current = parsed.suggestionTextColor,
+                        inherited = scheme.onSurface.toArgb(),
+                        onChange = { v -> writeColor { it.copy(suggestionTextColor = v) } }
+                    )
+                }
             }
 
-            // ---- Swipe-space switcher: which shortcuts fill the left column ----
-            Text(
-                "Layout switcher shortcuts",
-                style = Typography.Body.MediumMl,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp)
-            )
-            LayoutSwitcherShortcutCatalog.forEach { shortcut ->
-                SettingToggleSharedPrefs(
-                    title = shortcut.label,
-                    key = layoutSwitcherShortcutPrefKey(shortcut.id),
-                    default = shortcut.defaultOn
-                )
+            KxkbSection("Layout switcher")
+            Column(Modifier.fillMaxWidth().padding(start = 32.dp)) {
+                LayoutSwitcherShortcutCatalog.forEach { shortcut ->
+                    SettingToggleSharedPrefs(
+                        title = shortcut.label,
+                        key = layoutSwitcherShortcutPrefKey(shortcut.id),
+                        default = shortcut.defaultOn
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
