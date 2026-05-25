@@ -313,6 +313,11 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             saved.flickLabelLeftOffset, saved.flickLabelRightOffset
         )
 
+        // kxkb cluster: push the per-geometry left/right outer-main display offsets (display only).
+        org.futo.inputmethod.keyboard.KeyboardView.setClusterMainOffsets(
+            saved.clusterLeftOffset, saved.clusterRightOffset
+        )
+
         val a = scheme.extended.advancedThemeOptions
         val overlaid = a.copy(
             keyLetterScale = if (saved.fontSizeMultiplier >= 0f) saved.fontSizeMultiplier else a.keyLetterScale,
@@ -360,6 +365,8 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                 a.flickLabelBottomOffset != b.flickLabelBottomOffset ||
                 a.flickLabelLeftOffset != b.flickLabelLeftOffset ||
                 a.flickLabelRightOffset != b.flickLabelRightOffset ||
+                a.clusterLeftOffset != b.clusterLeftOffset ||
+                a.clusterRightOffset != b.clusterRightOffset ||
                 a.fontColor != b.fontColor ||
                 a.secondaryFontColor != b.secondaryFontColor ||
                 a.keyBackgroundColor != b.keyBackgroundColor ||

@@ -200,6 +200,14 @@ data class SavedKeyboardSizingSettings(
     val flickLabelLeftOffset: Float = 0.34f,
     val flickLabelRightOffset: Float = 0.34f,
 
+    // Per-geometry cluster (predictive multi-key) main-band layout: how far the left / right outer
+    // mains sit from the centre main, as a fraction of the key width per column-step. Default 0.333
+    // (= the three mains evenly tiled across the key, 1/6 · 1/2 · 5/6). DISPLAY ONLY — the predictive
+    // tap sub-rects stay uniform thirds, so moving these never changes typing/prediction, just how the
+    // glyphs are drawn. Read by LatinIME.withPerKindLook -> KeyboardView.setClusterMainOffsets.
+    val clusterLeftOffset: Float = 0.333f,
+    val clusterRightOffset: Float = 0.333f,
+
     // Per-geometry colour overrides — packed ARGB Int (0xAARRGGBB); null = inherit the theme.
     // LatinIME.withPerKindLook overlays any non-null value onto BOTH the key-drawing provider's
     // scheme (font / hint / key bg / functional-key bg / border / keyboard bg) AND the Compose

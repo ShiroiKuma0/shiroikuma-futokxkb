@@ -631,6 +631,17 @@ public class KeyboardView extends View {
         sFlickRightOff = right;
     }
 
+    // kxkb cluster: how far the left / right outer mains sit from the centre main, as a fraction of
+    // the key width per column-step. Pushed per-geometry by LatinIME.withPerKindLook. Default 0.333 =
+    // the band evenly tiled across the key (matches SavedKeyboardSizingSettings). DISPLAY ONLY — the
+    // proximity sub-rects (prediction) are unaffected.
+    private static float sClusterLeftOff = 0.333f;
+    private static float sClusterRightOff = 0.333f;
+    public static void setClusterMainOffsets(final float left, final float right) {
+        sClusterLeftOff = left;
+        sClusterRightOff = right;
+    }
+
     // kxkb 4D: draw a flick key's eight directional labels on its face, mirroring the hold-popup
     // (KeyPreviewView.drawFlickKeys) but snapped to a Multiling-style 3x3 grid. The primary stays
     // centered (drawn above); the directionals sit at column/row offsets given by the per-geometry
@@ -714,13 +725,22 @@ public class KeyboardView extends View {
 
         final float charHeight = TypefaceUtils.getReferenceCharHeight(paint);
         final float baseline = centerY + charHeight / 2.0f;
-        // Space the mains UNIFORMLY across the key: main i sits at the centre of the i-th of N equal
-        // columns (1/2N, 3/2N, 5/2N … of the width), so the band is always evenly distributed and
-        // symmetric. Deliberately independent of the flick left/right sliders — those position the
-        // six extras, not the band.
+        // Centre main sits at the key centre (= the tap-commit glyph); the outer mains step outward
+        // from it by the per-side cluster offsets (fraction of key width per column-step), so the user
+        // can pull the left / right characters in or out independently. Default 0.333 = evenly tiled
+        // (1/6 · 1/2 · 5/6 for three). These offsets are DISPLAY ONLY — the prediction sub-rects in
+        // ProximityInfo stay uniform thirds, so moving the glyphs never changes typing.
         final int n = mains.size();
+        final int centerIdx = n / 2;
         for (int i = 0; i < n; i++) {
-            final float x = keyWidth * (i + 0.5f) / n;
+            final float x;
+            if (i == centerIdx) {
+                x = centerX;
+            } else if (i < centerIdx) {
+                x = centerX - sClusterLeftOff * keyWidth * (centerIdx - i);
+            } else {
+                x = centerX + sClusterRightOff * keyWidth * (i - centerIdx);
+            }
             final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
             canvas.drawText(glyph, 0, glyph.length(), x, baseline, paint);
         }

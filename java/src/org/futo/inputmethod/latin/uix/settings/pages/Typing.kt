@@ -575,6 +575,19 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     item = floatItem({ it.flickLabelRightOffset }, { s, v -> s.copy(flickLabelRightOffset = v) }),
                     default = 0.34f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
                 )
+                // kxkb cluster: how far the left / right outer mains of a cluster (predictive multi-key)
+                // sit from the centre, as a fraction of key width per column-step. 0.333 = evenly tiled.
+                // Display only — does not affect prediction. Fed via withPerKindLook -> setClusterMainOffsets.
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_cluster_left),
+                    item = floatItem({ it.clusterLeftOffset }, { s, v -> s.copy(clusterLeftOffset = v) }),
+                    default = 0.333f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                )
+                SettingSliderForDataStoreItem(
+                    title = stringResource(R.string.kxkb_sizing_cluster_right),
+                    item = floatItem({ it.clusterRightOffset }, { s, v -> s.copy(clusterRightOffset = v) }),
+                    default = 0.333f, range = 0.0f..0.6f, transform = { it }, indicator = { "%.2f".format(it) }
+                )
                 // Key corner roundness (0 = square, 1 = theme max). Stored -1 = inherit theme; the
                 // slider shows the effective value (HighContrastYellow uses 0 = square until set)
                 // and writes an absolute value. Feeds keyRoundness via withPerKindLook.

@@ -100,7 +100,7 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Yaml("- type: compass\n  primary: e\n  up: E\n  right: á\n  down: { type: macro, text: \"etc. \", label: etc }")
             Para("Slot shorthands — a direction can be a compact rich slot (no type: needed): { mod: ctrl } is a chord on the primary (mod = ctrl/alt/shift/super), { chord: \"C-x C-s\" } a chord, { macro: \"etc. \" } a macro. Each takes an optional label; { mod: ctrl, on: x } targets an explicit base instead of the primary.")
             Yaml("- type: compass\n  primary: o\n  up: O\n  down: { mod: ctrl }\n  left: { mod: alt }\n  right: ó")
-            Para("While key sliding is on, the slide targets are drawn small on the key face in a 3×3 grid. Their positions are tunable per fold-state under Live sizing → \"4D label\" sliders.")
+            Para("While key sliding is on, the slide targets are drawn small on the key face in a 3×3 grid. Their positions are tunable per fold-state under Keyboard UI → \"4D label\" sliders.")
             Para("Note: key sliding and swipe/glide typing are mutually exclusive — turning one on turns the other off. (The verbose `type: flick` still works as a lower-level escape hatch.)")
         }
 
@@ -142,7 +142,7 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("To type the LEFT or RIGHT main precisely (overriding prediction), slide left or right — so key sliding should be on. The six remaining directions are \"extra\" slide targets (up-left/up/up-right, down-left/down/down-right), each any key or a { mod }/{ chord }/{ macro } shorthand, exactly like a compass:")
             Yaml("- type: cluster\n  main: \"aev\"\n  up: \"4\"\n  down: { macro: \"…\" }")
             Para("Prediction is letter-only (the decoder mixes a–z): non-letter mains like ( ; : or digits still commit (centre-tap or precise slide) but never become predictive candidates. left/right are reserved for the side mains and aren't author-settable.")
-            Para("Rendering: the mains draw at the primary key size on the centre line (positioned by the left/right \"4D label\" sliders); the extras draw small above and below, by the top/bottom and left/right sliders — all under Live sizing per fold-state. Needs a prediction model + autocorrect/suggestions for the disambiguation; with prediction off it falls back to centre-tap + precise slides.")
+            Para("Rendering: the mains draw at the primary key size on the centre line — the centre at the key centre, the left/right characters pushed out by their own \"Cluster: left/right character distance\" sliders (default 0.333 = evenly tiled); the extras draw small above and below, by the top/bottom and left/right \"4D label\" sliders — all under Keyboard UI per fold-state. The cluster distance sliders are display-only (they don't move the prediction tap-zones). Needs a prediction model + autocorrect/suggestions for the disambiguation; with prediction off it falls back to centre-tap + precise slides.")
         }
 
         CloseToKeyboardButton()

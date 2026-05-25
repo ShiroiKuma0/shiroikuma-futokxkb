@@ -463,7 +463,7 @@
     <string name="key_sliding_title">Key sliding (4D keys)</string>
     <string name="key_sliding_subtitle">Short-slide a key in any of 8 directions to type its side characters. Replaces swipe typing while on.</string>
     <string name="action_key_sliding_toggle">Key sliding on/off</string>
-    <string name="action_live_resize">Live sizing</string>
+    <string name="action_live_resize">Keyboard UI</string>
     <string name="action_special_keys">Special keys</string>
     <string name="action_custom_layouts">Custom layouts</string>
     <string name="special_keys_title">Special keys</string>
@@ -707,7 +707,7 @@ Default is %1$s</string>
     <string name="personal_dictionary_delete_additional_file_text">%1$s will be deleted</string>
 
     <!-- kxkb live sizing knobs -->
-    <string name="kxkb_sizing_title">Live sizing (kxkb)</string>
+    <string name="kxkb_sizing_title">Keyboard UI (kxkb)</string>
     <string name="kxkb_sizing_close_to_keyboard">✕ Close — back to keyboard</string>
     <string name="kxkb_sizing_subtitle">Per-geometry gaps, row heights, suggestion bar</string>
     <!-- %1$s will be replaced with the active geometry name -->
@@ -727,6 +727,8 @@ Default is %1$s</string>
     <string name="kxkb_sizing_flick_bottom">4D label: bottom row position</string>
     <string name="kxkb_sizing_flick_left">4D label: left column position</string>
     <string name="kxkb_sizing_flick_right">4D label: right column position</string>
+    <string name="kxkb_sizing_cluster_left">Cluster: left character distance</string>
+    <string name="kxkb_sizing_cluster_right">Cluster: right character distance</string>
     <string name="kxkb_sizing_key_roundness">Key roundness</string>
     <string name="kxkb_sizing_split_width">Split width (landscape / unfolded)</string>
     <string name="kxkb_sizing_reset">Reset live sizing</string>
