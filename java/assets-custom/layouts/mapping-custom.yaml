@@ -1,0 +1,7 @@
+# kxkb custom locale->layout mappings, merged on top of the submodule layouts/mapping.yaml by
+# LayoutManager (see parseMappingsOrEmpty). Lets us register locales without forking the layouts
+# submodule. "zxx" is ISO 639 "no linguistic content"; we surface it as the "GNU" programming
+# language and seed it with the bundled kxkb layout (also the BFU default). No dictionary ships for
+# zxx, so word prediction stays off there while real languages keep theirs.
+languages:
+  zxx: ["kxkb"]

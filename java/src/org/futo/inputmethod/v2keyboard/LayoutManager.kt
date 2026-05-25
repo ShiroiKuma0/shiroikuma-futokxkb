@@ -50,11 +50,17 @@ object LayoutManager {
 
         initialized = true
 
-        localeToLayoutsMappings = parseMappings(context, "layouts/mapping.yaml").languages.mapKeys {
+        // kxkb: the stock mapping.yaml / names.yaml ship in the layouts submodule. To register our
+        // own locales (e.g. "zxx" shown as "GNU") without forking that submodule, we additionally
+        // read optional mapping-custom.yaml / names-custom.yaml from assets-custom and merge them on
+        // top. Both files are optional (absent => no-op); on a key clash the custom entry wins.
+        localeToLayoutsMappings = (parseMappings(context, "layouts/mapping.yaml").languages +
+                parseMappingsOrEmpty(context, "layouts/mapping-custom.yaml").languages).mapKeys {
             localeFromString(it.key)
         }
 
-        localeNames = parseNames(context, "layouts/names.yaml").mapKeys {
+        localeNames = (parseNames(context, "layouts/names.yaml") +
+                parseNamesOrEmpty(context, "layouts/names-custom.yaml")).mapKeys {
             localeFromString(it.key)
         }.mapValues { it.value.mapKeys { localeFromString(it.key) }}
 
@@ -154,6 +160,14 @@ private fun parseNames(context: Context, namesPath: String): Map<String, Map<Str
         yaml.decodeFromString(namesSerializer, yamlString)
     }
 }
+
+// kxkb: optional-asset variants — if the custom file isn't shipped, assets.open throws and we treat
+// it as empty rather than failing init. Used for the GNU-language registration in assets-custom.
+private fun parseMappingsOrEmpty(context: Context, mappingsPath: String): Mappings =
+    try { parseMappings(context, mappingsPath) } catch (e: Exception) { Mappings(emptyMap()) }
+
+private fun parseNamesOrEmpty(context: Context, namesPath: String): Map<String, Map<String, String>> =
+    try { parseNames(context, namesPath) } catch (e: Exception) { emptyMap() }
 
 private val yaml = Yaml(
     SerializersModule {

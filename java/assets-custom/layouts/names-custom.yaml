@@ -1,0 +1,6 @@
+# kxkb custom locale display-name overrides, merged on top of layouts/names.yaml by LayoutManager.
+# Outer key = the locale being named; inner key = the UI locale the name is written in (the resolver
+# falls back to the first entry for any UI locale). Shows zxx (and zxx_* via the prefix fallback) as
+# "GNU" in the language picker and Languages dialog.
+zxx:
+  en: "GNU"
