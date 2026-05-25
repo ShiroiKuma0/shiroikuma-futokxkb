@@ -136,6 +136,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final int SPACEBAR_MODE_OFF = 0;
     public static final int SPACEBAR_MODE_CURSOR = 1;
     public static final int SPACEBAR_MODE_LANGUAGE = 2;
+    public static final int SPACEBAR_MODE_LAYOUT_MENU = 3; // kxkb: swipe opens the layout switcher
 
     public static final String PREF_BACKSPACE_MODE_HOLD = "pref_backspace_mode_hold";
     public static final String PREF_BACKSPACE_MODE = "pref_backspace_mode";

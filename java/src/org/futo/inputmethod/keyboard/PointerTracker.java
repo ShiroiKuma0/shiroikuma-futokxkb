@@ -978,6 +978,23 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         final SettingsValues settingsValues = Settings.getInstance().getCurrent();
 
         if (!sInGesture && mIsSlidingCursor && oldKey != null && oldKey.getCode() == Constants.CODE_SPACE) {
+            // kxkb: LAYOUT_MENU swipe-mode — a swipe (not a long-press drag) opens the layout switcher
+            // panel, which then receives the rest of the gesture (move highlights, release selects).
+            // Long-press is handled independently by mSpacebarHoldMode below (set it to Move cursor for
+            // long-press+drag); here we only intercept the swipe.
+            if (settingsValues.mSpacebarSwipeMode == Settings.SPACEBAR_MODE_LAYOUT_MENU
+                    && !mSpacebarLongPressed && !isShowingMoreKeysPanel()) {
+                final int swipeIgnoreTime =
+                        settingsValues.mKeyLongpressTimeout / MULTIPLIER_FOR_LONG_PRESS_TIMEOUT_IN_SLIDING_INPUT;
+                if (Math.abs(x - mStartX) > sPointerStep
+                        && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
+                    openLayoutSwitcherPanel();
+                }
+                mLastX = x;
+                mLastY = y;
+                return;
+            }
+
             boolean allowedBySettings = (mSpacebarLongPressed && settingsValues.mSpacebarHoldMode == Settings.SPACEBAR_MODE_CURSOR)
                         || (!mSpacebarLongPressed && settingsValues.mSpacebarSwipeMode != Settings.SPACEBAR_MODE_OFF);
 
@@ -1267,6 +1284,22 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         final int translatedY = moreKeysPanel.translateY(mLastY);
         moreKeysPanel.onDownEvent(translatedX, translatedY, mPointerId, SystemClock.uptimeMillis());
         mMoreKeysPanel = moreKeysPanel;
+    }
+
+    // kxkb: open the swipe-space layout switcher panel and hand it the ongoing gesture (mirrors the
+    // more-keys open path above, but driven by a spacebar swipe instead of a long-press).
+    private void openLayoutSwitcherPanel() {
+        if (isShowingMoreKeysPanel()) {
+            return;
+        }
+        final MoreKeysPanel panel = sDrawingProxy.showLayoutSwitcher(this);
+        if (panel == null) {
+            return;
+        }
+        final int translatedX = panel.translateX(mLastX);
+        final int translatedY = panel.translateY(mLastY);
+        panel.onDownEvent(translatedX, translatedY, mPointerId, SystemClock.uptimeMillis());
+        mMoreKeysPanel = panel;
     }
 
     private void cancelKeyTracking() {

@@ -1057,6 +1057,7 @@ val LongPressMenu = UserSettingsMenu(
                 Settings.SPACEBAR_MODE_OFF to stringResource(R.string.morekey_settings_spacebar_swipe_shortcut_off),
                 Settings.SPACEBAR_MODE_CURSOR to stringResource(R.string.morekey_settings_spacebar_swipe_shortcut_cursor),
                 Settings.SPACEBAR_MODE_LANGUAGE to stringResource(R.string.morekey_settings_spacebar_swipe_shortcut_language),
+                Settings.SPACEBAR_MODE_LAYOUT_MENU to stringResource(R.string.morekey_settings_spacebar_swipe_shortcut_layout_menu), // kxkb
             )
 
             DropDownPickerSettingItem(

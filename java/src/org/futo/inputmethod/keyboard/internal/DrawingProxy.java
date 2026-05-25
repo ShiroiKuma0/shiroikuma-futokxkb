@@ -49,6 +49,14 @@ public interface DrawingProxy {
     public MoreKeysPanel showMoreKeysKeyboard(@Nonnull Key key, @Nonnull PointerTracker tracker);
 
     /**
+     * kxkb: open the swipe-space layout switcher panel for the current language.
+     * @param tracker the {@link PointerTracker} driving the gesture.
+     * @return the {@link MoreKeysPanel} being shown, or null if there's nothing to switch between.
+     */
+    @Nullable
+    public MoreKeysPanel showLayoutSwitcher(@Nonnull PointerTracker tracker);
+
+    /**
      * Start a while-typing-animation.
      * @param fadeInOrOut {@link #FADE_IN} starts while-typing-fade-in animation.
      * {@link #FADE_OUT} starts while-typing-fade-out animation.

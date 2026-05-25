@@ -645,6 +645,31 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         return moreKeysKeyboardView;
     }
 
+    // kxkb: open the swipe-space layout switcher (the layouts of the current language). Returns null
+    // when there are fewer than two layouts for the language (nothing to switch between).
+    @Override
+    public MoreKeysPanel showLayoutSwitcher(@Nonnull final PointerTracker tracker) {
+        final java.util.List<kotlin.Pair<String, String>> layouts =
+                org.futo.inputmethod.latin.Subtypes.INSTANCE.getCurrentLanguageLayouts(getContext());
+        if (layouts.size() < 2) {
+            return null;
+        }
+        locatePreviewPlacerView();
+        final int[] lastCoords = CoordinateUtils.newInstance();
+        tracker.getLastCoordinates(lastCoords);
+
+        final LayoutSwitcherView view = new LayoutSwitcherView(getContext());
+        view.setContents(layouts,
+                org.futo.inputmethod.latin.Subtypes.INSTANCE.getActiveSubtypeString(getContext()),
+                mDrawableProvider.getKeyboardColor(),
+                mDrawableProvider.getKeyColor(),
+                mDrawableProvider.getMoreKeysTextColor(),
+                getWidth(), getHeight());
+        view.showMoreKeysPanel(this, this, CoordinateUtils.x(lastCoords), CoordinateUtils.y(lastCoords),
+                mKeyboardActionListener, lastCoords, true);
+        return view;
+    }
+
     public boolean isInDraggingFinger() {
         if (isShowingMoreKeysPanel()) {
             return true;

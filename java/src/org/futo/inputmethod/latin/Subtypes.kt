@@ -286,6 +286,34 @@ object Subtypes {
         return true
     }
 
+    // kxkb: the active subtype string (raw), for the swipe-space layout switcher.
+    fun getActiveSubtypeString(context: Context): String =
+        context.getSettingBlocking(ActiveSubtype).ifEmpty {
+            context.getSettingBlocking(SubtypesSetting).firstOrNull() ?: ""
+        }
+
+    // kxkb: enabled subtypes sharing the active subtype's language, active one first, returned as
+    // (subtypeString, layoutDisplayName) pairs. Backs the swipe-space layout switcher panel. Ordering
+    // is "active first, then enabled order" for now; true last-used recency comes in a later phase.
+    fun getCurrentLanguageLayouts(context: Context): List<Pair<String, String>> {
+        val enabled = context.getSettingBlocking(SubtypesSetting).toList()
+        if (enabled.isEmpty()) return emptyList()
+        val active = getActiveSubtypeString(context)
+        val activeLang = getLocale(active.split(":").firstOrNull() ?: return emptyList()).language
+        val sameLang = enabled.filter { getLocale(it.split(":").first()).language == activeLang }
+        val ordered = (sameLang.filter { it == active } + sameLang.filter { it != active })
+        return ordered.map { sub ->
+            val layout = sub.split(":").getOrNull(1)?.substringAfter("KeyboardLayoutSet=", "") ?: ""
+            sub to getLayoutName(context, layout)
+        }
+    }
+
+    // kxkb: switch to a specific (language, layout) subtype. Writing ActiveSubtype is observed by
+    // LatinIME, which performs the actual keyboard switch.
+    fun switchToSubtypeString(context: Context, subtypeString: String) {
+        context.setSettingBlocking(ActiveSubtype.key, subtypeString)
+    }
+
     fun getMultilingualBucket(context: Context, locale: Locale): List<Locale> {
         val set = context.getSetting(MultilingualBucketSetting).map {
             getLocale(it)
