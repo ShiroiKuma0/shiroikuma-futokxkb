@@ -746,6 +746,9 @@ data class LayoutEngine(
             labelOverride = data.flick?.label,
             iconOverride = data.flick?.icon,
 
+            // kxkb: carry the cluster band to the Key (predictive multi-key); null on all others.
+            clusterMains = data.clusterMains,
+
             row = row,
             column = col,
             swipeCodeOverride = data.swipeLetter?.let {

@@ -77,6 +77,17 @@ data class ComputedFlickData(
     val icon: String? = null
 )
 
+// kxkb: one "main" glyph of a `cluster` key (the predictive multi-key). The mains share one wide
+// key predictively: a tap commits the centre but ALL of the band's letters become candidates for
+// that tap position, disambiguated by the language model. `column`/`columnCount` let ProximityInfo
+// tile each main's sub-rect across the key width (non-letter mains are positioned but not injected,
+// since the decoder only mixes letters). See ClusterKey + ProximityInfo.createNativeProximityInfo.
+data class ClusterMain(
+    val codePoint: Int,
+    val column: Int,
+    val columnCount: Int
+)
+
 data class ComputedKeyData(
     val label: String,
     val code: Int,
@@ -96,5 +107,8 @@ data class ComputedKeyData(
     val flick: ComputedFlickData? = null,
     val fastLongPress: Boolean = false,
     val rowSpan: Int = 1,
-    val swipeLetter: String? = null
+    val swipeLetter: String? = null,
+    // kxkb: set only by `cluster` keys — the band of main glyphs, carried to ProximityInfo so a tap
+    // injects all of them as predictive candidates. Null on every other key type.
+    val clusterMains: List<ClusterMain>? = null,
 )

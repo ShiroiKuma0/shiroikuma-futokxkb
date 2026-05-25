@@ -135,6 +135,16 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             )
         }
 
+        CollapsibleSection("Cluster (predictive multi-key)") {
+            Para("A wide key carrying a band of main glyphs that share the key predictively (the old Multiling \"3+2\"). A plain tap commits the CENTRE main, but the tap position is considered against ALL the band's letters — the prediction/suggestion engine picks the right one from word context, so you don't have to aim. Type roughly; the candidates appear in the suggestion strip.")
+            Para("Centre form — `main` is the band, left→right; the centre commits on tap:")
+            Yaml("- { type: cluster, main: \"aev\" }")
+            Para("To type the LEFT or RIGHT main precisely (overriding prediction), slide left or right — so key sliding should be on. The six remaining directions are \"extra\" slide targets (up-left/up/up-right, down-left/down/down-right), each any key or a { mod }/{ chord }/{ macro } shorthand, exactly like a compass:")
+            Yaml("- type: cluster\n  main: \"aev\"\n  up: \"4\"\n  down: { macro: \"…\" }")
+            Para("Prediction is letter-only (the decoder mixes a–z): non-letter mains like ( ; : or digits still commit (centre-tap or precise slide) but never become predictive candidates. left/right are reserved for the side mains and aren't author-settable.")
+            Para("Rendering: the mains draw at the primary key size on the centre line (positioned by the left/right \"4D label\" sliders); the extras draw small above and below, by the top/bottom and left/right sliders — all under Live sizing per fold-state. Needs a prediction model + autocorrect/suggestions for the disambiguation; with prediction off it falls back to centre-tap + precise slides.")
+        }
+
         CloseToKeyboardButton()
     }
 }

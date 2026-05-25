@@ -22,6 +22,7 @@ import android.util.Log;
 import org.futo.inputmethod.keyboard.internal.TouchPositionCorrection;
 import org.futo.inputmethod.latin.common.Constants;
 import org.futo.inputmethod.latin.utils.JniUtils;
+import org.futo.inputmethod.v2keyboard.ClusterMain;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -100,10 +101,39 @@ public class ProximityInfo {
         return key.getCode() >= Constants.CODE_SPACE;
     }
 
+    // kxkb: a `cluster` (predictive multi-key) contributes one proximity sub-entry per LETTER main —
+    // narrow sub-rects tiled across the key width — instead of one full-width entry, so a tap's
+    // spatial decomposition spreads across every letter in the band and the language model picks
+    // from context (the old Multiling 3+2). Each entry is {x, y, width, height, codePoint}. Non-letter
+    // mains are skipped: the decoder only mixes a–z, so they would buy no prediction and only spend
+    // the native key-count budget. Returns null for a non-cluster key, OR for a cluster whose mains
+    // are all non-letters (then it falls back to the normal single-entry path = its centre commit).
+    private static List<int[]> clusterSubKeys(final Key key) {
+        final List<ClusterMain> mains = key.getClusterMains();
+        if (mains == null || mains.isEmpty()) {
+            return null;
+        }
+        final List<int[]> out = new ArrayList<>();
+        for (final ClusterMain m : mains) {
+            if (!Character.isLetter(m.getCodePoint())) {
+                continue;
+            }
+            final int n = m.getColumnCount();
+            final int c = m.getColumn();
+            final int left = key.getX() + (int) Math.round((double) c * key.getWidth() / n);
+            final int right = key.getX() + (int) Math.round((double) (c + 1) * key.getWidth() / n);
+            out.add(new int[] { left, key.getY(), right - left, key.getHeight(), m.getCodePoint() });
+        }
+        return out.isEmpty() ? null : out;
+    }
+
     private static int getProximityInfoKeysCount(final List<Key> keys) {
         int count = 0;
         for (final Key key : keys) {
-            if (needsProximityInfo(key)) {
+            final List<int[]> sub = clusterSubKeys(key);
+            if (sub != null) {
+                count += sub.size();
+            } else if (needsProximityInfo(key)) {
                 count++;
             }
         }
@@ -158,6 +188,19 @@ public class ProximityInfo {
 
         for (int infoIndex = 0, keyIndex = 0; keyIndex < sortedKeys.size(); keyIndex++) {
             final Key key = sortedKeys.get(keyIndex);
+            // kxkb: a cluster emits one sub-entry per letter main (tiled sub-rects) instead of one.
+            final List<int[]> sub = clusterSubKeys(key);
+            if (sub != null) {
+                for (final int[] s : sub) {
+                    keyXCoordinates[infoIndex] = s[0];
+                    keyYCoordinates[infoIndex] = s[1];
+                    keyWidths[infoIndex] = s[2];
+                    keyHeights[infoIndex] = s[3];
+                    keyCharCodes[infoIndex] = s[4];
+                    infoIndex++;
+                }
+                continue;
+            }
             // Excluding from key coordinate arrays
             if (!needsProximityInfo(key)) {
                 continue;
@@ -182,6 +225,19 @@ public class ProximityInfo {
                     * (float)Math.hypot(mMostCommonKeyWidth, mMostCommonKeyHeight);
             for (int infoIndex = 0, keyIndex = 0; keyIndex < sortedKeys.size(); keyIndex++) {
                 final Key key = sortedKeys.get(keyIndex);
+                // kxkb: cluster sub-entries get sweet spots in lockstep so the arrays stay aligned
+                // with keyCount (no per-row correction for the synthetic sub-rects — their own
+                // centre + the default radius; the user's HCY layout has correction off anyway).
+                final List<int[]> sub = clusterSubKeys(key);
+                if (sub != null) {
+                    for (final int[] s : sub) {
+                        sweetSpotCenterXs[infoIndex] = s[0] + s[2] / 2.0f;
+                        sweetSpotCenterYs[infoIndex] = s[1] + s[3] / 2.0f;
+                        sweetSpotRadii[infoIndex] = defaultRadius;
+                        infoIndex++;
+                    }
+                    continue;
+                }
                 // Excluding from touch position correction arrays
                 if (!needsProximityInfo(key)) {
                     continue;

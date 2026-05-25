@@ -389,3 +389,139 @@ data class CycleKey(
         )
     }
 }
+
+// kxkb: "cluster" key — the predictive multi-key (the old Multiling "3+2"). It carries a band of N
+// "main" glyphs that share one wide key PREDICTIVELY: a plain tap commits the centre main, but the
+// real touch position is decomposed across ALL the band's letters by the spatial model, so the
+// language model can pick any of them from word context (see ProximityInfo.createNativeProximityInfo
+// + the native decomposeTapPosition path). The leftmost/rightmost mains are also reachable PRECISELY
+// by a slide left/right; the six remaining directions (up-left/up/up-right, down-left/down/down-right)
+// are "extra" slide targets, each any key or { mod }/{ chord }/{ macro } shorthand — exactly like a
+// compass. So a cluster IS a compass whose middle row is the predictive main-band:
+//
+//     up-left      up        up-right       (extras, secondary size, slide)
+//     main[0] ·· main[centre] ·· main[N-1]  (left/right slide-precise, centre = tap; all predicted)
+//     down-left    down      down-right     (extras, secondary size, slide)
+//
+//   { type: cluster, main: "aev", up: "4", down: { macro: "…" } }
+//
+// Unlike chord/macro/cycle this does NOT intercept onTextInput — the tap is an ordinary centre-main
+// keypress; the predictive magic is entirely the ProximityInfo sub-rect injection keyed off the
+// `clusterMains` tag on the ComputedKeyData. left/right are reserved (the side mains); only the six
+// diagonal/vertical slots are author-settable. Letter-only prediction (the decoder mixes a–z only).
+@Serializable
+@SerialName("cluster")
+data class ClusterKey(
+    val main: String,
+
+    val up: Slot? = null,
+    val down: Slot? = null,
+    val upLeft: Slot? = null,
+    val upRight: Slot? = null,
+    val downLeft: Slot? = null,
+    val downRight: Slot? = null,
+
+    val attributes: KeyAttributes? = null,
+    val label: String? = null,
+    val icon: String? = null,
+) : AbstractKey {
+    private val extraAttrs = attributes?.let { listOf(it) } ?: emptyList()
+
+    // A main/side key is literal (no keyspec-shortcut expansion, no auto morekeys) so "(", "$", etc.
+    // stay themselves, matching compass's compact-string slots. Returns BaseKey (not Key) so the
+    // centre main can call computeDataWithExtraAttrs to inherit the cluster's width/style.
+    private fun literalKey(codePoint: Int): BaseKey = BaseKey(
+        spec = String(Character.toChars(codePoint)),
+        attributes = KeyAttributes(
+            useKeySpecShortcut = false,
+            moreKeyMode = MoreKeyMode.OnlyExplicit
+        )
+    )
+
+    // Identical slot resolution to CompassKey: { mod } becomes a chord on its `on:` char or the
+    // band's centre char; chord/macro have already desugared in the serializer.
+    private fun slotToKey(slot: CompassSlot, primaryChar: String?): Key? = when (slot) {
+        is KeySlot -> slot.key
+        is ModSlot -> {
+            val base = slot.on ?: primaryChar
+            if (base.isNullOrEmpty()) null
+            else ChordKey(keys = modPrefix(slot.mod) + "-" + base, label = slot.label)
+        }
+    }
+
+    private fun modPrefix(mod: String): String = when (mod.trim().lowercase()) {
+        "ctrl", "control", "c"               -> "C"
+        "alt", "meta", "opt", "option", "m"  -> "M"
+        "shift"                              -> "S"
+        "super", "win", "cmd", "gui", "s"    -> "s"
+        else                                 -> "C"
+    }
+
+    private fun slotData(
+        key: Key,
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData? = when (key) {
+        is BaseKey -> key.computeDataWithExtraAttrs(params, row, keyboard, coordinate, extraAttrs)
+        else -> key.computeData(params, row, keyboard, coordinate)
+    }
+
+    override fun countsToKeyCoordinate(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard
+    ): Boolean = false
+
+    override fun computeData(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData? {
+        val cps = main.codePoints().toArray()
+        if (cps.isEmpty()) return null
+        val n = cps.size
+        val centerIdx = n / 2   // N=3 -> 1 (centre); N=2 -> 1; N=1 -> 0
+
+        // The centre main is the tap-commit primary, built as a literal BaseKey carrying the
+        // cluster's own attributes (width/style/etc.).
+        val primaryData = literalKey(cps[centerIdx])
+            .computeDataWithExtraAttrs(params, row, keyboard, coordinate, extraAttrs)
+        val primaryChar = if (primaryData.code > 0) String(Character.toChars(primaryData.code))
+                          else primaryData.label.ifEmpty { null }
+
+        // Flick map: West = first main, East = last main (precise side access), plus the six extras.
+        val flick = LinkedHashMap<Direction, ComputedKeyData>()
+        if (n >= 2) {
+            slotData(literalKey(cps[0]),     params, row, keyboard, coordinate)?.let { flick[Direction.West] = it }
+            slotData(literalKey(cps[n - 1]), params, row, keyboard, coordinate)?.let { flick[Direction.East] = it }
+        }
+        fun place(dir: Direction, slot: Slot?) {
+            if (slot == null) return
+            slotToKey(slot, primaryChar)?.let { key ->
+                slotData(key, params, row, keyboard, coordinate)?.let { flick[dir] = it }
+            }
+        }
+        place(Direction.North,     up)
+        place(Direction.South,     down)
+        place(Direction.NorthWest, upLeft)
+        place(Direction.NorthEast, upRight)
+        place(Direction.SouthWest, downLeft)
+        place(Direction.SouthEast, downRight)
+
+        // The band, tagged for the proximity model (predictive multi-key).
+        val mains = cps.mapIndexed { i, cp -> ClusterMain(cp, i, n) }
+
+        return primaryData.copy(
+            label = main,
+            moreKeys = emptyList(),
+            longPressEnabled = false,
+            flick = if (flick.isEmpty()) null
+                    else ComputedFlickData(directions = flick, label = label, icon = icon),
+            showPopup = true,
+            clusterMains = mains
+        )
+    }
+}

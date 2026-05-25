@@ -35,6 +35,7 @@ import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.common.StringUtils
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider
 import org.futo.inputmethod.v2keyboard.Direction
+import org.futo.inputmethod.v2keyboard.ClusterMain
 import org.futo.inputmethod.v2keyboard.KeyVisualStyle
 import org.futo.inputmethod.v2keyboard.computeDirectionsFromDeltaPos
 import kotlin.math.roundToInt
@@ -204,6 +205,10 @@ data class Key(
 
     /** Flick keys */
     val flickKeys: Map<Direction, Key>? = null,
+
+    /** kxkb: cluster (predictive multi-key) main glyphs, or null. Read by ProximityInfo to inject
+     *  one spatial candidate per letter main, and by KeyboardView to draw the main band. */
+    val clusterMains: List<ClusterMain>? = null,
 
     /** Whether long-press should be fast */
     val isFastLongPress: Boolean,

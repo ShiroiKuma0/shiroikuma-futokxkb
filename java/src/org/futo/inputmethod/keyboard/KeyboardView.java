@@ -43,8 +43,10 @@ import org.futo.inputmethod.v2keyboard.KeyVisualStyle;
 import org.futo.inputmethod.latin.utils.TypefaceUtils;
 import org.futo.inputmethod.v2keyboard.Direction;
 import org.futo.inputmethod.v2keyboard.KeyDataKt;
+import org.futo.inputmethod.v2keyboard.ClusterMain;
 import kotlin.Pair;
 import java.util.Map;
+import java.util.List;
 
 import java.util.HashSet;
 
@@ -440,6 +442,13 @@ public class KeyboardView extends View {
                 PointerTracker.isKeySlidingEnabled() ? key.getFlickKeys() : null;
         final boolean drawFlickFace = atRestFlickKeys != null && !atRestFlickKeys.isEmpty();
 
+        // kxkb cluster: a predictive multi-key draws its band of main glyphs itself (primary size,
+        // on the centre line, positioned by the left/right sliders), so the single centred label is
+        // suppressed; the side mains live in the West/East flick slots and are drawn here too, so the
+        // at-rest flick pass skips them. The band shows whether or not sliding is on (it's the face).
+        final List<ClusterMain> clusterMains = key.getClusterMains();
+        final boolean isCluster = clusterMains != null && !clusterMains.isEmpty();
+
         // Draw key label.
         final Drawable icon = kdc.getIcon();
         final Drawable hintIcon = kdc.getHintIcon();
@@ -455,7 +464,7 @@ public class KeyboardView extends View {
             keyHintPaddingY = bgPadding.top;
         }
 
-        if (label != null && icon == null) {
+        if (label != null && icon == null && !isCluster) {
             paint.setTypeface(mDrawableProvider.selectKeyTypeface(key.selectTypeface(params)));
             paint.setTextSize(kdc.getTextSize() * mDrawableProvider.getKeyLetterScale());
             final float labelCharHeight = TypefaceUtils.getReferenceCharHeight(paint);
@@ -597,6 +606,14 @@ public class KeyboardView extends View {
         if (drawFlickFace) {
             drawAtRestFlickLabels(key, canvas, paint, params, kdc, keyWidth, keyHeight, centerX, centerY);
         }
+
+        // kxkb cluster: draw the predictive main band (primary size). Always drawn — it is the key
+        // face, independent of the sliding toggle (a tap predicts the band whether sliding is on or
+        // not; sliding only governs the precise side-main / extra slides).
+        if (isCluster) {
+            drawClusterMains(key, clusterMains, canvas, paint, params, kdc, keyWidth, keyHeight,
+                    centerX, centerY);
+        }
     }
 
     // kxkb 4D: at-rest directional-label positions, as fractions of the key dimension from center,
@@ -640,9 +657,16 @@ public class KeyboardView extends View {
         final float cx = centerX;
         final float cy = centerY + charHeight / 2.0f;
 
+        // kxkb cluster: the West/East slots ARE the side mains, drawn in the band at primary size,
+        // so skip them here (only the six diagonal/vertical extras are drawn as flick labels).
+        final boolean isCluster = key.getClusterMains() != null && !key.getClusterMains().isEmpty();
+
         for (final Map.Entry<Direction, Key> entry : flickKeys.entrySet()) {
             final Key target = entry.getValue();
             if (target == null) {
+                continue;
+            }
+            if (isCluster && (entry.getKey() == Direction.West || entry.getKey() == Direction.East)) {
                 continue;
             }
             final String label = target.getPreviewLabel();
@@ -658,6 +682,49 @@ public class KeyboardView extends View {
                     : (sy < 0 ? cy + sFlickBotOff * keyHeight : cy);
             canvas.drawText(label, x, y, paint);
         }
+        paint.setTextScaleX(1.0f);
+    }
+
+    // kxkb cluster: draw the band of N main glyphs at the primary letter size, on the centre line.
+    // The centre main sits at the key centre (= the tap-commit glyph); the others step outward by the
+    // same left/right sliders the extras use, so a 3-main band reads as left | centre | right. All
+    // mains are predictive candidates regardless of where they're drawn — this is purely the face.
+    private void drawClusterMains(@Nonnull final Key key, @Nonnull final List<ClusterMain> mains,
+            @Nonnull final Canvas canvas, @Nonnull final Paint paint,
+            @Nonnull final KeyDrawParams params, @Nonnull final KeyDrawingConfiguration kdc,
+            final int keyWidth, final int keyHeight, final float centerX, final float centerY) {
+        if (mains.isEmpty()) {
+            return;
+        }
+        paint.setTypeface(mDrawableProvider.selectKeyTypeface(key.selectTypeface(params)));
+        paint.setTextSize(kdc.getTextSize() * mDrawableProvider.getKeyLetterScale());
+        paint.setTextAlign(Align.CENTER);
+        if (key.isEnabled()) {
+            paint.setColor(kdc.getTextColor());
+            if (mKeyTextShadowRadius > 0.0f) {
+                paint.setShadowLayer(mKeyTextShadowRadius, 0.0f, 0.0f, params.mTextShadowColor);
+            } else {
+                paint.clearShadowLayer();
+            }
+        } else {
+            paint.setColor(Color.TRANSPARENT);
+            paint.clearShadowLayer();
+        }
+        blendAlpha(paint, params.mAnimAlpha);
+
+        final float charHeight = TypefaceUtils.getReferenceCharHeight(paint);
+        final float baseline = centerY + charHeight / 2.0f;
+        // Space the mains UNIFORMLY across the key: main i sits at the centre of the i-th of N equal
+        // columns (1/2N, 3/2N, 5/2N … of the width), so the band is always evenly distributed and
+        // symmetric. Deliberately independent of the flick left/right sliders — those position the
+        // six extras, not the band.
+        final int n = mains.size();
+        for (int i = 0; i < n; i++) {
+            final float x = keyWidth * (i + 0.5f) / n;
+            final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
+            canvas.drawText(glyph, 0, glyph.length(), x, baseline, paint);
+        }
+        paint.clearShadowLayer();
         paint.setTextScaleX(1.0f);
     }
 
