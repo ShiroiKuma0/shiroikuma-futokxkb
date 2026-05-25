@@ -145,6 +145,23 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("Rendering: the mains draw at the primary key size on the centre line — the centre at the key centre, the left/right characters pushed out by their own \"Cluster: left/right character distance\" sliders (default 0.333 = evenly tiled); the extras draw small above and below, by the top/bottom and left/right \"4D label\" sliders — all under Keyboard UI per fold-state. The cluster distance sliders are display-only (they don't move the prediction tap-zones). Needs a prediction model + autocorrect/suggestions for the disambiguation; with prediction off it falls back to centre-tap + precise slides.")
         }
 
+        CollapsibleSection("Hide keyboard") {
+            Para("An action key that dismisses the keyboard (the old Multiling [HIDE]). It is the Hide-keyboard action bound to a key — its glyph is a downward chevron and a press closes the keyboard. Works as a standalone key or inside a compass/cluster slide slot.")
+            Yaml("- { type: base, spec: \"!icon/action_hide_keyboard|!code/action_hide_keyboard\" }")
+            Para("As a slide target — e.g. a down-flick to hide (key sliding must be on):")
+            Yaml("- type: compass\n  primary: \"*\"\n  down: \"!icon/action_hide_keyboard|!code/action_hide_keyboard\"")
+            Para("Any action can ride a key this way: !code/action_<id> runs it and !icon/action_<id> draws its glyph. (An icon-only slide target shows on the key face but not in the long-press preview.)")
+        }
+
+        CollapsibleSection("Alt pages (extra layers) & return to letters") {
+            Para("If your layout defines an altPages: block (up to four extra full pages, alt0–alt3), these keys switch the WHOLE keyboard to one of them. The page stays shown until you go back — a sticky layer, not a momentary one.")
+            Para("Switch to a page — fires the alt-page code (the ${'$'}alt0 / ${'$'}alt1 / ${'$'}alt2 template keys do the same):")
+            Yaml("- { type: base, spec: \"sym|!code/key_to_alt_0_layout\" }")
+            Para("Return to your normal layout — two ways. Typing any ordinary character returns automatically (alt pages auto-revert after one keystroke). Or put a return-to-letters key on the page:")
+            Yaml("- { type: base, spec: \"ABC|!code/key_to_alpha_0_layout\" }")
+            Para("key_to_alpha_0_layout jumps straight to the base alphabet from ANY page, so the identical key works on every alt page (the label — \"ABC\" here — is just text; use whatever you like). Don't use the ${'$'}alphabet template for this: it toggles to the symbols layer, not your letters.")
+        }
+
         CloseToKeyboardButton()
     }
 }
