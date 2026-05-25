@@ -97,3 +97,23 @@ val SpecialKeysAction = Action(
     },
     windowImpl = null,
 )
+
+// Open the Developer-settings "Custom layouts" editor directly, deep-linked via the SettingsActivity
+// "navDest" extra to the "devlayouteditor" route. Same flags as the other launchers so a reused
+// SettingsActivity still navigates there (handled by SettingsActivity.onNewIntent).
+val CustomLayoutsAction = Action(
+    icon = R.drawable.code,
+    name = R.string.action_custom_layouts,
+    simplePressImpl = { manager, _ ->
+        val intent = Intent()
+        intent.setClass(manager.getContext(), SettingsActivity::class.java)
+        intent.putExtra("navDest", "devlayouteditor")
+        intent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK
+                    or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        manager.getContext().startActivity(intent)
+    },
+    windowImpl = null,
+)

@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -41,6 +43,7 @@ import org.futo.inputmethod.latin.uix.setSettingBlocking
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.Route
+import org.futo.inputmethod.latin.uix.settings.findActivity
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.updates.openURI
@@ -318,6 +321,19 @@ fun DevLayoutEditor(navController: NavHostController = rememberNavController()) 
     ScrollableList {
         ScreenTitle("Custom Layouts", showBack = true, navController)
 
+        // kxkb: one-tap return to the keyboard (this page is usually opened from the action-bar
+        // "Custom layouts" icon while typing), matching the Live sizing / Special Keys pages.
+        OutlinedButton(
+            onClick = { context.findActivity()?.finish() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp, 4.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        ) {
+            Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
+        }
+
         customLayouts.forEachIndexed { i, it ->
             NavigationItem(
                 title = it.name,
@@ -346,5 +362,16 @@ fun DevLayoutEditor(navController: NavHostController = rememberNavController()) 
                 context.openURI("https://github.com/futo-org/futo-keyboard-layouts/blob/main/LayoutSpec.md")
             },
         )
+
+        OutlinedButton(
+            onClick = { context.findActivity()?.finish() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp, 4.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        ) {
+            Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
+        }
     }
 }
