@@ -85,6 +85,7 @@ public class SettingsValues {
     public final boolean mTransformerPredictionEnabled;
     public final boolean mGestureInputEnabled;
     public final boolean mKeySlidingEnabled;
+    public final int mMultitapTimeout;
     public final boolean mGestureTrailEnabled;
     public final boolean mGestureFloatingPreviewTextEnabled;
     public final boolean mSlidingKeyInputPreviewEnabled;
@@ -230,6 +231,7 @@ public class SettingsValues {
                 autoCorrectionThresholdRawValue);
         mPlausibilityThreshold = Settings.readPlausibilityThreshold(res);
         mKeySlidingEnabled = Settings.readKeySlidingEnabled(prefs);
+        mMultitapTimeout = Settings.readMultitapTimeout(prefs);
         // Key sliding and swipe/gesture typing both claim a slide off a key, so they are mutually
         // exclusive: when key sliding is on, glide is forced off here (PointerTracker still consumes
         // the flick). The swipe toggle keeps its own stored value; this only gates the effect.

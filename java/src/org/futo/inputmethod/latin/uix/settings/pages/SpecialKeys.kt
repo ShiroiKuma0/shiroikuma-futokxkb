@@ -22,6 +22,7 @@ import org.futo.inputmethod.latin.uix.settings.CollapsibleSection
 import org.futo.inputmethod.latin.uix.settings.findActivity
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
+import org.futo.inputmethod.latin.uix.settings.SettingSliderSharedPrefsInt
 import org.futo.inputmethod.latin.uix.settings.Tip
 import org.futo.inputmethod.latin.uix.theme.Typography
 
@@ -115,6 +116,23 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("Modifiers: C = Ctrl, M = Alt/Meta, S = Shift, s = Super. BASE is a single char (C-x, C--) or a named key: TAB, RET/ENTER, SPC/SPACE, ESC, DEL, UP/DOWN/LEFT/RIGHT, HOME, END, PGUP/PGDN, F1–F12. Shift must be explicit (S-TAB).")
             Para("Works inside a compass slide slot too — e.g. slide down on the o-key to send Ctrl+O:")
             Yaml("- type: compass\n  primary: o\n  down: { type: chord, keys: \"C-o\" }\n  left: { type: chord, keys: \"M-o\" }")
+        }
+
+        CollapsibleSection("Cycle (multitap)") {
+            Para("Repeated taps of the key cycle through a set, each tap replacing the previous one (classic phone multitap). The window below lapsing, the cursor moving, or any other key ends the cycle so the next tap starts fresh.")
+            Para("String form — one tap per codepoint:")
+            Yaml("- { type: cycle, taps: \"àâãä\" }")
+            Para("List form — for multi-character entries (optionally with a label):")
+            Yaml("- { type: cycle, taps: [\".\", \"...\", \"…\"], label: \"…\" }")
+            SettingSliderSharedPrefsInt(
+                title = "Multitap window",
+                key = "kxkb_multitap_timeout",
+                default = 800,
+                range = 300.0f..1500.0f,
+                transform = { it.toInt() },
+                indicator = { "$it ms" },
+                steps = 11
+            )
         }
 
         CloseToKeyboardButton()

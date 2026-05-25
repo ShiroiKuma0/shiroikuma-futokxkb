@@ -286,6 +286,11 @@ public final class InputLogic {
         if (rawText.startsWith("\u0000")) {
             return performChord(settingsValues, event, keyboardShiftMode, rawText.substring(1));
         }
+        // kxkb: a "cycle" (multitap) key carries its tap-set in outputText behind a U+0001 sentinel
+        // (entries joined by U+0001). Repeated taps within the multitap window cycle through them.
+        if (rawText.startsWith("\u0001")) {
+            return performCycle(settingsValues, event, keyboardShiftMode, rawText.substring(1));
+        }
         final InputTransaction inputTransaction = new InputTransaction(settingsValues, event,
                 SystemClock.uptimeMillis(), mSpaceState,
                 getActualCapsMode(settingsValues, keyboardShiftMode));
@@ -989,6 +994,49 @@ public final class InputLogic {
      * "C-x C-s". Each step is sent as a real hardware key event with the appropriate modifiers.
      * Flushes any in-progress composition first, like the one-shot Ctrl path.
      */
+    // kxkb: multitap (cycle key) state. A cycle continues only if the SAME tap-set is tapped again
+    // within the window, with the caret still where the last cycle commit left it.
+    private String[] mCycleTaps = null;
+    private int mCycleIndex = 0;
+    private long mCycleTime = 0L;
+    private int mCycleAnchor = -1;
+
+    private InputTransaction performCycle(final SettingsValues settingsValues,
+            final Event event, final int keyboardShiftMode, final String payload) {
+        if (mWordComposer.isComposingWord()) {
+            commitTyped(settingsValues, "");
+        }
+        final String[] taps = payload.split("\u0001", -1);
+        if (!(taps.length == 0 || (taps.length == 1 && taps[0].isEmpty()))) {
+            final long now = SystemClock.uptimeMillis();
+            final int caret = mConnection.getExpectedSelectionStart();
+            final boolean continuing = mCycleTaps != null
+                    && java.util.Arrays.equals(mCycleTaps, taps)
+                    && (now - mCycleTime) <= settingsValues.mMultitapTimeout
+                    && caret >= 0 && caret == mCycleAnchor
+                    && caret == mConnection.getExpectedSelectionEnd();
+            mConnection.beginBatchEdit();
+            if (continuing) {
+                // Delete the entry committed by the previous tap, then advance (wrapping).
+                mConnection.deleteTextBeforeCursor(mCycleTaps[mCycleIndex].length());
+                mCycleIndex = (mCycleIndex + 1) % taps.length;
+            } else {
+                mCycleIndex = 0;
+            }
+            mConnection.commitText(taps[mCycleIndex], 1);
+            mConnection.endBatchEdit();
+            mCycleTaps = taps;
+            mCycleTime = now;
+            mCycleAnchor = mConnection.getExpectedSelectionStart();
+        }
+        final InputTransaction inputTransaction = new InputTransaction(settingsValues, event,
+                SystemClock.uptimeMillis(), mSpaceState,
+                getActualCapsMode(settingsValues, keyboardShiftMode));
+        inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
+        inputTransaction.setRequiresUpdateSuggestions();
+        return inputTransaction;
+    }
+
     private InputTransaction performChord(final SettingsValues settingsValues,
             final Event event, final int keyboardShiftMode, final String spec) {
         if (mWordComposer.isComposingWord()) {

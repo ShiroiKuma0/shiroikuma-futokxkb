@@ -89,6 +89,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     // kxkb: "key sliding" — short-slide a key in 8 directions to emit its flick (4D) characters.
     // Mutually exclusive with swipe/gesture typing (see SettingsValues): when on, glide is forced off.
     public static final String PREF_KEY_SLIDING = "key_sliding";
+    public static final String PREF_MULTITAP_TIMEOUT = "kxkb_multitap_timeout";
     public static final String PREF_VIBRATION_DURATION_SETTINGS =
             "pref_vibration_duration_settings";
     public static final String PREF_KEYPRESS_SOUND_VOLUME = "pref_keypress_sound_volume";
@@ -306,6 +307,11 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     // kxkb: whether "key sliding" (4D directional flicks) is enabled. Off by default.
     public static boolean readKeySlidingEnabled(final SharedPreferences prefs) {
         return prefs.getBoolean(PREF_KEY_SLIDING, false);
+    }
+
+    // kxkb: multitap window (ms) for `cycle` keys. Default ~classic phone multitap.
+    public static int readMultitapTimeout(final SharedPreferences prefs) {
+        return prefs.getInt(PREF_MULTITAP_TIMEOUT, 800);
     }
 
     public static boolean readFromBuildConfigIfToShowKeyPreviewPopupOption(final Resources res) {

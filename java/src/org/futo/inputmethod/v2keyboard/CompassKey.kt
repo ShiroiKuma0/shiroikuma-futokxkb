@@ -1,13 +1,16 @@
 package org.futo.inputmethod.v2keyboard
 
 import com.charleskorn.kaml.YamlInput
+import com.charleskorn.kaml.YamlList
 import com.charleskorn.kaml.YamlMap
+import com.charleskorn.kaml.YamlScalar
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.buildSerialDescriptor
@@ -299,6 +302,78 @@ data class ChordKey(
             label = label ?: keys,
             code = Constants.CODE_OUTPUT_TEXT,
             outputText = "\u0000" + keys,
+            width = attrs.width!!,
+            icon = "",
+            style = attrs.style!!,
+            anchored = attrs.anchored!!,
+            showPopup = attrs.showPopup!!,
+            moreKeys = listOf(),
+            longPressEnabled = false,
+            repeatable = false,
+            moreKeyFlags = 0,
+            countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
+            hint = "",
+            labelFlags = attrs.labelFlags?.getValue() ?: 0,
+        )
+    }
+}
+
+// kxkb: "cycle" key — multitap. Repeated taps within the multitap window (a setting) cycle through
+// `taps`, each tap deleting the previously-committed entry and committing the next (wrapping at the
+// end). The window lapsing, the cursor moving, or any other key ends the cycle so the next tap
+// starts fresh. `taps` is either a string (one codepoint per tap) or a list (for multi-character
+// entries). Carried to InputLogic via outputText behind a U+0001 sentinel, entries joined by U+0001
+// (both impossible in real text); InputLogic.onTextInput intercepts it and runs performCycle.
+@Serializable(with = TapsSerializer::class)
+data class Taps(val items: List<String>)
+
+object TapsSerializer : KSerializer<Taps> {
+    @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
+    override val descriptor: SerialDescriptor =
+        buildSerialDescriptor("org.futo.inputmethod.v2keyboard.CycleTaps", SerialKind.CONTEXTUAL)
+
+    override fun deserialize(decoder: Decoder): Taps {
+        val valueDecoder = decoder.beginStructure(descriptor) as YamlInput
+        return when (val node = valueDecoder.node) {
+            // String: one tap per codepoint.
+            is YamlScalar -> Taps(node.content.codePoints().toArray().map { String(Character.toChars(it)) })
+            // List: one tap per entry (may be multi-character).
+            is YamlList -> Taps(node.items.map { valueDecoder.yaml.decodeFromYamlNode(String.serializer(), it) })
+            else -> throw SerializationException("`taps` must be a string or a list of strings")
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: Taps): Unit =
+        throw SerializationException("Taps serialization is not supported")
+}
+
+@Serializable
+@SerialName("cycle")
+data class CycleKey(
+    val taps: Taps,
+    val label: String? = null,
+    val attributes: KeyAttributes = KeyAttributes(),
+) : AbstractKey {
+    override fun countsToKeyCoordinate(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard
+    ): Boolean = false
+
+    override fun computeData(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData {
+        val attrs = attributes.getEffectiveAttributes(row, keyboard)
+        val moreKeyMode = attrs.moreKeyMode!!
+        // U+0001 marker + entries joined by U+0001 (see InputLogic.performCycle).
+        val payload = "\u0001" + taps.items.joinToString("\u0001")
+        return ComputedKeyData(
+            label = label ?: taps.items.joinToString(""),
+            code = Constants.CODE_OUTPUT_TEXT,
+            outputText = payload,
             width = attrs.width!!,
             icon = "",
             style = attrs.style!!,
