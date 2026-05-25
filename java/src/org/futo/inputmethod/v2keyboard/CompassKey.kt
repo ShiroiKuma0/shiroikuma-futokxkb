@@ -1,7 +1,18 @@
 package org.futo.inputmethod.v2keyboard
 
+import com.charleskorn.kaml.YamlInput
+import com.charleskorn.kaml.YamlMap
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialKind
+import kotlinx.serialization.descriptors.buildSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
 import org.futo.inputmethod.latin.common.Constants
 
@@ -32,6 +43,61 @@ private val COMPASS_SLOT_ORDER = listOf(
     Direction.SouthEast  // down-right
 )
 
+// kxkb: a compass direction can be a full key OR a compact shorthand for the common rich slots:
+//   { mod: ctrl }         -> a chord on the PRIMARY char  (ctrl/alt/shift/super -> C-/M-/S-/s-)
+//   { mod: ctrl, on: x }  -> a chord on an explicit base char
+//   { chord: "C-x C-s" }  -> a chord key
+//   { macro: "etc. " }    -> a macro key
+// All take an optional `label`. A scalar (`up: O`), a list, or a `type:`-tagged map decodes as a
+// normal key. `{ mod: … }` needs the primary char (only CompassKey knows it), so it defers to a
+// ModSlot resolved at computeData time; chord/macro desugar immediately. The serializer peeks at the
+// YAML node, mirroring the `Key` typealias / ClassOrScalarsSerializer pattern.
+
+sealed interface CompassSlot
+data class KeySlot(val key: Key) : CompassSlot
+data class ModSlot(val mod: String, val on: String? = null, val label: String? = null) : CompassSlot
+
+typealias Slot = @Serializable(with = CompassSlotSerializer::class) CompassSlot
+
+@Serializable private data class ModShorthand(val mod: String, val on: String? = null, val label: String? = null)
+@Serializable private data class ChordShorthand(val chord: String, val label: String? = null)
+@Serializable private data class MacroShorthand(val macro: String, val label: String? = null)
+
+object CompassSlotSerializer : KSerializer<CompassSlot> {
+    @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
+    override val descriptor: SerialDescriptor =
+        buildSerialDescriptor("org.futo.inputmethod.v2keyboard.CompassSlot", SerialKind.CONTEXTUAL)
+
+    override fun deserialize(decoder: Decoder): CompassSlot {
+        val valueDecoder = decoder.beginStructure(descriptor) as YamlInput
+        val node = valueDecoder.node
+        if (node is YamlMap) {
+            val keys = node.entries.keys.map { it.content }.toSet()
+            if (!keys.contains("type")) {
+                when {
+                    keys.contains("mod") -> {
+                        val s = valueDecoder.yaml.decodeFromYamlNode(ModShorthand.serializer(), node)
+                        return ModSlot(s.mod, s.on, s.label)
+                    }
+                    keys.contains("chord") -> {
+                        val s = valueDecoder.yaml.decodeFromYamlNode(ChordShorthand.serializer(), node)
+                        return KeySlot(ChordKey(keys = s.chord, label = s.label))
+                    }
+                    keys.contains("macro") -> {
+                        val s = valueDecoder.yaml.decodeFromYamlNode(MacroShorthand.serializer(), node)
+                        return KeySlot(MacroKey(text = s.macro, label = s.label))
+                    }
+                }
+            }
+        }
+        // Scalar, list, or a `type:`-tagged map: decode as a normal key.
+        return KeySlot(valueDecoder.yaml.decodeFromYamlNode(KeyPathSerializer, node))
+    }
+
+    override fun serialize(encoder: Encoder, value: CompassSlot): Unit =
+        throw SerializationException("CompassSlot serialization is not supported")
+}
+
 @Serializable
 @SerialName("compass")
 data class CompassKey(
@@ -39,14 +105,14 @@ data class CompassKey(
 
     val slide: String? = null,
 
-    val up: Key? = null,
-    val down: Key? = null,
-    val left: Key? = null,
-    val right: Key? = null,
-    val upLeft: Key? = null,
-    val upRight: Key? = null,
-    val downLeft: Key? = null,
-    val downRight: Key? = null,
+    val up: Slot? = null,
+    val down: Slot? = null,
+    val left: Slot? = null,
+    val right: Slot? = null,
+    val upLeft: Slot? = null,
+    val upRight: Slot? = null,
+    val downLeft: Slot? = null,
+    val downRight: Slot? = null,
 
     val attributes: KeyAttributes? = null,
     val label: String? = null,
@@ -65,7 +131,7 @@ data class CompassKey(
         )
     )
 
-    private fun resolveSlots(): Map<Direction, Key> {
+    private fun resolveSlots(primaryChar: String?): Map<Direction, Key> {
         val slots = LinkedHashMap<Direction, Key>()
         slide?.let { s ->
             val cps = s.codePoints().toArray()
@@ -76,15 +142,38 @@ data class CompassKey(
             }
         }
         // Named overrides win over the compact string.
-        up?.let        { slots[Direction.North]     = it }
-        down?.let      { slots[Direction.South]     = it }
-        left?.let      { slots[Direction.West]      = it }
-        right?.let     { slots[Direction.East]      = it }
-        upLeft?.let    { slots[Direction.NorthWest] = it }
-        upRight?.let   { slots[Direction.NorthEast] = it }
-        downLeft?.let  { slots[Direction.SouthWest] = it }
-        downRight?.let { slots[Direction.SouthEast] = it }
+        fun place(dir: Direction, slot: Slot?) {
+            if (slot == null) return
+            slotToKey(slot, primaryChar)?.let { slots[dir] = it }
+        }
+        place(Direction.North,     up)
+        place(Direction.South,     down)
+        place(Direction.West,      left)
+        place(Direction.East,      right)
+        place(Direction.NorthWest, upLeft)
+        place(Direction.NorthEast, upRight)
+        place(Direction.SouthWest, downLeft)
+        place(Direction.SouthEast, downRight)
         return slots
+    }
+
+    // Convert a slot to a concrete key. A `{ mod: … }` shorthand becomes a chord on its explicit
+    // `on:` char, or — the common case — on the compass primary's own character.
+    private fun slotToKey(slot: CompassSlot, primaryChar: String?): Key? = when (slot) {
+        is KeySlot -> slot.key
+        is ModSlot -> {
+            val base = slot.on ?: primaryChar
+            if (base.isNullOrEmpty()) null
+            else ChordKey(keys = modPrefix(slot.mod) + "-" + base, label = slot.label)
+        }
+    }
+
+    private fun modPrefix(mod: String): String = when (mod.trim().lowercase()) {
+        "ctrl", "control", "c"               -> "C"
+        "alt", "meta", "opt", "option", "m"  -> "M"
+        "shift"                              -> "S"
+        "super", "win", "cmd", "gui", "s"    -> "s"
+        else                                 -> "C"
     }
 
     private fun slotData(
@@ -110,20 +199,26 @@ data class CompassKey(
         row: Row,
         keyboard: Keyboard,
         coordinate: KeyCoordinate
-    ): ComputedKeyData? = primary.computeData(params, row, keyboard, coordinate)?.copy(
-        moreKeys = emptyList(),
-        longPressEnabled = false,
-        flick = ComputedFlickData(
-            directions = buildMap {
-                resolveSlots().forEach { (dir, key) ->
-                    slotData(key, params, row, keyboard, coordinate)?.let { put(dir, it) }
-                }
-            },
-            label = label,
-            icon = icon
-        ),
-        showPopup = true
-    )
+    ): ComputedKeyData? {
+        val primaryData = primary.computeData(params, row, keyboard, coordinate) ?: return null
+        // The primary's character, for `{ mod: … }` shorthands (chord on the primary).
+        val primaryChar = if (primaryData.code > 0) String(Character.toChars(primaryData.code))
+                          else primaryData.label.ifEmpty { null }
+        return primaryData.copy(
+            moreKeys = emptyList(),
+            longPressEnabled = false,
+            flick = ComputedFlickData(
+                directions = buildMap {
+                    resolveSlots(primaryChar).forEach { (dir, key) ->
+                        slotData(key, params, row, keyboard, coordinate)?.let { put(dir, it) }
+                    }
+                },
+                label = label,
+                icon = icon
+            ),
+            showPopup = true
+        )
+    }
 }
 
 // kxkb: "macro" key — types a literal string, optionally showing a shorter label on the key face.

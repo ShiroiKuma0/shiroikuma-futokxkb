@@ -97,6 +97,8 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Yaml("- { type: compass, primary: o, slide: \"Oó Ō ÓöÅ\" }")
             Para("Explicit form — override any direction with a full key (a bare char, a macro, etc.). Overrides win over the compact string, and you can mix the two:")
             Yaml("- type: compass\n  primary: e\n  up: E\n  right: á\n  down: { type: macro, text: \"etc. \", label: etc }")
+            Para("Slot shorthands — a direction can be a compact rich slot (no type: needed): { mod: ctrl } is a chord on the primary (mod = ctrl/alt/shift/super), { chord: \"C-x C-s\" } a chord, { macro: \"etc. \" } a macro. Each takes an optional label; { mod: ctrl, on: x } targets an explicit base instead of the primary.")
+            Yaml("- type: compass\n  primary: o\n  up: O\n  down: { mod: ctrl }\n  left: { mod: alt }\n  right: ó")
             Para("While key sliding is on, the slide targets are drawn small on the key face in a 3×3 grid. Their positions are tunable per fold-state under Live sizing → \"4D label\" sliders.")
             Para("Note: key sliding and swipe/glide typing are mutually exclusive — turning one on turns the other off. (The verbose `type: flick` still works as a lower-level escape hatch.)")
         }
