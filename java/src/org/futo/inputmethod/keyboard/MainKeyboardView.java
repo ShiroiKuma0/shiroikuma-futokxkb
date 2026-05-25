@@ -645,8 +645,8 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         return moreKeysKeyboardView;
     }
 
-    // kxkb: open the swipe-space switcher. Columns (left→right): other languages, then the current
-    // language's layouts. Returns null when there's nothing to switch to.
+    // kxkb: open the swipe-space switcher. Columns (left→right): settings shortcuts, other languages,
+    // current-language layouts; each with a header (Keyboard UI / Keyboards… / Layouts…).
     @Override
     public MoreKeysPanel showLayoutSwitcher(@Nonnull final PointerTracker tracker) {
         final org.futo.inputmethod.latin.Subtypes subtypes = org.futo.inputmethod.latin.Subtypes.INSTANCE;
@@ -654,22 +654,24 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
                 subtypes.getCurrentLanguageLayouts(getContext());
         final java.util.List<kotlin.Pair<String, String>> languages =
                 subtypes.getOtherLanguageEntries(getContext());
-        if (layouts.size() < 2 && languages.isEmpty()) {
-            return null; // nothing to switch between
-        }
+
+        // Left column: settings shortcuts (configurable in the Keyboard UI screen) under the
+        // "Keyboard UI" header.
+        final java.util.List<kotlin.Pair<String, String>> shortcuts =
+                subtypes.getLayoutSwitcherShortcuts(getContext());
+
+        final java.util.List<java.util.List<kotlin.Pair<String, String>>> columns = new java.util.ArrayList<>();
+        final java.util.List<kotlin.Pair<String, String>> headers = new java.util.ArrayList<>();
+        columns.add(shortcuts);  headers.add(new kotlin.Pair<>("!nav/kxkbSizing", "Keyboard UI"));
+        columns.add(languages);  headers.add(new kotlin.Pair<>("!ime", "Keyboards\u2026"));
+        columns.add(layouts);    headers.add(new kotlin.Pair<>("!nav/devlayouteditor", "Layouts\u2026"));
+
         locatePreviewPlacerView();
         final int[] lastCoords = CoordinateUtils.newInstance();
         tracker.getLastCoordinates(lastCoords);
 
-        final java.util.List<java.util.List<kotlin.Pair<String, String>>> columns =
-                new java.util.ArrayList<>();
-        if (!languages.isEmpty()) {
-            columns.add(languages);
-        }
-        columns.add(layouts);
-
         final LayoutSwitcherView view = new LayoutSwitcherView(getContext());
-        view.setColumns(columns,
+        view.setColumns(columns, headers,
                 subtypes.getActiveSubtypeString(getContext()),
                 mDrawableProvider.getKeyboardColor(),
                 mDrawableProvider.getKeyColor(),

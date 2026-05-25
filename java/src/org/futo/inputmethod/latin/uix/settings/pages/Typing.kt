@@ -94,6 +94,8 @@ import kotlinx.coroutines.delay
 import org.futo.inputmethod.accessibility.AccessibilityUtils
 import org.futo.inputmethod.engine.IMESettingsMenu
 import org.futo.inputmethod.latin.HideKeyboardWhenHardKeyboardConnected
+import org.futo.inputmethod.latin.LayoutSwitcherShortcutCatalog
+import org.futo.inputmethod.latin.layoutSwitcherShortcutPrefKey
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.settings.LongPressKey
 import org.futo.inputmethod.latin.settings.LongPressKeyLayoutSetting
@@ -126,6 +128,7 @@ import org.futo.inputmethod.latin.uix.settings.SettingSlider
 import org.futo.inputmethod.latin.uix.settings.SettingSliderForDataStoreItem
 import org.futo.inputmethod.latin.uix.settings.SettingSliderSharedPrefsInt
 import org.futo.inputmethod.latin.uix.settings.SettingToggleRaw
+import org.futo.inputmethod.latin.uix.settings.SettingToggleSharedPrefs
 import org.futo.inputmethod.latin.uix.settings.SyncDataStoreToPreferencesFloat
 import org.futo.inputmethod.latin.uix.settings.SyncDataStoreToPreferencesInt
 import org.futo.inputmethod.latin.uix.settings.Tip
@@ -667,6 +670,21 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     current = parsed.suggestionTextColor,
                     inherited = scheme.onSurface.toArgb(),
                     onChange = { v -> writeColor { it.copy(suggestionTextColor = v) } }
+                )
+            }
+
+            // ---- Swipe-space switcher: which shortcuts fill the left column ----
+            Text(
+                "Layout switcher shortcuts",
+                style = Typography.Body.MediumMl,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp)
+            )
+            LayoutSwitcherShortcutCatalog.forEach { shortcut ->
+                SettingToggleSharedPrefs(
+                    title = shortcut.label,
+                    key = layoutSwitcherShortcutPrefKey(shortcut.id),
+                    default = shortcut.defaultOn
                 )
             }
 

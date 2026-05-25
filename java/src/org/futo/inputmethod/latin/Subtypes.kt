@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import org.futo.inputmethod.latin.common.Constants
+import org.futo.inputmethod.latin.uix.PreferenceUtils
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.getSettingBlocking
@@ -92,6 +93,29 @@ val LayoutRecency = SettingsKey(
     stringPreferencesKey("kxkb_layout_recency"),
     ""
 )
+
+// kxkb: optional left-column shortcuts for the swipe-space switcher. Each opens a settings
+// destination ("!nav/<route>") and is individually toggled on/off in the Keyboard UI screen
+// (KxkbSizingScreen). The on/off state is a SharedPreferences boolean per id (same store the panel
+// reads), so the toggle UI and the panel agree without a DataStore round-trip.
+data class SwitcherShortcut(
+    val id: String,
+    val label: String,
+    val target: String,
+    val defaultOn: Boolean
+)
+
+val LayoutSwitcherShortcutCatalog = listOf(
+    SwitcherShortcut("add_layout", "Add layout", "!nav/addLanguage", true),
+    SwitcherShortcut("custom_layouts", "Custom layouts", "!nav/devlayouteditor", false),
+    SwitcherShortcut("themes", "Themes", "!nav/themes", true),
+    SwitcherShortcut("special_keys", "Special keys", "!nav/specialKeys", false),
+    SwitcherShortcut("resize", "Resize keyboard", "!nav/resize", false),
+    SwitcherShortcut("languages", "Languages", "!nav/languages", false),
+    SwitcherShortcut("settings", "All settings", "!nav/home", true)
+)
+
+fun layoutSwitcherShortcutPrefKey(id: String) = "kxkb_switcher_shortcut_$id"
 
 object Subtypes {
     // Removes extensions from existing existing subtypes which are not meant to be there
@@ -366,6 +390,14 @@ object Subtypes {
     // LatinIME, which performs the actual keyboard switch (and records recency).
     fun switchToSubtypeString(context: Context, subtypeString: String) {
         context.setSettingBlocking(ActiveSubtype.key, subtypeString)
+    }
+
+    // kxkb: the enabled left-column shortcuts, in catalog order, as (target, label) pairs.
+    fun getLayoutSwitcherShortcuts(context: Context): List<Pair<String, String>> {
+        val prefs = PreferenceUtils.getDefaultSharedPreferences(context)
+        return LayoutSwitcherShortcutCatalog
+            .filter { prefs.getBoolean(layoutSwitcherShortcutPrefKey(it.id), it.defaultOn) }
+            .map { it.target to it.label }
     }
 
     fun getMultilingualBucket(context: Context, locale: Locale): List<Locale> {
