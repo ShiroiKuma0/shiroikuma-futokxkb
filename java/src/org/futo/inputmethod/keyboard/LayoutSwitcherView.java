@@ -1,17 +1,18 @@
 /*
- * kxkb: LayoutSwitcherView — a compact, swipe-driven panel for switching between the layouts of the
- * current language. It implements {@link MoreKeysPanel} so the existing PointerTracker gesture path
- * drives it for free: it is opened mid-swipe off the spacebar (see PointerTracker.openLayoutSwitcherPanel),
- * receives onMoveEvent as the finger travels, highlights the cell under the finger, and on onUpEvent
- * switches to the highlighted layout — all in one motion.
+ * kxkb: LayoutSwitcherView — a compact, swipe-driven panel for fast switching, opened mid-swipe off
+ * the spacebar (see PointerTracker.openLayoutSwitcherPanel). It implements {@link MoreKeysPanel} so the
+ * existing PointerTracker gesture path drives it for free: it receives onMoveEvent as the finger
+ * travels, highlights the cell under the finger, and on onUpEvent switches to the highlighted target —
+ * all in one motion.
  *
- * This is phase 1 (the "thin slice"): a single vertical column of the current language's layouts,
- * anchored near the swipe so the reach is short. Languages column, header row and settings shortcuts
- * come in later phases.
+ * Phases: (1) the layouts column; (2) + the languages column (this file now renders N columns side by
+ * side — languages then layouts, with the left settings-shortcuts column coming in phase 3). Every cell
+ * carries a target subtype string; selecting it writes ActiveSubtype (LatinIME observes + switches).
  *
  * Coordinate model: the view is sized to exactly cover the MainKeyboardView and positioned at its
  * window origin inside the drawing-preview placer, so the keyboard-local coordinates PointerTracker
- * forwards map 1:1 to this view's local space — translateX/Y are therefore the identity.
+ * forwards map 1:1 to this view's local space — translateX/Y are the identity. Columns are anchored
+ * near the swipe so reaches stay short (compact, not full width).
  */
 package org.futo.inputmethod.keyboard;
 
@@ -32,10 +33,21 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 public final class LayoutSwitcherView extends View implements MoreKeysPanel {
+    private static final class Cell {
+        final String label;
+        final String subtype;
+        final Rect rect = new Rect();
+        Cell(final String label, final String subtype) {
+            this.label = label;
+            this.subtype = subtype;
+        }
+    }
+
     private Controller mController = EMPTY_CONTROLLER;
 
-    private final List<String> mSubtypes = new ArrayList<>();
-    private final List<String> mLabels = new ArrayList<>();
+    // Columns of (label, subtype) input, left-to-right; flattened into mCells with rects on layout.
+    private final List<List<kotlin.Pair<String, String>>> mColumns = new ArrayList<>();
+    private final List<Cell> mCells = new ArrayList<>();
     private String mActiveSubtype = "";
 
     private int mKeyboardColor = Color.BLACK;
@@ -47,11 +59,7 @@ public final class LayoutSwitcherView extends View implements MoreKeysPanel {
     private int mWinX = 0;
     private int mWinY = 0;
 
-    private int mPanelLeft = 0;
-    private int mPanelTop = 0;
-    private int mPanelWidth = 0;
     private int mCellHeight = 0;
-    private Rect[] mCellRects = new Rect[0];
     private int mHighlighted = -1;
 
     private final Paint mFillPaint = new Paint();
@@ -66,18 +74,14 @@ public final class LayoutSwitcherView extends View implements MoreKeysPanel {
     }
 
     /**
-     * @param layouts        ordered list of (subtypeString, displayName) for the current language.
-     * @param activeSubtype  the currently active subtype string (marked in the list).
+     * @param columns       columns of (subtypeString, displayLabel), left-to-right.
+     * @param activeSubtype the currently active subtype string (marked with a bullet).
      */
-    public void setContents(@Nonnull final List<kotlin.Pair<String, String>> layouts,
+    public void setColumns(@Nonnull final List<List<kotlin.Pair<String, String>>> columns,
             final String activeSubtype, final int keyboardColor, final int cellColor,
             final int textColor, final int kbWidth, final int kbHeight) {
-        mSubtypes.clear();
-        mLabels.clear();
-        for (final kotlin.Pair<String, String> p : layouts) {
-            mSubtypes.add(p.getFirst());
-            mLabels.add(p.getSecond());
-        }
+        mColumns.clear();
+        mColumns.addAll(columns);
         mActiveSubtype = activeSubtype == null ? "" : activeSubtype;
         mKeyboardColor = keyboardColor;
         mCellColor = cellColor;
@@ -87,41 +91,58 @@ public final class LayoutSwitcherView extends View implements MoreKeysPanel {
         mHighlighted = -1;
     }
 
-    private void layoutCells(final int anchorX, final int anchorY) {
-        final int n = mLabels.size();
+    private void layoutColumns(final int anchorX, final int anchorY) {
+        mCells.clear();
         mCellHeight = Math.max(1, Math.round(mKbHeight / 6.0f));
         mTextPaint.setTextSize(mCellHeight * 0.42f);
+        final int pad = mCellHeight;
+        final int gap = Math.max(1, mCellHeight / 3);
+        final int minCol = Math.max(1, mKbWidth / 5);
+        final int maxCol = Math.round(mKbWidth * 0.45f);
 
-        float maxText = 0;
-        for (final String label : mLabels) {
-            maxText = Math.max(maxText, mTextPaint.measureText(label));
+        // Per-column width and the tallest column (for vertical anchoring).
+        final int nCols = mColumns.size();
+        final int[] colWidth = new int[nCols];
+        int totalWidth = 0;
+        int maxRows = 0;
+        for (int c = 0; c < nCols; c++) {
+            final List<kotlin.Pair<String, String>> col = mColumns.get(c);
+            float maxText = 0;
+            for (final kotlin.Pair<String, String> p : col) {
+                maxText = Math.max(maxText, mTextPaint.measureText(p.getSecond()));
+            }
+            int w = Math.round(maxText) + pad;
+            w = Math.max(minCol, Math.min(maxCol, w));
+            colWidth[c] = w;
+            totalWidth += w;
+            maxRows = Math.max(maxRows, col.size());
         }
-        final int padding = mCellHeight; // generous horizontal padding
-        int w = Math.round(maxText) + padding;
-        w = Math.max(w, mKbWidth / 4);
-        w = Math.min(w, Math.round(mKbWidth * 0.7f));
-        mPanelWidth = w;
+        totalWidth += gap * Math.max(0, nCols - 1);
 
-        final int totalH = mCellHeight * n;
-        int left = anchorX - mPanelWidth / 2;
-        left = Math.max(0, Math.min(left, mKbWidth - mPanelWidth));
-        final int gap = mCellHeight / 2;
-        int bottom = Math.max(totalH, anchorY - gap);
-        bottom = Math.min(bottom, mKbHeight);
-        final int top = Math.max(0, bottom - totalH);
-        mPanelLeft = left;
-        mPanelTop = top;
+        int blockLeft = anchorX - totalWidth / 2;
+        blockLeft = Math.max(0, Math.min(blockLeft, mKbWidth - totalWidth));
 
-        mCellRects = new Rect[n];
-        for (int i = 0; i < n; i++) {
-            final int cy = top + i * mCellHeight;
-            mCellRects[i] = new Rect(left, cy, left + mPanelWidth, cy + mCellHeight);
+        final int blockHeight = maxRows * mCellHeight;
+        int baseline = Math.max(blockHeight, anchorY - gap); // bottom edge of the columns
+        baseline = Math.min(baseline, mKbHeight);
+
+        int x = blockLeft;
+        for (int c = 0; c < nCols; c++) {
+            final List<kotlin.Pair<String, String>> col = mColumns.get(c);
+            for (int i = 0; i < col.size(); i++) {
+                final kotlin.Pair<String, String> p = col.get(i);
+                final Cell cell = new Cell(p.getSecond(), p.getFirst());
+                final int bottom = baseline - i * mCellHeight; // i==0 is the bottom (nearest finger)
+                cell.rect.set(x, bottom - mCellHeight, x + colWidth[c], bottom);
+                mCells.add(cell);
+            }
+            x += colWidth[c] + gap;
         }
     }
 
     private int cellAt(final int x, final int y) {
-        for (int i = 0; i < mCellRects.length; i++) {
-            if (mCellRects[i].contains(x, y)) {
+        for (int i = 0; i < mCells.size(); i++) {
+            if (mCells.get(i).rect.contains(x, y)) {
                 return i;
             }
         }
@@ -130,26 +151,25 @@ public final class LayoutSwitcherView extends View implements MoreKeysPanel {
 
     @Override
     protected void onDraw(final Canvas canvas) {
-        // Dim the keyboard behind the panel so it reads as an overlay (theme-agnostic).
-        canvas.drawColor(0xB0000000);
+        canvas.drawColor(0xB0000000); // dim the keyboard behind the panel (theme-agnostic)
 
         final Paint.FontMetrics fm = mTextPaint.getFontMetrics();
         final float textOffset = -(fm.ascent + fm.descent) / 2.0f;
 
-        for (int i = 0; i < mCellRects.length; i++) {
-            final Rect r = mCellRects[i];
+        for (int i = 0; i < mCells.size(); i++) {
+            final Cell cell = mCells.get(i);
             final boolean hi = i == mHighlighted;
             mFillPaint.setColor(hi ? mTextColor : mCellColor);
-            canvas.drawRect(r, mFillPaint);
+            canvas.drawRect(cell.rect, mFillPaint);
             mBorderPaint.setColor(mTextColor);
-            canvas.drawRect(r, mBorderPaint);
+            canvas.drawRect(cell.rect, mBorderPaint);
 
             mTextPaint.setColor(hi ? mKeyboardColor : mTextColor);
-            String label = mLabels.get(i);
-            if (mSubtypes.get(i).equals(mActiveSubtype)) {
+            String label = cell.label;
+            if (cell.subtype.equals(mActiveSubtype)) {
                 label = "\u2022 " + label; // bullet marks the current layout
             }
-            canvas.drawText(label, r.centerX(), r.centerY() + textOffset, mTextPaint);
+            canvas.drawText(label, cell.rect.centerX(), cell.rect.centerY() + textOffset, mTextPaint);
         }
     }
 
@@ -166,7 +186,7 @@ public final class LayoutSwitcherView extends View implements MoreKeysPanel {
         parentView.getLocationInWindow(loc);
         mWinX = loc[0];
         mWinY = loc[1];
-        layoutCells(pointX, pointY);
+        layoutColumns(pointX, pointY);
         mHighlighted = cellAt(pointX, pointY);
         controller.onShowMoreKeysPanel(this);
     }
@@ -189,8 +209,8 @@ public final class LayoutSwitcherView extends View implements MoreKeysPanel {
     @Override
     public void onUpEvent(final int x, final int y, final int pointerId, final long eventTime) {
         final int sel = cellAt(x, y);
-        if (sel >= 0 && sel < mSubtypes.size()) {
-            final String target = mSubtypes.get(sel);
+        if (sel >= 0 && sel < mCells.size()) {
+            final String target = mCells.get(sel).subtype;
             if (!target.equals(mActiveSubtype)) {
                 // Writing ActiveSubtype is observed by LatinIME, which performs the switch.
                 Subtypes.INSTANCE.switchToSubtypeString(getContext(), target);

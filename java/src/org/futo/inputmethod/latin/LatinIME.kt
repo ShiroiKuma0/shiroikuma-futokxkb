@@ -570,6 +570,9 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                 if(activeSubtype != null && activeSubtype != currentSubtype) {
                     currentSubtype = activeSubtype
 
+                    // kxkb: record the switch for the swipe-space layout switcher's recency ordering.
+                    Subtypes.pushLayoutRecency(this@LatinIME, activeSubtype)
+
                     withContext(Dispatchers.Main) {
                         val subtype = Subtypes.convertToSubtype(activeSubtype)
                         changeInputMethodSubtype(subtype)

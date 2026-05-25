@@ -645,22 +645,32 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         return moreKeysKeyboardView;
     }
 
-    // kxkb: open the swipe-space layout switcher (the layouts of the current language). Returns null
-    // when there are fewer than two layouts for the language (nothing to switch between).
+    // kxkb: open the swipe-space switcher. Columns (left→right): other languages, then the current
+    // language's layouts. Returns null when there's nothing to switch to.
     @Override
     public MoreKeysPanel showLayoutSwitcher(@Nonnull final PointerTracker tracker) {
+        final org.futo.inputmethod.latin.Subtypes subtypes = org.futo.inputmethod.latin.Subtypes.INSTANCE;
         final java.util.List<kotlin.Pair<String, String>> layouts =
-                org.futo.inputmethod.latin.Subtypes.INSTANCE.getCurrentLanguageLayouts(getContext());
-        if (layouts.size() < 2) {
-            return null;
+                subtypes.getCurrentLanguageLayouts(getContext());
+        final java.util.List<kotlin.Pair<String, String>> languages =
+                subtypes.getOtherLanguageEntries(getContext());
+        if (layouts.size() < 2 && languages.isEmpty()) {
+            return null; // nothing to switch between
         }
         locatePreviewPlacerView();
         final int[] lastCoords = CoordinateUtils.newInstance();
         tracker.getLastCoordinates(lastCoords);
 
+        final java.util.List<java.util.List<kotlin.Pair<String, String>>> columns =
+                new java.util.ArrayList<>();
+        if (!languages.isEmpty()) {
+            columns.add(languages);
+        }
+        columns.add(layouts);
+
         final LayoutSwitcherView view = new LayoutSwitcherView(getContext());
-        view.setContents(layouts,
-                org.futo.inputmethod.latin.Subtypes.INSTANCE.getActiveSubtypeString(getContext()),
+        view.setColumns(columns,
+                subtypes.getActiveSubtypeString(getContext()),
                 mDrawableProvider.getKeyboardColor(),
                 mDrawableProvider.getKeyColor(),
                 mDrawableProvider.getMoreKeysTextColor(),

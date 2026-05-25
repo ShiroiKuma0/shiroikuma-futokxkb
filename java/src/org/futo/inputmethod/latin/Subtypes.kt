@@ -44,6 +44,7 @@ import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.getSettingBlocking
 import org.futo.inputmethod.latin.uix.isDirectBootUnlocked
 import org.futo.inputmethod.latin.uix.setSettingBlocking
+import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.SettingsActivity
@@ -82,6 +83,14 @@ val ActiveSubtype = SettingsKey(
 val MultilingualBucketSetting = SettingsKey(
     stringSetPreferencesKey("multilingual_bucket"),
     emptySet()
+)
+
+// kxkb: most-recently-active subtypes, newline-joined, most-recent first (subtype strings can't
+// contain a newline). Updated on every ActiveSubtype change; backs the swipe-space switcher's
+// "last-used layout per language" and recency ordering.
+val LayoutRecency = SettingsKey(
+    stringPreferencesKey("kxkb_layout_recency"),
+    ""
 )
 
 object Subtypes {
@@ -292,24 +301,69 @@ object Subtypes {
             context.getSettingBlocking(SubtypesSetting).firstOrNull() ?: ""
         }
 
-    // kxkb: enabled subtypes sharing the active subtype's language, active one first, returned as
-    // (subtypeString, layoutDisplayName) pairs. Backs the swipe-space layout switcher panel. Ordering
-    // is "active first, then enabled order" for now; true last-used recency comes in a later phase.
+    private const val RECENCY_CAP = 16
+    private fun langOf(subtypeString: String): String =
+        getLocale(subtypeString.split(":").firstOrNull() ?: "").language
+    private fun layoutOf(subtypeString: String): String =
+        subtypeString.split(":").getOrNull(1)?.substringAfter("KeyboardLayoutSet=", "") ?: ""
+
+    // kxkb: most-recent-first list of subtype strings (see LayoutRecency).
+    fun getLayoutRecency(context: Context): List<String> =
+        context.getSettingBlocking(LayoutRecency).split("\n").filter { it.isNotEmpty() }
+
+    // kxkb: record a switch. Suspend so it can be called from the ActiveSubtype observer coroutine
+    // without runBlocking nesting. Prepends (dedup), caps the list.
+    suspend fun pushLayoutRecency(context: Context, subtypeString: String) {
+        if (subtypeString.isEmpty()) return
+        val cur = context.getSetting(LayoutRecency).split("\n").filter { it.isNotEmpty() }
+        if (cur.firstOrNull() == subtypeString) return
+        val updated = (listOf(subtypeString) + cur.filter { it != subtypeString }).take(RECENCY_CAP)
+        context.setSetting(LayoutRecency.key, updated.joinToString("\n"))
+    }
+
+    // kxkb: enabled subtypes sharing the active subtype's language, ordered active-first then by
+    // recency then enabled order, capped at 4, returned as (subtypeString, layoutDisplayName) pairs.
+    // Backs the swipe-space switcher's layouts column.
     fun getCurrentLanguageLayouts(context: Context): List<Pair<String, String>> {
         val enabled = context.getSettingBlocking(SubtypesSetting).toList()
         if (enabled.isEmpty()) return emptyList()
         val active = getActiveSubtypeString(context)
-        val activeLang = getLocale(active.split(":").firstOrNull() ?: return emptyList()).language
-        val sameLang = enabled.filter { getLocale(it.split(":").first()).language == activeLang }
-        val ordered = (sameLang.filter { it == active } + sameLang.filter { it != active })
-        return ordered.map { sub ->
-            val layout = sub.split(":").getOrNull(1)?.substringAfter("KeyboardLayoutSet=", "") ?: ""
-            sub to getLayoutName(context, layout)
+        if (active.isEmpty()) return emptyList()
+        val activeLang = langOf(active)
+        val sameLang = enabled.filter { langOf(it) == activeLang }
+        val recency = getLayoutRecency(context)
+        val ordered = LinkedHashSet<String>()
+        if (active in sameLang) ordered.add(active)
+        recency.forEach { if (it in sameLang) ordered.add(it) }
+        sameLang.forEach { ordered.add(it) }
+        return ordered.take(4).map { it to getLayoutName(context, layoutOf(it)) }
+    }
+
+    // kxkb: distinct OTHER languages among enabled subtypes (not the active language), ordered by
+    // recency then enabled order, capped at 4. Each entry targets that language's last-used layout
+    // (recency, else first enabled for it). Returns (targetSubtypeString, nativeLanguageName) pairs.
+    // Backs the swipe-space switcher's languages column.
+    fun getOtherLanguageEntries(context: Context): List<Pair<String, String>> {
+        val enabled = context.getSettingBlocking(SubtypesSetting).toList()
+        if (enabled.isEmpty()) return emptyList()
+        val active = getActiveSubtypeString(context)
+        val activeLang = if (active.isEmpty()) "" else langOf(active)
+        val recency = getLayoutRecency(context)
+
+        val langs = LinkedHashSet<String>()
+        recency.forEach { if (it in enabled && langOf(it) != activeLang) langs.add(langOf(it)) }
+        enabled.forEach { if (langOf(it) != activeLang) langs.add(langOf(it)) }
+
+        return langs.take(4).mapNotNull { lang ->
+            val target = recency.firstOrNull { it in enabled && langOf(it) == lang }
+                ?: enabled.firstOrNull { langOf(it) == lang } ?: return@mapNotNull null
+            val locale = getLocale(target.split(":").first())
+            target to getLocaleDisplayName(locale, locale)
         }
     }
 
     // kxkb: switch to a specific (language, layout) subtype. Writing ActiveSubtype is observed by
-    // LatinIME, which performs the actual keyboard switch.
+    // LatinIME, which performs the actual keyboard switch (and records recency).
     fun switchToSubtypeString(context: Context, subtypeString: String) {
         context.setSettingBlocking(ActiveSubtype.key, subtypeString)
     }
