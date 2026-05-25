@@ -91,12 +91,20 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Yaml("- { type: base, spec: \"Ctrl|!code/key_ctrl\" }")
         }
 
-        CollapsibleSection("4D keys (key sliding)") {
-            Para("A key with up to eight directional characters. With \"Key sliding\" on (the action-bar icon, or the Typing settings toggle), a short slide off the key in any of eight directions types that direction's character; a plain tap types the primary.")
-            Para("While key sliding is on, the eight characters are drawn small on the key face in a 3×3 grid. Their positions are tunable per fold-state under Live sizing → \"4D label\" sliders.")
-            Para("Directions: up, down, left, right, upLeft, upRight, downLeft, downRight. Omit any you don't want — empty slots draw nothing.")
-            Yaml("- { type: flick, primary: o, left: e, up: O, right: ó,\n    down: Ō, upLeft: Ó, upRight: ö, downRight: ō }")
-            Para("Note: key sliding and swipe/glide typing are mutually exclusive — turning one on turns the other off.")
+        CollapsibleSection("Compass keys (key sliding)") {
+            Para("A key with a tap (primary) plus up to eight directional slide targets. With \"Key sliding\" on (the action-bar icon, or the Typing settings toggle), a short slide off the key in any of eight directions types that direction's target; a plain tap types the primary.")
+            Para("Compact form — one codepoint per slot, in order up, down, left, right, up-left, up-right, down-left, down-right. A space skips that slot; a short string leaves the rest empty:")
+            Yaml("- { type: compass, primary: o, slide: \"Oó Ō ÓöÅ\" }")
+            Para("Explicit form — override any direction with a full key (a bare char, a macro, etc.). Overrides win over the compact string, and you can mix the two:")
+            Yaml("- type: compass\n  primary: e\n  up: E\n  right: á\n  down: { type: macro, text: \"etc. \", label: etc }")
+            Para("While key sliding is on, the slide targets are drawn small on the key face in a 3×3 grid. Their positions are tunable per fold-state under Live sizing → \"4D label\" sliders.")
+            Para("Note: key sliding and swipe/glide typing are mutually exclusive — turning one on turns the other off. (The verbose `type: flick` still works as a lower-level escape hatch.)")
+        }
+
+        CollapsibleSection("Macro (literal text)") {
+            Para("Types a literal string. Optionally shows a shorter label on the key face; without one, the text itself is the label. Works as a standalone key or inside a compass slide slot.")
+            Yaml("- { type: macro, text: \"etc. \", label: etc }")
+            Para("The text can contain |, \\, commas, or a leading ! with no escaping needed.")
         }
 
         CloseToKeyboardButton()
