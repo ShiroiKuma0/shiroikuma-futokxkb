@@ -48,6 +48,7 @@ val AllActionsMap = mapOf(
     "live_resize" to LiveResizeAction,
     "special_keys" to SpecialKeysAction,
     "custom_layouts" to CustomLayoutsAction,
+    "hide_keyboard" to HideKeyboardAction,
 )
 
 val ActionToId = AllActionsMap.entries.associate { it.value to it.key }

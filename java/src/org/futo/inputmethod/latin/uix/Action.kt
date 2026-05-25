@@ -67,6 +67,9 @@ interface KeyboardManagerForAction {
     fun closeActionWindow()
     fun forceActionWindowAboveKeyboard(to: Boolean)
 
+    // kxkb: hide the keyboard (InputMethodService.requestHideSelf), for a HIDE special key.
+    fun requestHideSelf()
+
     fun triggerSystemVoiceInput()
 
     fun getThemeProvider(): DynamicThemeProvider

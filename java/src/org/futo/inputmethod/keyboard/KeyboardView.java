@@ -680,10 +680,6 @@ public class KeyboardView extends View {
             if (isCluster && (entry.getKey() == Direction.West || entry.getKey() == Direction.East)) {
                 continue;
             }
-            final String label = target.getPreviewLabel();
-            if (label == null || label.isEmpty()) {
-                continue;
-            }
             final Pair<Double, Double> vec = KeyDataKt.toVector(entry.getKey());
             final double sx = Math.signum(vec.getFirst());   // +1 = left column, -1 = right column
             final double sy = Math.signum(vec.getSecond());  // +1 = top row, -1 = bottom row
@@ -691,7 +687,26 @@ public class KeyboardView extends View {
                     : (sx < 0 ? cx + sFlickRightOff * keyWidth : cx);
             final float y = sy > 0 ? cy - sFlickTopOff * keyHeight
                     : (sy < 0 ? cy + sFlickBotOff * keyHeight : cy);
-            canvas.drawText(label, x, y, paint);
+
+            final String label = target.getPreviewLabel();
+            if (label != null && !label.isEmpty()) {
+                canvas.drawText(label, x, y, paint);
+                continue;
+            }
+            // kxkb: an icon-only flick target (e.g. !icon/action_hide_keyboard) has an empty preview
+            // label, so draw its icon at the hint size instead — tinted with the hint colour and
+            // centred on the same spot the text would occupy (y is the text baseline; the glyph
+            // centre sits ~charHeight/2 above it).
+            final Drawable flickIcon = (mKeyboard == null)
+                    ? null : target.getPreviewIcon(mKeyboard.mIconsSet);
+            if (flickIcon != null) {
+                final int size = Math.round(charHeight);
+                final int left = Math.round(x - size / 2.0f);
+                final int top = Math.round(y - charHeight / 2.0f - size / 2.0f);
+                flickIcon.setTint(kdc.getHintColor());
+                flickIcon.setAlpha(key.isEnabled() ? params.mAnimAlpha : 0);
+                drawIcon(canvas, flickIcon, left, top, size, size);
+            }
         }
         paint.setTextScaleX(1.0f);
     }

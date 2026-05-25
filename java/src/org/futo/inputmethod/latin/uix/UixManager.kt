@@ -392,6 +392,10 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         uixManager.toggleExpandAction(to)
     }
 
+    override fun requestHideSelf() {
+        latinIME.requestHideSelf(0)
+    }
+
     override fun triggerSystemVoiceInput() {
         latinIME.latinIMELegacy.onCodeInput(
             Constants.CODE_SHORTCUT,

@@ -78,6 +78,19 @@ val LiveResizeAction = Action(
     windowImpl = null,
 )
 
+// kxkb: hide the keyboard — the old Multiling "[HIDE]". Simple-press (no window) so it can sit on a
+// key / flick target via `!code/action_hide_keyboard` (icon `!icon/action_hide_keyboard`, auto-
+// registered from this action's drawable). Calls InputMethodService.requestHideSelf via the manager.
+// Not placed in any action-bar category — it's only meant for keys.
+val HideKeyboardAction = Action(
+    icon = R.drawable.chevron_down,
+    name = R.string.action_hide_keyboard_title,
+    simplePressImpl = { manager, _ ->
+        manager.requestHideSelf()
+    },
+    windowImpl = null,
+)
+
 // Open the kxkb "Special keys" reference page (Esc / Ctrl / 4D) directly, deep-linked via the
 // SettingsActivity "navDest" extra to the "specialKeys" route. Same flags as LiveResizeAction so a
 // reused SettingsActivity still navigates there (handled by SettingsActivity.onNewIntent).
