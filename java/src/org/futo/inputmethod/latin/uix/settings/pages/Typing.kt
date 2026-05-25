@@ -148,6 +148,10 @@ import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
 import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
 import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings
 import org.futo.inputmethod.v2keyboard.getDefaultSettingForKind
+import org.futo.inputmethod.v2keyboard.perComboSizingKey
+import org.futo.inputmethod.latin.ActiveSubtype
+import org.futo.inputmethod.latin.Subtypes
+import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -436,24 +440,38 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
         try { KeyboardSizeSettingKind.valueOf(lastStateName) } catch (e: Exception) { KeyboardSizeSettingKind.Portrait }
     }
 
-    // Per-geometry blob (reactive). Sliders read fields out of it and write the whole blob back.
-    val blobItem = useDataStore(KeyboardSettings[kind]!!, blocking = true)
-    val parsed = remember(blobItem.value) {
-        SavedKeyboardSizingSettings.fromJsonString(blobItem.value) ?: getDefaultSettingForKind(kind, context)
-    }
+    // kxkb: settings are per-(active subtype × geometry). Track the active subtype reactively so the
+    // sliders rebind to the right blob when the language/layout is switched while this screen is open.
+    val (activeSub, _) = useDataStore(ActiveSubtype, blocking = true)
+    val comboKey = remember(activeSub, kind) { perComboSizingKey(context, kind) }
+    // What we read/write: the per-combo key when a subtype resolves, else the geometry-level key
+    // (BFU / direct-boot). useDataStore reads live from the cache by key, so changing comboKey on a
+    // subtype switch rebinds correctly.
+    val writeKey = comboKey ?: KeyboardSettings[kind]!!
+
+    val comboItem = useDataStore(writeKey, blocking = true)
+    // The geometry-level blob this combo inherits from until its first edit.
+    val (geomBlob, _) = useDataStore(KeyboardSettings[kind]!!, blocking = true)
+
+    // Effective current settings: per-combo if already forked, else the inherited geometry baseline,
+    // else the kind default. Writes always target writeKey -> forks this combo on its first edit.
+    fun currentSettings(): SavedKeyboardSizingSettings =
+        SavedKeyboardSizingSettings.fromJsonString(comboItem.value)
+            ?: SavedKeyboardSizingSettings.fromJsonString(geomBlob)
+            ?: getDefaultSettingForKind(kind, context)
+
+    val parsed = remember(comboItem.value, geomBlob) { currentSettings() }
 
     fun floatItem(
         get: (SavedKeyboardSizingSettings) -> Float,
         set: (SavedKeyboardSizingSettings, Float) -> SavedKeyboardSizingSettings
     ) = DataStoreItem(get(parsed)) { v ->
-        val cur = SavedKeyboardSizingSettings.fromJsonString(blobItem.value) ?: getDefaultSettingForKind(kind, context)
-        blobItem.setValue(set(cur, v).toJsonString())
+        comboItem.setValue(set(currentSettings(), v).toJsonString())
     }
 
     // Whole-blob writer for the colour overrides (parallels floatItem; colours are packed ARGB Ints).
     fun writeColor(set: (SavedKeyboardSizingSettings) -> SavedKeyboardSizingSettings) {
-        val cur = SavedKeyboardSizingSettings.fromJsonString(blobItem.value) ?: getDefaultSettingForKind(kind, context)
-        blobItem.setValue(set(cur).toJsonString())
+        comboItem.setValue(set(currentSettings()).toJsonString())
     }
 
     // Active theme scheme — supplies each colour's inherited (default) value, shown in the swatch
@@ -463,6 +481,15 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
     // Geometry default, used as the neutral value for the overall "Keyboard height" slider
     // (heightMultiplier has no fixed neutral — it is device/geometry dependent).
     val defaultSizing = remember(kind) { getDefaultSettingForKind(kind, context) }
+
+    // kxkb: human-readable "language · layout" for the combo currently being edited, so the per-combo
+    // scope is visible (settings silently target the active subtype × geometry).
+    val comboLabel = remember(activeSub) {
+        try {
+            val st = Subtypes.convertToSubtype(activeSub)
+            "${Subtypes.getName(st)} · ${Subtypes.getLayoutName(context, SubtypeLocaleUtils.getKeyboardLayoutSetName(st))}"
+        } catch (e: Exception) { "" }
+    }
 
     Box {
         ScrollableList {
@@ -489,6 +516,15 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                 modifier = Modifier.padding(12.dp, 4.dp)
             )
 
+            if(comboLabel.isNotEmpty()) {
+                Text(
+                    comboLabel,
+                    style = Typography.Body.MediumMl,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(12.dp, 8.dp, 12.dp, 0.dp)
+                )
+            }
+
             Text(
                 stringResource(
                     R.string.kxkb_sizing_active_geometry,
@@ -505,8 +541,9 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                 modifier = Modifier.padding(12.dp, 8.dp)
             )
 
-            // Fresh slider instances per geometry so their internal value seed resyncs on fold/rotate.
-            key(kind) {
+            // Fresh slider instances per combo (geometry × subtype) so their internal value seed
+            // resyncs on fold/rotate AND on a language/layout switch.
+            key(kind, activeSub) {
                 SettingSliderForDataStoreItem(
                     title = stringResource(R.string.kxkb_sizing_horizontal_gap),
                     item = floatItem({ it.horizontalGapAddDp }, { s, v -> s.copy(horizontalGapAddDp = v) }),

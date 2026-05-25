@@ -97,6 +97,7 @@ import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
 import org.futo.inputmethod.v2keyboard.ComputedKeyboardSize
 import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
+import org.futo.inputmethod.v2keyboard.perComboSizingKey
 import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings
 import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
 import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
@@ -231,11 +232,13 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     private var settingsRefreshRequired = false
     private fun recreateKeyboard() {
-        // The per-geometry look/colour overlay is baked into the drawable provider. Geometry can
-        // change (rotate / fold) without a look-field edit, so before rebuilding the keyboard ensure
-        // the provider matches the geometry we're about to draw — otherwise the legacy key view keeps
-        // the previous geometry's colours. This is the single chokepoint every recreate flows through.
-        if(currentSizeState.name != lastProviderSizeState) updateDrawableProvider(activeColorScheme.value)
+        // The per-combo look/colour overlay is baked into the drawable provider. It can go stale
+        // without a look-field edit when the GEOMETRY changes (rotate / fold) OR — now that sizing
+        // and look are per-(subtype × geometry) — when the SUBTYPE (language/layout) changes. Before
+        // rebuilding the keyboard ensure the provider matches the combo we're about to draw, else the
+        // legacy key view keeps the previous combo's colours. This is the single chokepoint every
+        // recreate flows through.
+        if(currentSizeState.name != lastProviderSizeState || currentSubtype != lastProviderSubtype) updateDrawableProvider(activeColorScheme.value)
 
         latinIMELegacy.updateTheme()
 
@@ -383,6 +386,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         activeOverlaidScheme.value = overlaid
         drawableProvider = BasicThemeProvider(this, overlaid)
         lastProviderSizeState = currentSizeState.name
+        lastProviderSubtype = currentSubtype
 
         updateNavigationBarVisibility()
         uixManager.onColorSchemeChanged()
@@ -433,6 +437,11 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     // Geometry the drawable provider's per-kind look/colour overlay was last built for. onSizeUpdated
     // compares it against the live geometry to know when the overlay is stale and must be rebuilt.
     private var lastProviderSizeState: String? = null
+
+    // kxkb: subtype (language+layout) the provider's overlay was last built for. Sizing/look are now
+    // per-(subtype × geometry), so a language/layout switch must rebuild the overlay just like a
+    // geometry change — recreateKeyboard's gate fires when EITHER this or lastProviderSizeState differs.
+    private var lastProviderSubtype: String = ""
 
     fun onSizeUpdated() {
         publishCurrentSizeState()
@@ -594,35 +603,52 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             }
         }
 
-        // Listen to size changes
+        // Listen to size/look changes
         launchJob {
-            val prev: MutableMap<KeyboardSizeSettingKind, String?> =
-                KeyboardSizeSettingKind.entries.associateWith { null }.toMutableMap()
+            // kxkb: sizing/look are per-(active subtype × geometry), so the blob backing the docked
+            // keyboard lives under a DYNAMIC key (perComboSizingKey), not the fixed geometry keys the
+            // old watcher tracked — which is why edits stopped applying live. Watch the current combo's
+            // effective key and react to:
+            //   - blob change, same key  -> a live edit (slider drag / colour change): refresh.
+            //   - key change             -> a combo switch (language/layout, or geometry after a write):
+            //                               apply the new combo (force a provider rebuild + relayout).
+            // Driving the switch from here (rather than onNewSubtype) makes it robust to the cache lag:
+            // DataStoreHelper's cache (read by perComboSizingKey -> getActiveSubtype) trails dataStore by
+            // up to one emission, so we converge on whichever emission the key actually flips.
+            var primed = false
+            var prevKeyName: String? = null
+            var prevBlob: String? = null
 
             dataStore.data.collect { data ->
-                prev.keys.toList().forEach {
-                    val newBlob = data[KeyboardSettings[it]!!.key]
-                    if(newBlob != prev[it]) {
-                        val oldBlob = prev[it]
-                        prev[it] = newBlob
-                        // The current geometry must relayout even when ComputedKeyboardSize
-                        // dimensions are unchanged: gap / suggestion-bar / look knobs live outside
-                        // the size struct, so onSizeUpdated's dimension diff would short-circuit
-                        // them. Other geometries keep the optimized path (a no-op off screen).
-                        if(it == currentSizeState) {
-                            // Look knobs (font size / weight / roundness / border) live in the
-                            // theme's AdvancedThemeOptions via withPerKindLook(), which is only
-                            // re-read when the drawable provider is rebuilt — invalidateKeyboard
-                            // alone won't pick them up. Rebuild the provider only when a look field
-                            // actually changed, so plain gap/height drags keep the cheap path.
-                            if(lookFieldsDiffer(oldBlob, newBlob)) updateDrawableProvider(activeColorScheme.value)
-                            // Suggestion-bar height lives in the Compose chrome (LocalActionBarHeight),
-                            // not the keyboard layout — push the new value so the bar resizes live.
-                            uixManager.refreshActionBarHeight()
-                            invalidateKeyboard(refreshSettings = true)
-                        }
-                        else onSizeUpdated()
-                    }
+                val key = (perComboSizingKey(this@LatinIME, currentSizeState)
+                    ?: KeyboardSettings[currentSizeState]!!).key
+                val newBlob = data[key]
+
+                val keyChanged = key.name != prevKeyName
+                val blobChanged = newBlob != prevBlob
+
+                if(!primed) {
+                    primed = true
+                    prevKeyName = key.name
+                    prevBlob = newBlob
+                    return@collect
+                }
+
+                if(keyChanged || blobChanged) {
+                    // On a combo switch the whole look may differ, so force the rebuild; on a same-key
+                    // edit only rebuild when a look field actually changed (cheap path for gap/height).
+                    val oldBlob = if(keyChanged) null else prevBlob
+                    prevKeyName = key.name
+                    prevBlob = newBlob
+
+                    // Look knobs (font / weight / roundness / border / colours) live in the provider
+                    // overlay (withPerKindLook), only re-read on a provider rebuild — invalidateKeyboard
+                    // alone won't pick them up.
+                    if(keyChanged || lookFieldsDiffer(oldBlob, newBlob)) updateDrawableProvider(activeColorScheme.value)
+                    // Suggestion-bar height lives in the Compose chrome (LocalActionBarHeight), not the
+                    // keyboard layout — push the new value so the bar resizes live.
+                    uixManager.refreshActionBarHeight()
+                    invalidateKeyboard(refreshSettings = true)
                 }
             }
         }

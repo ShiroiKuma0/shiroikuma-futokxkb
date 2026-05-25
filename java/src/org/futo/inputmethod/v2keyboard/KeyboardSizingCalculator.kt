@@ -26,6 +26,7 @@ import org.futo.inputmethod.latin.FoldStateProvider
 import org.futo.inputmethod.latin.LatinIME
 import org.futo.inputmethod.latin.settings.SettingsValues
 import org.futo.inputmethod.latin.uix.OldStyleActionsBar
+import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.UixManager
 import org.futo.inputmethod.latin.uix.getSetting
@@ -386,6 +387,21 @@ val KeyboardSettings = mapOf(
 val LastUsedSizeStateSetting = SettingsKey(
     stringPreferencesKey("last_used_size_state"), KeyboardSizeSettingKind.Portrait.name)
 
+// kxkb: per-(active subtype × geometry) sizing/look. Folding the active subtype (which IS the
+// language+layout pair) into the key makes every language·layout·geometry combination persist
+// independently. Returns null when no active subtype resolves (BFU / direct-boot) so callers fall
+// back to the geometry-level key. Shared by the live keyboard (KeyboardSizingCalculator) AND the
+// Keyboard UI screen so both address the byte-identical blob — the sanitisation lives here once so
+// it can never drift between the two call sites.
+fun perComboSizingKey(context: Context, kind: KeyboardSizeSettingKind): SettingsKey<String>? {
+    val raw = try {
+        Subtypes.subtypeToString(Subtypes.getActiveSubtype(context))
+    } catch (e: Exception) { "" }
+    val sub = raw.replace(Regex("[^A-Za-z0-9]"), "_")
+    return if(sub.isEmpty()) null
+        else SettingsKey(stringPreferencesKey("keyboard_settings__${sub}__${kind.name}"), "")
+}
+
 internal fun Double.guardNaN(default: Double): Double = when {
     isNaN() -> default
     else -> this
@@ -411,17 +427,28 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
     private fun dp(v: DpRect): Rect =
         Rect(dp(v.left), dp(v.top), dp(v.right), dp(v.bottom))
 
-    fun getSavedSettings(): SavedKeyboardSizingSettings =
-        SavedKeyboardSizingSettings.fromJsonString(context.getSettingBlocking(
-            KeyboardSettings[sizeStateProvider.currentSizeState]!!
-        )) ?: getDefaultSettingForKind(sizeStateProvider.currentSizeState, context)
+    fun getSavedSettings(): SavedKeyboardSizingSettings {
+        val kind = sizeStateProvider.currentSizeState
+        // per-combo blob first; else inherit the geometry-level blob (pre-existing tuning); else default.
+        perComboSizingKey(context, kind)?.let { combo ->
+            SavedKeyboardSizingSettings.fromJsonString(context.getSettingBlocking(combo))?.let { return it }
+        }
+        return SavedKeyboardSizingSettings.fromJsonString(context.getSettingBlocking(
+            KeyboardSettings[kind]!!
+        )) ?: getDefaultSettingForKind(kind, context)
+    }
 
     fun editSavedSettings(transform: (SavedKeyboardSizingSettings) -> SavedKeyboardSizingSettings) {
-        val sizeState = sizeStateProvider.currentSizeState
+        val kind = sizeStateProvider.currentSizeState
+        val combo = perComboSizingKey(context, kind)
 
-        val savedSettings = SavedKeyboardSizingSettings.fromJsonString(context.getSettingBlocking(
-            KeyboardSettings[sizeState]!!
-        )) ?: getDefaultSettingForKind(sizeState, context)
+        // Effective current: per-combo if this combo was already customised, else the inherited
+        // geometry-level blob, else the kind default.
+        val savedSettings = (combo?.let {
+                SavedKeyboardSizingSettings.fromJsonString(context.getSettingBlocking(it))
+            })
+            ?: SavedKeyboardSizingSettings.fromJsonString(context.getSettingBlocking(KeyboardSettings[kind]!!))
+            ?: getDefaultSettingForKind(kind, context)
 
         var transformed = transform(savedSettings)
 
@@ -430,7 +457,8 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
         if(transformed.floatingHeightDp.isNaN()) transformed = transformed.copy(floatingHeightDp = savedSettings.floatingHeightDp)
 
         if(transformed != savedSettings) {
-            context.setSettingBlocking(KeyboardSettings[sizeState]!!.key, transformed.toJsonString())
+            // Fork to this combo's own key (or the geometry key when there's no active subtype, e.g. BFU).
+            context.setSettingBlocking((combo ?: KeyboardSettings[kind]!!).key, transformed.toJsonString())
         }
     }
 
