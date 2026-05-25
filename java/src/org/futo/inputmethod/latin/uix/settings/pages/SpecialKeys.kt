@@ -107,6 +107,14 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("The text can contain |, \\, commas, or a leading ! with no escaping needed.")
         }
 
+        CollapsibleSection("Chord (modifier keystrokes)") {
+            Para("Emits a modifier+key chord — or a space-separated sequence of them — as real hardware key events (for terminals, Emacs, vim, etc.). Emacs-style notation: each step is MOD-…-BASE.")
+            Yaml("- { type: chord, keys: \"C-x C-s\", label: save }")
+            Para("Modifiers: C = Ctrl, M = Alt/Meta, S = Shift, s = Super. BASE is a single char (C-x, C--) or a named key: TAB, RET/ENTER, SPC/SPACE, ESC, DEL, UP/DOWN/LEFT/RIGHT, HOME, END, PGUP/PGDN, F1–F12. Shift must be explicit (S-TAB).")
+            Para("Works inside a compass slide slot too — e.g. slide down on the o-key to send Ctrl+O:")
+            Yaml("- type: compass\n  primary: o\n  down: { type: chord, keys: \"C-o\" }\n  left: { type: chord, keys: \"M-o\" }")
+        }
+
         CloseToKeyboardButton()
     }
 }

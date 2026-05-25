@@ -281,6 +281,11 @@ public final class InputLogic {
      */
     public InputTransaction onTextInput(final SettingsValues settingsValues, final Event event, final int keyboardShiftMode) {
         final String rawText = event.getTextToCommit().toString();
+        // kxkb: a "chord" key carries its spec in outputText behind a U+0000 sentinel (impossible in
+        // real text). Intercept and perform the chord as real key events instead of committing text.
+        if (rawText.startsWith("\u0000")) {
+            return performChord(settingsValues, event, keyboardShiftMode, rawText.substring(1));
+        }
         final InputTransaction inputTransaction = new InputTransaction(settingsValues, event,
                 SystemClock.uptimeMillis(), mSpaceState,
                 getActualCapsMode(settingsValues, keyboardShiftMode));
@@ -976,6 +981,91 @@ public final class InputLogic {
             case '.':  return KeyEvent.KEYCODE_PERIOD;
             case '`':  return KeyEvent.KEYCODE_GRAVE;
             default:   return KeyEvent.KEYCODE_UNKNOWN;
+        }
+    }
+
+    /**
+     * kxkb: perform a "chord" key — a space-separated sequence of Emacs-style key chords, e.g.
+     * "C-x C-s". Each step is sent as a real hardware key event with the appropriate modifiers.
+     * Flushes any in-progress composition first, like the one-shot Ctrl path.
+     */
+    private InputTransaction performChord(final SettingsValues settingsValues,
+            final Event event, final int keyboardShiftMode, final String spec) {
+        if (mWordComposer.isComposingWord()) {
+            commitTyped(settingsValues, "");
+        }
+        mConnection.send();
+        for (final String step : spec.trim().split("\\s+")) {
+            if (!step.isEmpty()) {
+                emitChordStep(step);
+            }
+        }
+        final InputTransaction inputTransaction = new InputTransaction(settingsValues, event,
+                SystemClock.uptimeMillis(), mSpaceState,
+                getActualCapsMode(settingsValues, keyboardShiftMode));
+        inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
+        inputTransaction.setRequiresUpdateSuggestions();
+        return inputTransaction;
+    }
+
+    /** Parse one chord step (MOD-...-BASE) and send it as a key event. */
+    private void emitChordStep(final String step) {
+        int meta = 0;
+        int idx = 0;
+        // Consume leading single-letter modifier prefixes ("C-", "M-", "S-", "s-").
+        while (step.length() - idx >= 2 && step.charAt(idx + 1) == '-') {
+            final int m = chordModifierMeta(step.charAt(idx));
+            if (m == 0) break;
+            meta |= m;
+            idx += 2;
+        }
+        final String base = step.substring(idx);
+        if (base.isEmpty()) return;
+        final int keyCode = keyCodeForChordBase(base);
+        if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
+            sendDownUpKeyEvent(keyCode, meta);
+        }
+    }
+
+    /** Emacs modifier letter -> Android meta-state bits (0 if not a modifier). */
+    private static int chordModifierMeta(final char m) {
+        switch (m) {
+            case 'C': return KeyEvent.META_CTRL_ON | KeyEvent.META_CTRL_LEFT_ON;
+            case 'M': return KeyEvent.META_ALT_ON | KeyEvent.META_ALT_LEFT_ON;
+            case 'S': return KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON;
+            case 's': return KeyEvent.META_META_ON | KeyEvent.META_META_LEFT_ON;
+            default:  return 0;
+        }
+    }
+
+    /** Resolve a chord base (single char, or a named key) to an Android KEYCODE_*. */
+    private static int keyCodeForChordBase(final String base) {
+        if (base.codePointCount(0, base.length()) == 1) {
+            return androidKeyCodeForCodePoint(base.codePointAt(0));
+        }
+        switch (base.toUpperCase(java.util.Locale.ROOT)) {
+            case "TAB":                       return KeyEvent.KEYCODE_TAB;
+            case "RET": case "RETURN": case "ENTER": return KeyEvent.KEYCODE_ENTER;
+            case "SPC": case "SPACE":         return KeyEvent.KEYCODE_SPACE;
+            case "ESC": case "ESCAPE":        return KeyEvent.KEYCODE_ESCAPE;
+            case "DEL": case "BACKSPACE": case "BS": return KeyEvent.KEYCODE_DEL;
+            case "UP":                        return KeyEvent.KEYCODE_DPAD_UP;
+            case "DOWN":                      return KeyEvent.KEYCODE_DPAD_DOWN;
+            case "LEFT":                      return KeyEvent.KEYCODE_DPAD_LEFT;
+            case "RIGHT":                     return KeyEvent.KEYCODE_DPAD_RIGHT;
+            case "HOME":                      return KeyEvent.KEYCODE_MOVE_HOME;
+            case "END":                       return KeyEvent.KEYCODE_MOVE_END;
+            case "PGUP": case "PAGEUP":       return KeyEvent.KEYCODE_PAGE_UP;
+            case "PGDN": case "PAGEDOWN":     return KeyEvent.KEYCODE_PAGE_DOWN;
+            default:
+                final String b = base.toUpperCase(java.util.Locale.ROOT);
+                if (b.length() >= 2 && b.charAt(0) == 'F') {
+                    try {
+                        final int n = Integer.parseInt(b.substring(1));
+                        if (n >= 1 && n <= 12) return KeyEvent.KEYCODE_F1 + (n - 1);
+                    } catch (NumberFormatException ignored) { }
+                }
+                return KeyEvent.KEYCODE_UNKNOWN;
         }
     }
 

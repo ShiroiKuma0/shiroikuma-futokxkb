@@ -170,3 +170,52 @@ data class MacroKey(
         )
     }
 }
+
+// kxkb: "chord" key — emits a modifier+keystroke chord (or a space-separated sequence of them) as
+// real hardware key events, e.g. `keys: "C-x C-s"`. Notation is Emacs-ish: each step is
+// MOD-...-BASE where MOD is C (Ctrl), M (Alt/Meta), S (Shift) or s (Super); BASE is a single char
+// or a named key (TAB, RET/ENTER, SPC/SPACE, ESC, DEL, UP/DOWN/LEFT/RIGHT, HOME, END, PGUP/PGDN,
+// F1..F12). Usable standalone or inside a compass slide slot. The spec is carried to InputLogic via
+// outputText with a leading U+0000 sentinel (impossible in real text); InputLogic.onTextInput
+// intercepts that and performs the chord (see performChord). Like macro, it bypasses the keyspec
+// parser, so the spec is taken verbatim.
+@Serializable
+@SerialName("chord")
+data class ChordKey(
+    val keys: String,
+    val label: String? = null,
+    val attributes: KeyAttributes = KeyAttributes(),
+) : AbstractKey {
+    override fun countsToKeyCoordinate(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard
+    ): Boolean = false
+
+    override fun computeData(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData {
+        val attrs = attributes.getEffectiveAttributes(row, keyboard)
+        val moreKeyMode = attrs.moreKeyMode!!
+        return ComputedKeyData(
+            label = label ?: keys,
+            code = Constants.CODE_OUTPUT_TEXT,
+            outputText = "\u0000" + keys,
+            width = attrs.width!!,
+            icon = "",
+            style = attrs.style!!,
+            anchored = attrs.anchored!!,
+            showPopup = attrs.showPopup!!,
+            moreKeys = listOf(),
+            longPressEnabled = false,
+            repeatable = false,
+            moreKeyFlags = 0,
+            countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
+            hint = "",
+            labelFlags = attrs.labelFlags?.getValue() ?: 0,
+        )
+    }
+}
