@@ -210,6 +210,15 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
             paint.setTextAlign(Paint.Align.CENTER);
             paint.setAntiAlias(true);
             final int n = mains.size();
+            if (mains.get(0).getVertical()) {
+                // kxkb column: stack the mains down the preview centre line.
+                for (int i = 0; i < n; i++) {
+                    final float y = height * (i + 0.5f) / n + paint.getTextSize() / 2.7f;
+                    final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
+                    canvas.drawText(glyph, cx, y, paint);
+                }
+                return true;
+            }
             final float baseline = height / 2.0f + paint.getTextSize() / 2.7f;
             for (int i = 0; i < n; i++) {
                 final float x = width * (i + 0.5f) / n;

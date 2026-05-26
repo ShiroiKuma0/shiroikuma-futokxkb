@@ -82,10 +82,13 @@ data class ComputedFlickData(
 // that tap position, disambiguated by the language model. `column`/`columnCount` let ProximityInfo
 // tile each main's sub-rect across the key width (non-letter mains are positioned but not injected,
 // since the decoder only mixes letters). See ClusterKey + ProximityInfo.createNativeProximityInfo.
+// kxkb: when `vertical` (a `column` key), the sub-rects tile down the key HEIGHT instead — column/
+// columnCount are then read as row/rowCount, and the glyphs are drawn stacked top-to-bottom.
 data class ClusterMain(
     val codePoint: Int,
     val column: Int,
-    val columnCount: Int
+    val columnCount: Int,
+    val vertical: Boolean = false
 )
 
 data class ComputedKeyData(

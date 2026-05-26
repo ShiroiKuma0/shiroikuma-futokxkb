@@ -637,6 +637,9 @@ public class KeyboardView extends View {
     // proximity sub-rects (prediction) are unaffected.
     private static float sClusterLeftOff = 0.333f;
     private static float sClusterRightOff = 0.333f;
+    // kxkb column: vertical band glyphs are placed one-per-slice down the key and sized to the slice
+    // (capped at the normal letter size). Display only; not user-tunable.
+    private static final float CLUSTER_VERTICAL_FILL = 0.62f;
     public static void setClusterMainOffsets(final float left, final float right) {
         sClusterLeftOff = left;
         sClusterRightOff = right;
@@ -668,17 +671,25 @@ public class KeyboardView extends View {
         final float cx = centerX;
         final float cy = centerY + charHeight / 2.0f;
 
-        // kxkb cluster: the West/East slots ARE the side mains, drawn in the band at primary size,
-        // so skip them here (only the six diagonal/vertical extras are drawn as flick labels).
-        final boolean isCluster = key.getClusterMains() != null && !key.getClusterMains().isEmpty();
+        // kxkb cluster: the band-end slots ARE the side mains, drawn in the band at primary size, so
+        // skip them here. A horizontal cluster's ends are West/East; a vertical `column` key's are
+        // North/South. The remaining slots are drawn as the small side keys.
+        final java.util.List<ClusterMain> cMains = key.getClusterMains();
+        final boolean isCluster = cMains != null && !cMains.isEmpty();
+        final boolean isVerticalCluster = isCluster && cMains.get(0).getVertical();
 
         for (final Map.Entry<Direction, Key> entry : flickKeys.entrySet()) {
             final Key target = entry.getValue();
             if (target == null) {
                 continue;
             }
-            if (isCluster && (entry.getKey() == Direction.West || entry.getKey() == Direction.East)) {
-                continue;
+            if (isCluster) {
+                final Direction d = entry.getKey();
+                if (isVerticalCluster) {
+                    if (d == Direction.North || d == Direction.South) continue;
+                } else if (d == Direction.West || d == Direction.East) {
+                    continue;
+                }
             }
             final Pair<Double, Double> vec = KeyDataKt.toVector(entry.getKey());
             final double sx = Math.signum(vec.getFirst());   // +1 = left column, -1 = right column
@@ -747,17 +758,33 @@ public class KeyboardView extends View {
         // ProximityInfo stay uniform thirds, so moving the glyphs never changes typing.
         final int n = mains.size();
         final int centerIdx = n / 2;
-        for (int i = 0; i < n; i++) {
-            final float x;
-            if (i == centerIdx) {
-                x = centerX;
-            } else if (i < centerIdx) {
-                x = centerX - sClusterLeftOff * keyWidth * (centerIdx - i);
-            } else {
-                x = centerX + sClusterRightOff * keyWidth * (i - centerIdx);
+        if (mains.get(0).getVertical()) {
+            // kxkb column: centre each main in its 1/n slice of the key height and size it to the slice
+            // (capped at the normal letter size), so the stack stays tidy and proportionate whatever
+            // the row height. Display only — prediction sub-rects stay uniform.
+            final float slice = (float) keyHeight / n;
+            final float primarySize = kdc.getTextSize() * mDrawableProvider.getKeyLetterScale();
+            paint.setTextSize(Math.min(slice * CLUSTER_VERTICAL_FILL, primarySize));
+            final float vCharHeight = TypefaceUtils.getReferenceCharHeight(paint);
+            final float top = centerY - keyHeight / 2.0f;
+            for (int i = 0; i < n; i++) {
+                final float gc = top + (i + 0.5f) * slice;
+                final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
+                canvas.drawText(glyph, 0, glyph.length(), centerX, gc + vCharHeight / 2.0f, paint);
             }
-            final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
-            canvas.drawText(glyph, 0, glyph.length(), x, baseline, paint);
+        } else {
+            for (int i = 0; i < n; i++) {
+                final float x;
+                if (i == centerIdx) {
+                    x = centerX;
+                } else if (i < centerIdx) {
+                    x = centerX - sClusterLeftOff * keyWidth * (centerIdx - i);
+                } else {
+                    x = centerX + sClusterRightOff * keyWidth * (i - centerIdx);
+                }
+                final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
+                canvas.drawText(glyph, 0, glyph.length(), x, baseline, paint);
+            }
         }
         paint.clearShadowLayer();
         paint.setTextScaleX(1.0f);

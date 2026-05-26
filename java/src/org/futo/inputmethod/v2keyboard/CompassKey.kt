@@ -525,3 +525,124 @@ data class ClusterKey(
         )
     }
 }
+
+
+// kxkb: a `column` key — the vertical sibling of `cluster`. The `main` chars stack TOP-TO-BOTTOM as a
+// predictive band (sub-rects split the key height; letters feed the decoder exactly like cluster), the
+// centre main is the tap-commit primary, and North/South flicks give precise access to the top/bottom
+// main (mirroring cluster's West/East). The six author slots become the optional 3+3 small side keys,
+// reached by flick and drawn as at-rest flick labels in a left column (upLeft/left/downLeft) and a
+// right column (upRight/right/downRight). Behaviour is otherwise identical to cluster.
+//
+//   { type: column, main: "abc", left: "(", right: ")", upLeft: "1", downRight: { macro: "…" } }
+//
+@Serializable
+@SerialName("column")
+data class ColumnKey(
+    val main: String,
+
+    val left: Slot? = null,
+    val right: Slot? = null,
+    val upLeft: Slot? = null,
+    val upRight: Slot? = null,
+    val downLeft: Slot? = null,
+    val downRight: Slot? = null,
+
+    val attributes: KeyAttributes? = null,
+    val label: String? = null,
+    val icon: String? = null,
+) : AbstractKey {
+    private val extraAttrs = attributes?.let { listOf(it) } ?: emptyList()
+
+    private fun literalKey(codePoint: Int): BaseKey = BaseKey(
+        spec = String(Character.toChars(codePoint)),
+        attributes = KeyAttributes(
+            useKeySpecShortcut = false,
+            moreKeyMode = MoreKeyMode.OnlyExplicit
+        )
+    )
+
+    private fun slotToKey(slot: CompassSlot, primaryChar: String?): Key? = when (slot) {
+        is KeySlot -> slot.key
+        is ModSlot -> {
+            val base = slot.on ?: primaryChar
+            if (base.isNullOrEmpty()) null
+            else ChordKey(keys = modPrefix(slot.mod) + "-" + base, label = slot.label)
+        }
+    }
+
+    private fun modPrefix(mod: String): String = when (mod.trim().lowercase()) {
+        "ctrl", "control", "c"               -> "C"
+        "alt", "meta", "opt", "option", "m"  -> "M"
+        "shift"                              -> "S"
+        "super", "win", "cmd", "gui", "s"    -> "s"
+        else                                 -> "C"
+    }
+
+    private fun slotData(
+        key: Key,
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData? = when (key) {
+        is BaseKey -> key.computeDataWithExtraAttrs(params, row, keyboard, coordinate, extraAttrs)
+        else -> key.computeData(params, row, keyboard, coordinate)
+    }
+
+    override fun countsToKeyCoordinate(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard
+    ): Boolean = false
+
+    override fun computeData(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData? {
+        val cps = main.codePoints().toArray()
+        if (cps.isEmpty()) return null
+        val n = cps.size
+        val centerIdx = n / 2
+
+        val primaryData = literalKey(cps[centerIdx])
+            .computeDataWithExtraAttrs(params, row, keyboard, coordinate, extraAttrs)
+        val primaryChar = if (primaryData.code > 0) String(Character.toChars(primaryData.code))
+                          else primaryData.label.ifEmpty { null }
+
+        // Flick map: North = first (top) main, South = last (bottom) main — the band ends, mirroring
+        // cluster's West/East. The six author slots fill the left and right side columns.
+        val flick = LinkedHashMap<Direction, ComputedKeyData>()
+        if (n >= 2) {
+            slotData(literalKey(cps[0]),     params, row, keyboard, coordinate)?.let { flick[Direction.North] = it }
+            slotData(literalKey(cps[n - 1]), params, row, keyboard, coordinate)?.let { flick[Direction.South] = it }
+        }
+        fun place(dir: Direction, slot: Slot?) {
+            if (slot == null) return
+            slotToKey(slot, primaryChar)?.let { key ->
+                slotData(key, params, row, keyboard, coordinate)?.let { flick[dir] = it }
+            }
+        }
+        place(Direction.West,      left)
+        place(Direction.East,      right)
+        place(Direction.NorthWest, upLeft)
+        place(Direction.NorthEast, upRight)
+        place(Direction.SouthWest, downLeft)
+        place(Direction.SouthEast, downRight)
+
+        // The band, tagged vertical for the proximity model + vertical glyph layout.
+        val mains = cps.mapIndexed { i, cp -> ClusterMain(cp, i, n, vertical = true) }
+
+        return primaryData.copy(
+            label = main,
+            moreKeys = emptyList(),
+            longPressEnabled = false,
+            flick = if (flick.isEmpty()) null
+                    else ComputedFlickData(directions = flick, label = label, icon = icon),
+            showPopup = true,
+            clusterMains = mains
+        )
+    }
+}

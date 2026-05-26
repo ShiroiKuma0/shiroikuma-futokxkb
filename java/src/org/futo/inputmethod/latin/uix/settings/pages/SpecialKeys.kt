@@ -145,6 +145,15 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("Rendering: the mains draw at the primary key size on the centre line — the centre at the key centre, the left/right characters pushed out by their own \"Cluster: left/right character distance\" sliders (default 0.333 = evenly tiled); the extras draw small above and below, by the top/bottom and left/right \"4D label\" sliders — all under Keyboard UI per fold-state. The cluster distance sliders are display-only (they don't move the prediction tap-zones). Needs a prediction model + autocorrect/suggestions for the disambiguation; with prediction off it falls back to centre-tap + precise slides.")
         }
 
+        CollapsibleSection("Column (vertical predictive multi-key)") {
+            Para("The vertical sibling of a cluster. The `main` glyphs stack TOP-TO-BOTTOM as the predictive band; everything else behaves exactly like a cluster — a plain tap commits the MIDDLE main, and the tap is weighed against all the band's letters so prediction picks the right one from word context.")
+            Para("Centre form — `main` is the band, top→bottom; the middle commits on tap:")
+            Yaml("- { type: column, main: \"aev\" }")
+            Para("To type the TOP or BOTTOM main precisely, slide up or down (mirroring cluster's left/right) — so key sliding should be on. The optional 3 + 3 small side keys are the left column (upLeft / left / downLeft) and right column (upRight / right / downRight), each any key or a { mod }/{ chord }/{ macro } shorthand, reached by sliding toward them and drawn small in their corners:")
+            Yaml("- type: column\n  main: \"aev\"\n  left: \"(\"\n  right: \")\"\n  upLeft: \"1\"\n  downRight: { macro: \"…\" }")
+            Para("Prediction is letter-only, same as cluster (non-letter mains commit but never predict). up/down are reserved for the top/bottom band ends and aren't author-settable. The band glyphs draw stacked and slightly smaller so three fit; the side keys draw at the small 4D-label size in their corners.")
+        }
+
         CollapsibleSection("Hide keyboard") {
             Para("An action key that dismisses the keyboard (the old Multiling [HIDE]). It is the Hide-keyboard action bound to a key — its glyph is a downward chevron and a press closes the keyboard. Works as a standalone key or inside a compass/cluster slide slot.")
             Yaml("- { type: base, spec: \"!icon/action_hide_keyboard|!code/action_hide_keyboard\" }")

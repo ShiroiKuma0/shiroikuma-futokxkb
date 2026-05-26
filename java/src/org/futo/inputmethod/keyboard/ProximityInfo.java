@@ -120,9 +120,16 @@ public class ProximityInfo {
             }
             final int n = m.getColumnCount();
             final int c = m.getColumn();
-            final int left = key.getX() + (int) Math.round((double) c * key.getWidth() / n);
-            final int right = key.getX() + (int) Math.round((double) (c + 1) * key.getWidth() / n);
-            out.add(new int[] { left, key.getY(), right - left, key.getHeight(), m.getCodePoint() });
+            if (m.getVertical()) {
+                // kxkb column: tile down the key HEIGHT (column/columnCount read as row/rowCount).
+                final int top = key.getY() + (int) Math.round((double) c * key.getHeight() / n);
+                final int bottom = key.getY() + (int) Math.round((double) (c + 1) * key.getHeight() / n);
+                out.add(new int[] { key.getX(), top, key.getWidth(), bottom - top, m.getCodePoint() });
+            } else {
+                final int left = key.getX() + (int) Math.round((double) c * key.getWidth() / n);
+                final int right = key.getX() + (int) Math.round((double) (c + 1) * key.getWidth() / n);
+                out.add(new int[] { left, key.getY(), right - left, key.getHeight(), m.getCodePoint() });
+            }
         }
         return out.isEmpty() ? null : out;
     }
