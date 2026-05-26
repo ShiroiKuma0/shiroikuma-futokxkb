@@ -25,6 +25,7 @@ val ArrowUpAction = Action(
         manager.sendKeyEvent(KeyEvent.KEYCODE_DPAD_UP, getMetaState(manager))
     },
     windowImpl = null,
+    repeatable = true, // kxkb: hold an arrow key to keep moving the cursor
 )
 
 val ArrowDownAction = Action(
@@ -34,6 +35,7 @@ val ArrowDownAction = Action(
         manager.sendKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, getMetaState(manager))
     },
     windowImpl = null,
+    repeatable = true, // kxkb: hold an arrow key to keep moving the cursor
 )
 
 val ArrowLeftAction = Action(
@@ -43,6 +45,7 @@ val ArrowLeftAction = Action(
         manager.sendKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, getMetaState(manager))
     },
     windowImpl = null,
+    repeatable = true, // kxkb: hold an arrow key to keep moving the cursor
 )
 
 val ArrowRightAction = Action(
@@ -52,4 +55,5 @@ val ArrowRightAction = Action(
         manager.sendKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, getMetaState(manager))
     },
     windowImpl = null,
+    repeatable = true, // kxkb: hold an arrow key to keep moving the cursor
 )

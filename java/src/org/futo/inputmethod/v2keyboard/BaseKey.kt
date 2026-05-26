@@ -9,6 +9,7 @@ import org.futo.inputmethod.keyboard.internal.KeySpecParser
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
 import org.futo.inputmethod.keyboard.internal.MoreKeySpec
 import org.futo.inputmethod.latin.common.Constants
+import org.futo.inputmethod.latin.uix.actions.AllActions
 import org.futo.inputmethod.latin.common.StringUtils
 import org.futo.inputmethod.latin.settings.LongPressKeySettings
 
@@ -306,6 +307,13 @@ object MoreKeysListSerializer: SpacedListSerializer<String>(String.serializer(),
     MoreKeySpec.splitKeySpecs(it)?.toList() ?: listOf()
 })
 
+// kxkb: true when a key's resolved code is an action flagged repeatable (the arrow actions). Lets a
+// plain `!code/action_left` etc. repeat on long-press without needing repeatableEnabled in the layout.
+private fun isRepeatableActionCode(code: Int): Boolean {
+    if (code < Constants.CODE_ACTION_0 || code > Constants.CODE_ACTION_MAX) return false
+    return AllActions.getOrNull(code - Constants.CODE_ACTION_0)?.repeatable == true
+}
+
 /**
  * The base key
  */
@@ -455,7 +463,7 @@ data class BaseKey(
             showPopup = attributes.showPopup!!,
             moreKeys = moreKeys.specs,
             longPressEnabled = (attributes.longPressEnabled ?: false) || moreKeys.specs.isNotEmpty(),
-            repeatable = attributes.repeatableEnabled ?: false,
+            repeatable = (attributes.repeatableEnabled ?: false) || isRepeatableActionCode(code),
             moreKeyFlags = moreKeys.flags,
             countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
             hint = hint ?: "",

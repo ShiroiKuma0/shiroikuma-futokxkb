@@ -184,6 +184,11 @@ data class Action(
     val canShowKeyboard: Boolean = false,
     val keepScreenAwake: Boolean = false,
 
+    // kxkb: when true, a key bound to this action repeats on long-press like a held key (arrow keys).
+    // BaseKey.computeData makes any key whose code resolves to a repeatable action repeatable, so plain
+    // `!code/action_left` etc. auto-repeat without needing repeatableEnabled in the layout.
+    val repeatable: Boolean = false,
+
     val windowImpl: ((KeyboardManagerForAction, PersistentActionState?) -> ActionWindow)?,
     val simplePressImpl: ((KeyboardManagerForAction, PersistentActionState?) -> Unit)?,
     val persistentState: ((KeyboardManagerForAction) -> PersistentActionState)? = null,
