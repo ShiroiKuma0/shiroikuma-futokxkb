@@ -167,6 +167,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     // the more keys panel currently being shown. equals null if no panel is active.
     private MoreKeysPanel mMoreKeysPanel;
 
+    // kxkb: true while an enlarged long-press "study popup" is showing for the held key. A stationary
+    // release then suppresses the key's normal output (the hold was a deliberate "study"); a flick /
+    // slide release still types its target via the flick branch in onUpEventInternal.
+    private boolean mStudyPopupShown = false;
+
     private static final int MULTIPLIER_FOR_LONG_PRESS_TIMEOUT_IN_SLIDING_INPUT = 3;
     // true if this pointer is in the dragging finger mode.
     boolean mIsInDraggingFinger;
@@ -737,6 +742,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 || mKeyDetector.alwaysAllowsKeySelectionByDraggingFinger();
         mKeyboardLayoutHasBeenChanged = false;
         mIsTrackingForActionDisabled = false;
+        mStudyPopupShown = false;
         resetKeySelectionByDraggingFinger();
         if (key != null) {
             // This onPress call may have changed keyboard layout. Those cases are detected at
@@ -1155,6 +1161,20 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         // Release the last pressed key.
         setReleasedKeyGraphics(currentKey, true /* withAnimation */);
 
+        // kxkb: tear down any long-press study popup on release. A stationary hold (no flick direction
+        // was ever crossed) was a deliberate "study" gesture -> dismiss without typing, returning
+        // before the flick branch below. A slide leaves mFlickDirection set, so we fall through and the
+        // flick branch types the slid target as usual.
+        if (mStudyPopupShown) {
+            mStudyPopupShown = false;
+            if (currentKey != null) {
+                sDrawingProxy.dismissStudyKeyPreview(currentKey);
+            }
+            if (mFlickDirection == null) {
+                return;
+            }
+        }
+
         if(mCursorMoved && currentKey != null && currentKey.getCode() == Constants.CODE_DELETE) {
             sListener.onUpWithDeletePointerActive();
         } else if(mCursorMoved) {
@@ -1275,6 +1295,18 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             return;
         }
 
+        // kxkb: long-pressing a complex key (compass / cluster / macro / chord) shows an enlarged
+        // "study popup" of its full content instead of opening a more-keys panel. Only pop it for a
+        // stationary hold (no flick direction crossed yet); a slide leaves the gesture alone. Either
+        // way we consume the long-press so these keys never open a more-keys panel.
+        if (key.isStudyable()) {
+            if (mFlickDirection == null) {
+                mStudyPopupShown = true;
+                sDrawingProxy.showStudyKeyPreview(key);
+            }
+            return;
+        }
+
         setReleasedKeyGraphics(key, false /* withAnimation */);
         final MoreKeysPanel moreKeysPanel = sDrawingProxy.showMoreKeysKeyboard(key, this);
         if (moreKeysPanel == null) {
@@ -1325,6 +1357,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         setReleasedKeyGraphics(mCurrentKey, true /* withAnimation */);
         resetKeySelectionByDraggingFinger();
         dismissMoreKeysPanel();
+        if (mStudyPopupShown) {
+            mStudyPopupShown = false;
+            if (mCurrentKey != null) {
+                sDrawingProxy.dismissStudyKeyPreview(mCurrentKey);
+            }
+        }
     }
 
     private boolean isMajorEnoughMoveToBeOnNewKey(final int x, final int y, final long eventTime,
@@ -1370,7 +1408,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         sTimerProxy.cancelLongPressShiftKeyTimer();
         if (sInGesture) return;
         if (key == null) return;
-        if (!key.isLongPressEnabled()) return;
+        // kxkb: studyable keys (compass / cluster / macro / chord) are OnlyExplicit with no more-keys,
+        // so isLongPressEnabled() is false for them; start the timer anyway so the long-press study
+        // popup can fire.
+        if (!key.isLongPressEnabled() && !key.isStudyable()) return;
         // Caveat: Please note that isLongPressEnabled() can be true even if the current key
         // doesn't have its more keys. (e.g. spacebar, globe key) If we are in the dragging finger
         // mode, we will disable long press timer of such key.

@@ -99,9 +99,19 @@ public final class KeyPreviewChoreographer {
     public void placeAndShowKeyPreview(final Key key, final KeyboardIconsSet iconsSet,
                                        final KeyDrawParams drawParams, final int keyboardViewWidth, final int[] keyboardOrigin,
                                        final ViewGroup placerView, final boolean withAnimation, KeyBackground background) {
+        placeAndShowKeyPreview(key, iconsSet, drawParams, keyboardViewWidth, keyboardOrigin,
+                placerView, withAnimation, background, false /* studyMode */);
+    }
+
+    // kxkb: studyMode renders an enlarged long-press "study popup" (~3x) for complex keys.
+    public void placeAndShowKeyPreview(final Key key, final KeyboardIconsSet iconsSet,
+                                       final KeyDrawParams drawParams, final int keyboardViewWidth, final int[] keyboardOrigin,
+                                       final ViewGroup placerView, final boolean withAnimation, KeyBackground background,
+                                       final boolean studyMode) {
         final KeyPreviewView keyPreviewView = getKeyPreviewView(key, placerView);
         keyPreviewView.setBackground(background.getBackground());
-        placeKeyPreview(key, keyPreviewView, iconsSet, drawParams, keyboardViewWidth, keyboardOrigin, background.getForegroundColor());
+        keyPreviewView.setStudyMode(studyMode);
+        placeKeyPreview(key, keyPreviewView, iconsSet, drawParams, keyboardViewWidth, keyboardOrigin, background.getForegroundColor(), studyMode);
         showKeyPreview(key, keyPreviewView, withAnimation);
     }
 
@@ -112,7 +122,8 @@ public final class KeyPreviewChoreographer {
 
     private void placeKeyPreview(final Key key, final KeyPreviewView keyPreviewView,
             final KeyboardIconsSet iconsSet, final KeyDrawParams drawParams,
-            final int keyboardViewWidth, final int[] originCoords, int foregroundColor) {
+            final int keyboardViewWidth, final int[] originCoords, int foregroundColor,
+            final boolean studyMode) {
         keyPreviewView.setPreviewVisual(key, iconsSet, drawParams, foregroundColor);
         keyPreviewView.measure(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -123,7 +134,7 @@ public final class KeyPreviewChoreographer {
         final int bottomPadding = getBottomPaddingForKey(keyPreviewView.getContext(), key);
         final int topArea = Math.max(key.getHeight(), (int)(44.0f * density));
 
-        final int previewWidth  = Math.min(Math.max(key.getWidth(), (int)(34.0f * density)), (int)(64.0f * density));
+        int previewWidth  = Math.min(Math.max(key.getWidth(), (int)(34.0f * density)), (int)(64.0f * density));
         int previewHeight = topArea + bottomPadding;
         keyPreviewView.setPadding(0, 0, 0, bottomPadding);
 
@@ -150,6 +161,27 @@ public final class KeyPreviewChoreographer {
                     Math.min(keyPreviewView.getWidth(), keyPreviewView.getHeight()) * 0.7f);
         } else {
             keyPreviewView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+        }
+
+        if (studyMode) {
+            // ~3x the (capped) base width, but never wider than most of the keyboard; a square box.
+            int sw = Math.min((int)(previewWidth * 3.0f), (int)(keyboardViewWidth * 0.86f));
+            sw = Math.max(sw, (int)(120.0f * density));
+            final int sh = sw;
+            final int bottom = previewY + previewHeight;   // keep the normal preview's bottom edge...
+            final int keyCx = key.getDrawX() + key.getDrawWidth() / 2 + CoordinateUtils.x(originCoords);
+            previewX = keyCx - sw / 2;
+            previewY = bottom - sh;                         // ...and grow the box upward from it.
+            // Clamp inside the keyboard width and off the top edge of the placer.
+            final int minX = CoordinateUtils.x(originCoords);
+            final int maxX = minX + keyboardViewWidth - sw;
+            if (previewX < minX) previewX = minX;
+            if (maxX >= minX && previewX > maxX) previewX = maxX;
+            if (previewY < 0) previewY = 0;
+            previewWidth = sw;
+            previewHeight = sh;
+            keyPreviewView.setPadding(0, 0, 0, 0);
+            keyPreviewView.setGravity(Gravity.CENTER);
         }
 
         ViewLayoutUtils.placeViewAt(

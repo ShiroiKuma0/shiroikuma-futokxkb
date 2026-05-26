@@ -519,6 +519,31 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         mTimerHandler.postDismissKeyPreview(key, mKeyPreviewDrawParams.getLingerTimeout());
     }
 
+    // kxkb: show/dismiss the enlarged long-press "study popup" for a complex key. Unlike the press
+    // preview this ignores the popup-enabled setting and the key's no-preview flag (it's an explicit
+    // long-press gesture) and forces studyMode sizing + drawing in the choreographer.
+    @Override
+    public void showStudyKeyPreview(@Nonnull final Key key) {
+        final Keyboard keyboard = getKeyboard();
+        if (keyboard == null) {
+            return;
+        }
+        locatePreviewPlacerView();
+        getLocationInWindow(mOriginCoords);
+        // kxkb: show WITH animation so the popup scales up into place — this grows over the shared
+        // preview view's 1x->3x relayout frame instead of snapping in after a blank frame. Dismiss
+        // stays instant (dismissStudyKeyPreview passes withAnimation=false).
+        mKeyPreviewChoreographer.placeAndShowKeyPreview(key, keyboard.mIconsSet, getKeyDrawParams(),
+                getWidth(), mOriginCoords, mDrawingPreviewPlacerView, true /* withAnimation */,
+                mDrawableProvider.getPreviewBackground(keyboard, key), true /* studyMode */);
+    }
+
+    @Override
+    public void dismissStudyKeyPreview(@Nonnull final Key key) {
+        mKeyPreviewChoreographer.dismissKeyPreview(key, false /* withAnimation */);
+        invalidateKey(key);
+    }
+
     public void setSlidingKeyInputPreviewEnabled(final boolean enabled) {
         mSlidingKeyInputDrawingPreview.setPreviewEnabled(enabled);
     }

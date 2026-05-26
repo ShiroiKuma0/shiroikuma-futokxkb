@@ -426,6 +426,14 @@ data class Key(
         return if (hasLabelsInMoreKeys) params.mLabelSize else params.mLetterSize
     }
 
+    // kxkb: keys worth a long-press "study popup" (an enlarged preview of their full content held
+    // above the key): compass (directional flickKeys), cluster (predictive clusterMains), and
+    // macro / chord keys (outputText). Drives PointerTracker.onLongPressed -> showStudyKeyPreview.
+    val isStudyable: Boolean
+        get() = (flickKeys?.isNotEmpty() == true)
+                || (clusterMains?.isNotEmpty() == true)
+                || (outputText != null)
+
     val previewLabel: String?
         get() = when {
             isShiftedLetterActivated -> hintLabel

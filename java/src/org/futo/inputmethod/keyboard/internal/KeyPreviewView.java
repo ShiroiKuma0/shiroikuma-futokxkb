@@ -32,10 +32,12 @@ import androidx.annotation.Nullable;
 import org.futo.inputmethod.keyboard.Key;
 import org.futo.inputmethod.latin.R;
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider;
+import org.futo.inputmethod.v2keyboard.ClusterMain;
 import org.futo.inputmethod.v2keyboard.Direction;
 import org.futo.inputmethod.v2keyboard.KeyDataKt;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -69,6 +71,13 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
     private Drawable mIcon;
 
     private Key currKey;
+
+    // kxkb: when true, this preview is an enlarged long-press "study popup" and draws the key's full
+    // content (cluster glyph band, or macro/chord title + output) in addition to the compass layout.
+    private boolean mStudyMode = false;
+    public void setStudyMode(final boolean studyMode) {
+        mStudyMode = studyMode;
+    }
     public void setPreviewVisual(final Key key, final KeyboardIconsSet iconsSet,
                                  final KeyDrawParams drawParams, int foregroundColor) {
         // What we show as preview should match what we show on a key top in onDraw().
@@ -166,9 +175,87 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
         mBackground.setBounds(0, 0, getWidth(), getHeight());
         mBackground.draw(canvas);
 
+        if (mStudyMode) {
+            // Study popup: cluster band / macro-chord text take priority (a cluster key may also carry
+            // flick slots for its side mains, which we don't want drawFlickKeys to render instead).
+            if (drawStudyExtras(canvas)) return;
+            if (drawFlickKeys(canvas)) return;
+            super.onDraw(canvas);
+            return;
+        }
         if(!drawFlickKeys(canvas)) {
             super.onDraw(canvas);
         }
+    }
+
+    // kxkb: study-popup content for the non-compass complex keys. Compass keys are already handled by
+    // drawFlickKeys above; here we cover cluster (the predictive main glyphs) and macro / chord (the
+    // label as a title with the typed output below). Returns false for anything else so the caller
+    // falls back to the normal single-label preview.
+    private boolean drawStudyExtras(final Canvas canvas) {
+        if (currKey == null) return false;
+
+        final int width = canvas.getWidth();
+        final int height = canvas.getHeight();
+        final int dim = Math.min(width, height);
+        final int cx = width / 2;
+
+        // Cluster: lay the main glyphs out evenly across the width on the centre line.
+        final List<ClusterMain> mains = currKey.getClusterMains();
+        if (mains != null && !mains.isEmpty()) {
+            final Paint paint = new Paint();
+            paint.setTypeface(getTypeface());
+            paint.setColor(getCurrentTextColor());
+            paint.setTextSize(dim * 0.30f);
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setAntiAlias(true);
+            final int n = mains.size();
+            final float baseline = height / 2.0f + paint.getTextSize() / 2.7f;
+            for (int i = 0; i < n; i++) {
+                final float x = width * (i + 0.5f) / n;
+                final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
+                canvas.drawText(glyph, x, baseline, paint);
+            }
+            return true;
+        }
+
+        // Macro / chord: the label as a title, the (cleaned) output text below.
+        final String out = currKey.getOutputText();
+        if (out != null) {
+            final String body = cleanStudyOutput(out);
+
+            final Paint titlePaint = new Paint();
+            titlePaint.setTypeface(getTypeface());
+            titlePaint.setColor(getCurrentTextColor());
+            titlePaint.setTextAlign(Paint.Align.CENTER);
+            titlePaint.setAntiAlias(true);
+            titlePaint.setTextSize(dim * 0.18f);
+
+            final Paint bodyPaint = new Paint(titlePaint);
+            bodyPaint.setTextSize(dim * 0.26f);
+            final float bodyW = bodyPaint.measureText(body);
+            final float maxW = width * 0.9f;
+            if (bodyW > maxW && bodyW > 0.0f) {
+                bodyPaint.setTextSize(bodyPaint.getTextSize() * maxW / bodyW);
+            }
+
+            final String title = currKey.getLabel();
+            if (title != null && !title.isEmpty() && !title.equals(body)) {
+                canvas.drawText(title, cx, height * 0.40f, titlePaint);
+                canvas.drawText(body, cx, height * 0.70f, bodyPaint);
+            } else {
+                canvas.drawText(body, cx, height / 2.0f + bodyPaint.getTextSize() / 2.7f, bodyPaint);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    // kxkb: chord output is "\u0000" + "C-x C-s"; multitap/cycle joins entries with \u0001. Strip the
+    // control sentinels so the study popup shows a human-readable string.
+    private static String cleanStudyOutput(final String s) {
+        return s.replace("\u0000", "").replace('\u0001', ' ').trim();
     }
 
     private void setTextAndScaleX(int maxWidth, final String text) {

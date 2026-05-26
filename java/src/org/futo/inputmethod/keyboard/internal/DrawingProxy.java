@@ -57,6 +57,18 @@ public interface DrawingProxy {
     public MoreKeysPanel showLayoutSwitcher(@Nonnull PointerTracker tracker);
 
     /**
+     * kxkb: show an enlarged "study popup" above a long-pressed complex key (compass / cluster /
+     * macro / chord), regardless of the key's normal no-preview setting.
+     * @param key the {@link Key} being long pressed.
+     */
+    public void showStudyKeyPreview(@Nonnull Key key);
+
+    /**
+     * kxkb: dismiss the study popup shown for {@code key} (no-op if none is showing).
+     */
+    public void dismissStudyKeyPreview(@Nonnull Key key);
+
+    /**
      * Start a while-typing-animation.
      * @param fadeInOrOut {@link #FADE_IN} starts while-typing-fade-in animation.
      * {@link #FADE_OUT} starts while-typing-fade-out animation.
