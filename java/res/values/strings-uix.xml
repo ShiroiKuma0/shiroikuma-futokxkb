@@ -725,6 +725,7 @@ Default is %1$s</string>
     <string name="kxkb_sizing_horizontal_gap">Horizontal gap</string>
     <string name="kxkb_sizing_vertical_gap">Vertical gap</string>
     <string name="kxkb_sizing_keyboard_height">Keyboard height</string>
+    <string name="kxkb_sizing_keyboard_width">Keyboard width</string>
     <string name="kxkb_sizing_top_row_height">Top row</string>
     <string name="kxkb_sizing_bottom_row_height">Bottom row</string>
     <string name="kxkb_sizing_suggestion_bar_height">Suggestion bar height</string>

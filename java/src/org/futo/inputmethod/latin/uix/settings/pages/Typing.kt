@@ -598,6 +598,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                     )
                 }
 
+                KxkbSubgroup("Width") {
+                    // kxkb: narrow the whole keyboard (regular mode) by adding symmetric side padding so
+                    // the key grid shrinks and stays centred. 100% = full width. Split mode has its own
+                    // width slider; one-handed mode has its own width.
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_keyboard_width),
+                        item = floatItem({ it.widthFraction }, { s, v -> s.copy(widthFraction = v) }),
+                        default = 1f, range = 0.5f..1.0f, transform = { it }, indicator = { "%.0f%%".format(it * 100) }
+                    )
+                }
+
                 KxkbSubgroup("Spacing") {
                     SettingSliderForDataStoreItem(
                         title = stringResource(R.string.kxkb_sizing_horizontal_gap),

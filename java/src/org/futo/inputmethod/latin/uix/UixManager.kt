@@ -1199,7 +1199,10 @@ class UixManager(private val latinIME: LatinIME) {
         size: ComputedKeyboardSize,
         content: @Composable BoxScope.(actionBarGap: Dp) -> Unit
     ) = with(LocalDensity.current) {
-        OffsetPositioner(Offset.Zero) {
+        // kxkb: a narrowed Regular keyboard carries a centring x-offset so the shrunk surface sits
+        // centred (app visible at both edges). Other modes position via their own width/padding.
+        val xOffset = (size as? RegularKeyboardSize)?.sideOffset?.toFloat() ?: 0f
+        OffsetPositioner(Offset(xOffset, 0f)) {
             KeyboardSurface(
                 requiredWidthPx = size.width,
                 backgroundColor = latinIME.keyboardColor,

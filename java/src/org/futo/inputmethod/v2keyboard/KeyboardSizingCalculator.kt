@@ -55,7 +55,9 @@ sealed class ComputedKeyboardSize(
 }
 
 class RegularKeyboardSize(
-    width: Int, height: Int, padding: Rect, singleRowHeight: Int = height / 4
+    width: Int, height: Int, padding: Rect, singleRowHeight: Int = height / 4,
+    // kxkb: x offset (px) to centre a narrowed keyboard within the full keyboard width (0 = full width).
+    val sideOffset: Int = 0
 ) : ComputedKeyboardSize(width, height, padding, singleRowHeight)
 
 class SplitKeyboardSize(
@@ -98,7 +100,7 @@ fun ComputedKeyboardSize.dimensionsSameAs(other: ComputedKeyboardSize?): Boolean
     return when(this) {
         is FloatingKeyboardSize -> other is FloatingKeyboardSize && other.height == height && other.width == width && other.padding == padding && other.singleRowHeight == singleRowHeight && other.bottomOrigin == bottomOrigin
         is OneHandedKeyboardSize -> other is OneHandedKeyboardSize && other.layoutWidth == layoutWidth && other.width == width && other.padding == padding && other.direction == direction && other.singleRowHeight == singleRowHeight
-        is RegularKeyboardSize -> other is RegularKeyboardSize && other.width == width && other.padding == padding && other.height == height && other.singleRowHeight == singleRowHeight
+        is RegularKeyboardSize -> other is RegularKeyboardSize && other.width == width && other.padding == padding && other.height == height && other.singleRowHeight == singleRowHeight && other.sideOffset == sideOffset
         is SplitKeyboardSize -> other is SplitKeyboardSize && other.height == height && other.padding == padding && other.singleRowHeight == singleRowHeight && other.splitLayoutWidth == splitLayoutWidth && other.width == width
     }
 }
@@ -161,6 +163,11 @@ data class SavedKeyboardSizingSettings(
     val heightMultiplier: Float,
     val heightAdditionDp: Float = 0.0f,
     val paddingDp: SDpRect,
+
+    // kxkb: regular-mode keyboard width as a fraction of the available width (1.0 = full). Narrows the
+    // whole keyboard symmetrically (extra side padding, so the key grid stays centred). Default 1.0 =
+    // no change. Only affects KeyboardMode.Regular (Split has splitWidthFraction; OneHanded its rect).
+    val widthFraction: Float = 1.0f,
 
     // Split
     val splitWidthFraction: Float,
@@ -652,13 +659,21 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                 )
             }
 
-            else ->
+            else -> {
+                val fullWidth = width.coerceInLoosely(dp(48), displayWidth)
+                // kxkb: narrow the WHOLE keyboard (surface + keys) and centre it, so the app shows at
+                // both edges. widthFraction 1.0 = full width. We shrink the surface width itself (not
+                // just padding) and hand the centring x-offset to the window via RegularKeyboardSize.
+                val frac = savedSettings.widthFraction.guardNaN(1.0f).coerceIn(0.3f, 1.0f)
+                val narrowedWidth = (fullWidth * frac).roundToInt().coerceIn(dp(48), fullWidth)
                 RegularKeyboardSize(
-                    width = width.coerceInLoosely(dp(48), displayWidth),
+                    width = narrowedWidth,
                     height = recommendedHeight.roundToInt(),
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,
+                    sideOffset = (fullWidth - narrowedWidth) / 2
                 )
+            }
         }
     }
 
