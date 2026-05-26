@@ -671,7 +671,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     }
 
     // kxkb: open the swipe-space switcher. Columns (left→right): settings shortcuts, other languages,
-    // current-language layouts; each with a header (Keyboard UI / Keyboards… / Layouts…).
+    // current-language layouts; each with a header (Keyboard UI / Keyboards… / Custom Layouts).
     @Override
     public MoreKeysPanel showLayoutSwitcher(@Nonnull final PointerTracker tracker) {
         final org.futo.inputmethod.latin.Subtypes subtypes = org.futo.inputmethod.latin.Subtypes.INSTANCE;
@@ -689,7 +689,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         final java.util.List<kotlin.Pair<String, String>> headers = new java.util.ArrayList<>();
         columns.add(shortcuts);  headers.add(new kotlin.Pair<>("!nav/kxkbSizing", "Keyboard UI"));
         columns.add(languages);  headers.add(new kotlin.Pair<>("!ime", "Keyboards\u2026"));
-        columns.add(layouts);    headers.add(new kotlin.Pair<>("!nav/devlayouteditor", "Layouts\u2026"));
+        columns.add(layouts);    headers.add(new kotlin.Pair<>("!nav/devlayouteditor", "Custom Layouts"));
 
         locatePreviewPlacerView();
         final int[] lastCoords = CoordinateUtils.newInstance();
