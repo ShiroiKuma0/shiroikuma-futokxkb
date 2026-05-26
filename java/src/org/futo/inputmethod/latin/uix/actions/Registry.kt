@@ -49,6 +49,7 @@ val AllActionsMap = mapOf(
     "special_keys" to SpecialKeysAction,
     "custom_layouts" to CustomLayoutsAction,
     "hide_keyboard" to HideKeyboardAction,
+    "next_language_layout" to NextLanguageLayoutAction,
 )
 
 val ActionToId = AllActionsMap.entries.associate { it.value to it.key }

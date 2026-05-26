@@ -392,6 +392,21 @@ object Subtypes {
         context.setSettingBlocking(ActiveSubtype.key, subtypeString)
     }
 
+    // kxkb: cycle to the NEXT enabled layout sharing the active subtype's language (in enabled order,
+    // wrapping), without changing language. No-op if that language has fewer than two enabled layouts.
+    // Backs the "Next layout (same language)" action (e.g. the bottom-row cog's tap).
+    fun switchToNextLayoutInLanguage(context: Context) {
+        val enabled = context.getSettingBlocking(SubtypesSetting).toList()
+        if (enabled.isEmpty()) return
+        val active = getActiveSubtypeString(context)
+        if (active.isEmpty()) return
+        val sameLang = enabled.filter { langOf(it) == langOf(active) }
+        if (sameLang.size < 2) return
+        val idx = sameLang.indexOf(active)
+        val next = sameLang[(idx + 1) % sameLang.size]
+        if (next != active) switchToSubtypeString(context, next)
+    }
+
     // kxkb: the enabled left-column shortcuts, in catalog order, as (target, label) pairs.
     fun getLayoutSwitcherShortcuts(context: Context): List<Pair<String, String>> {
         val prefs = PreferenceUtils.getDefaultSharedPreferences(context)

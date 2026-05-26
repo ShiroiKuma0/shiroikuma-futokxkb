@@ -153,6 +153,13 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("Any action can ride a key this way: !code/action_<id> runs it and !icon/action_<id> draws its glyph. (An icon-only slide target shows on the key face but not in the long-press preview.)")
         }
 
+        CollapsibleSection("Next layout (same language)") {
+            Para("An action key that switches to the NEXT layout within the current language only — it cycles through your enabled layouts for that language (wrapping at the end) and never changes language. It's a no-op if the active language has just one layout. Tapping it repeatedly rotates through e.g. your GNU layouts without touching your other languages.")
+            Yaml("- { type: base, spec: \"!icon/action_next_language_layout|!code/action_next_language_layout\" }")
+            Para("Tip: put it on a key whose long-press you still want for something else — give the key its own moreKeys, so tap cycles layouts while long-press opens that popup (e.g. the bottom-row cog: tap = next layout, hold = its symbol list):")
+            Yaml("- { type: base, spec: \"!icon/settings_key|!code/action_next_language_layout\",\n    moreKeys: [\"%\", \"\\\"\", \":\", \"'\", \"@\"] }")
+        }
+
         CollapsibleSection("Alt pages (extra layers) & return to letters") {
             Para("If your layout defines an altPages: block (up to four extra full pages, alt0–alt3), these keys switch the WHOLE keyboard to one of them. The page stays shown until you go back — a sticky layer, not a momentary one.")
             Para("Switch to a page — fires the alt-page code (the ${'$'}alt0 / ${'$'}alt1 / ${'$'}alt2 template keys do the same):")

@@ -91,6 +91,18 @@ val HideKeyboardAction = Action(
     windowImpl = null,
 )
 
+// kxkb: switch to the next enabled layout WITHIN the current language only (cycling, wrapping), with
+// no language change. No-op if the active language has just one enabled layout. Used as the tap of
+// the bottom-row cog (whose long-press moreKeys are kept), and available as a standalone action key.
+val NextLanguageLayoutAction = Action(
+    icon = R.drawable.keyboard,
+    name = R.string.action_next_language_layout_title,
+    simplePressImpl = { manager, _ ->
+        org.futo.inputmethod.latin.Subtypes.switchToNextLayoutInLanguage(manager.getContext())
+    },
+    windowImpl = null,
+)
+
 // Open the kxkb "Special keys" reference page (Esc / Ctrl / 4D) directly, deep-linked via the
 // SettingsActivity "navDest" extra to the "specialKeys" route. Same flags as LiveResizeAction so a
 // reused SettingsActivity still navigates there (handled by SettingsActivity.onNewIntent).
