@@ -23,6 +23,7 @@ import org.futo.inputmethod.latin.uix.actions.AllActions
 import org.futo.inputmethod.latin.uix.settings.pages.ActionEditorScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ActionsScreen
 import org.futo.inputmethod.latin.uix.settings.pages.AdvancedParametersScreen
+import org.futo.inputmethod.latin.uix.settings.pages.AppLanguageScreen
 import org.futo.inputmethod.latin.uix.settings.pages.AlreadyPaidDialog
 import org.futo.inputmethod.latin.uix.settings.pages.BlacklistScreen
 import org.futo.inputmethod.latin.uix.settings.pages.BlacklistScreenLite
@@ -159,6 +160,7 @@ fun SettingsNavigator(
             composable("home") { HomeScreen(navController) }
             composable("search") { SearchScreen(navController) }
             composable("languages") { LanguagesScreen(navController) }
+            composable("appLanguage") { AppLanguageScreen(navController) }
             composable("addLanguage") { SelectLanguageScreen(navController) }
             composable("pdict") {
                 PersonalDictionaryLanguageList()

@@ -304,6 +304,10 @@
 
     <!-- When adding a new language -->
     <string name="language_settings_title">Languages &amp; Models</string>
+    <string name="app_language_title">App language</string>
+    <string name="app_language_system_default">System default</string>
+    <string name="app_language_selected">Selected</string>
+    <string name="app_language_tip">Sets the language for this app\'s own screens, independently of your phone\'s system language. This does not change your keyboard typing languages — those are under Languages &amp; Models.</string>
     <string name="language_settings_add_language_button">Add language</string>
     <string name="language_settings_select_language">Select language to add</string>
     <string name="language_settings_search">Search</string>

@@ -309,7 +309,8 @@ android {
                     'java/res',
                     translationsWithoutEngValues('translations/core'),
                     translationsWithoutEngValues('translations/core-ign'),
-                    'java/res-large'
+                    'java/res-large',
+                    "$buildDir/generated/appLocales/res"
             ]
             java.srcDirs = ['common/src', 'java/src']
             manifest.srcFile 'java/AndroidManifest.xml'
@@ -458,3 +459,38 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-XDsuppressNotes'
     options.deprecation = false
 }
+
+// kxkb: enumerate the locales the app is actually translated into (the values-<locale> dirs in the
+// translation submodule + java/res) into res/values/kxkb_app_locales.xml, a <string-array> the
+// "App language" picker reads. Regenerated every build so it always tracks whatever translations
+// ship. Runs at preBuild so the array exists before resource processing / R generation.
+def kxkbAppLocalesResDir = "$buildDir/generated/appLocales/res"
+def kxkbConvertQualifier = { String q ->
+    if (q.startsWith('b+')) return q.substring(2).replace('+', '-')
+    def m = (q =~ /^([a-z]{2,3})(?:-r([A-Z]{2}))?$/)
+    if (m.matches()) return m.group(2) ? "${m.group(1)}-${m.group(2)}".toString() : m.group(1)
+    return null
+}
+def generateAppLocales = tasks.register('generateAppLocales') {
+    def sourceDirs = ['translations/core', 'translations/core-ign', 'java/res'].collect { file(it) }
+    def outDir = file(kxkbAppLocalesResDir)
+    sourceDirs.findAll { it.exists() }.each { inputs.dir(it) }
+    outputs.dir(outDir)
+    doLast {
+        def tags = new TreeSet<String>()
+        sourceDirs.each { root ->
+            if (!root.isDirectory()) return
+            root.listFiles()?.findAll { it.isDirectory() && it.name.startsWith('values-') }?.each { d ->
+                def t = kxkbConvertQualifier(d.name.substring('values-'.length()))
+                if (t) tags.add(t)
+            }
+        }
+        def valuesDir = new File(outDir, 'values'); valuesDir.mkdirs()
+        new File(valuesDir, 'kxkb_app_locales.xml').text =
+                "<resources>\n  <string-array name=\"kxkb_app_locales\" translatable=\"false\">\n" +
+                tags.collect { "    <item>${it}</item>" }.join('\n') +
+                "\n  </string-array>\n</resources>\n"
+        logger.lifecycle("generateAppLocales: ${tags.size()} app UI locales: ${tags.join(', ')}")
+    }
+}
+preBuild.dependsOn generateAppLocales

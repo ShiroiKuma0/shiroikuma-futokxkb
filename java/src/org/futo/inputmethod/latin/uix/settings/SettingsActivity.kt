@@ -87,6 +87,22 @@ public const val EXPORT_GGUF_MODEL_REQUEST = 80595439
 
 
 class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
+    // kxkb: apply the per-app UI locale (set from the App language screen) on API < 33. On 33+ the
+    // framework applies it to the whole process automatically; below that, a plain ComponentActivity
+    // doesn't get AppCompat's locale delegate, so we wrap the base context with the stored locale.
+    override fun attachBaseContext(newBase: android.content.Context) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+            val locales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+            if (!locales.isEmpty) {
+                val config = android.content.res.Configuration(newBase.resources.configuration)
+                config.setLocales(android.os.LocaleList.forLanguageTags(locales.toLanguageTags()))
+                super.attachBaseContext(newBase.createConfigurationContext(config))
+                return
+            }
+        }
+        super.attachBaseContext(newBase)
+    }
+
     private val themeOption: MutableState<ThemeOption?> = mutableStateOf(null)
 
     private val inputMethodEnabled = mutableStateOf(false)

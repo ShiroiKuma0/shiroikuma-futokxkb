@@ -50,6 +50,13 @@ val HomeScreenLite = UserSettingsMenu(
     navPath = "home", registerNavPath = false,
     settings = listOf(
         userSettingNavigationItem(
+            title = R.string.app_language_title,
+            style = NavigationItemStyle.HomePrimary,
+            navigateTo = "appLanguage",
+            icon = R.drawable.globe
+        ),
+
+        userSettingNavigationItem(
             title = R.string.settings_check_for_updates_manually,
             style = NavigationItemStyle.Misc,
             navigate = { nav -> nav.context.openManualUpdateCheck() }
