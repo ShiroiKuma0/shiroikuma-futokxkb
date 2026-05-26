@@ -222,7 +222,15 @@ data class KeyAttributes(
      * Number of rows this key spans vertically. Defaults to 1.
      * When set to a value > 1, the key will visually and functionally span multiple rows.
      */
-    val rowSpan: Int? = null
+    val rowSpan: Int? = null,
+
+    /**
+     * kxkb: alias for [rowSpan] — how many rows tall this key is. Default 1. A key with heightRows > 1
+     * occupies this row plus the next (heightRows - 1) rows. Maps to rowSpan in computeData, so
+     * upstream's rowSpan engine does the layout (it auto-gaps the covered cell, so older hand-placed
+     * `gap` cells in spanned rows are harmless no-ops).
+     */
+    val heightRows: Int? = null
 ) {
     fun getEffectiveAttributes(row: Row, keyboard: Keyboard, extraAttrs: List<KeyAttributes> = emptyList()): KeyAttributes {
         val attrs = if(row.isBottomRow) {
@@ -260,7 +268,8 @@ data class KeyAttributes(
             repeatableEnabled   = resolve(attrs) { it.repeatableEnabled  },
             shiftable           = resolve(attrs) { it.shiftable          },
             fastMoreKeys        = resolve(attrs) { it.fastMoreKeys       },
-            rowSpan             = resolve(attrs) { it.rowSpan            }
+            rowSpan             = resolve(attrs) { it.rowSpan            },
+            heightRows          = resolve(attrs) { it.heightRows         }
         )
     }
 
@@ -278,7 +287,8 @@ data class KeyAttributes(
             repeatableEnabled   = resolve(attrs) { it.repeatableEnabled  },
             shiftable           = resolve(attrs) { it.shiftable          },
             fastMoreKeys        = resolve(attrs) { it.fastMoreKeys       },
-            rowSpan             = resolve(attrs) { it.rowSpan            }
+            rowSpan             = resolve(attrs) { it.rowSpan            },
+            heightRows          = resolve(attrs) { it.heightRows         }
         )
     }
 }
@@ -299,7 +309,8 @@ val DefaultKeyAttributes = KeyAttributes(
     repeatableEnabled   = false,
     shiftable           = true,
     fastMoreKeys        = false,
-    rowSpan             = 1
+    rowSpan             = 1,
+    heightRows          = 1
 )
 
 
@@ -469,7 +480,8 @@ data class BaseKey(
             hint = hint ?: "",
             labelFlags = attributes.labelFlags?.getValue() ?: 0,
             fastLongPress = attributes.fastMoreKeys == true,
-            rowSpan = attributes.rowSpan ?: 1,
+            // kxkb: heightRows is our author-facing alias for upstream's rowSpan; map both → rowSpan.
+            rowSpan = (attributes.heightRows ?: attributes.rowSpan ?: 1).coerceAtLeast(1),
             swipeLetter = swipeLetter
         )
     }

@@ -154,6 +154,12 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("Prediction is letter-only, same as cluster (non-letter mains commit but never predict). up/down are reserved for the top/bottom band ends and aren't author-settable. The band glyphs draw stacked and slightly smaller so three fit; the side keys draw at the small 4D-label size in their corners.")
         }
 
+        CollapsibleSection("Spanning rows (tall keys)") {
+            Para("Any key can be made several rows tall with the heightRows attribute — it then occupies its own row plus the next (heightRows − 1) rows. Useful for flanking a multi-row block (e.g. column keys beside a 3×3 navigation grid).")
+            Yaml("- { type: column, main: \"aev\", attributes: { heightRows: 3 } }")
+            Para("There is no column grid: the engine lays out one row at a time, so a tall key does NOT automatically push the rows below it aside. In each row the tall key covers, reserve its cell(s) with a `gap` key of matching width, and keep the widths uniform so the columns line up underneath. A row with a tall key and the rows it spans should still each describe the full width (tall key / gaps + the other keys). Width spanning is separate — use the Custom width tokens for a key that is several columns wide.")
+        }
+
         CollapsibleSection("Hide keyboard") {
             Para("An action key that dismisses the keyboard (the old Multiling [HIDE]). It is the Hide-keyboard action bound to a key — its glyph is a downward chevron and a press closes the keyboard. Works as a standalone key or inside a compass/cluster slide slot.")
             Yaml("- { type: base, spec: \"!icon/action_hide_keyboard|!code/action_hide_keyboard\" }")
