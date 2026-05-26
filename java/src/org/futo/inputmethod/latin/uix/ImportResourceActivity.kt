@@ -143,8 +143,12 @@ fun SettingsImportScreen(
             Text(stringResource(R.string.resource_importer_file_info, metadata.dateExported.toString()),
                 modifier = Modifier.padding(16.dp, 8.dp))
             Text(stringResource(
-                    if (metadata.isSettingsOnly) R.string.resource_importer_cfg_backup_settings_only
-                    else R.string.resource_importer_warning_cfg_backup_is_destructive2),
+                    when (metadata.scope) {
+                        BackupScope.Settings -> R.string.resource_importer_cfg_backup_settings_only
+                        BackupScope.Learned -> R.string.resource_importer_cfg_backup_learned_only
+                        BackupScope.Models -> R.string.resource_importer_cfg_backup_models_only
+                        BackupScope.Full -> R.string.resource_importer_warning_cfg_backup_is_destructive2
+                    }),
                 modifier = Modifier.padding(16.dp, 8.dp))
             Spacer(modifier = Modifier.height(32.dp))
             NavigationItem(
@@ -838,10 +842,11 @@ class ImportResourceActivity : ComponentActivity() {
                                 SettingsExporter.loadSettings(
                                     this@ImportResourceActivity,
                                     it,
-                                    // kxkb: a settings-only backup omits models/dicts/typing-history,
-                                    // so importing it must NOT delete those — only a full backup is
-                                    // destructive (it carries replacements for everything it clears).
-                                    !item.v.isSettingsOnly
+                                    // kxkb: only a Full backup is destructive (it carries replacements
+                                    // for everything it clears). The partial scopes (Settings / Learned
+                                    // / Models) import additively and must NOT delete the categories
+                                    // they don't contain.
+                                    item.v.scope == BackupScope.Full
                                 )
                             }
                         }

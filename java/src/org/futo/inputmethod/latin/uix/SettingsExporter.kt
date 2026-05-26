@@ -77,6 +77,14 @@ data class PersonalWord(
 )
 
 
+// kxkb: which slice of a backup to export / what an imported backup contains. Full = the original
+// all-in-one backup (destructive import). The three partial scopes each carry one category and import
+// non-destructively: Settings = config (datastore + SharedPreferences + themes); Learned = personal
+// dictionary + clipboard + user-history + mozc/rime typing data; Models = transformer/voice models +
+// dictionaries (ext/ + transformers/). Together the three partial scopes cover everything Full does.
+enum class BackupScope { Full, Settings, Learned, Models }
+
+
 @Suppress("HardCodedStringLiteral")
 object SettingsExporter {
     @Suppress("HardCodedStringLiteral")
@@ -186,6 +194,16 @@ object SettingsExporter {
     // no models / dictionaries / typing history / clipboard). Lets import auto-detect it and stay
     // NON-destructive (it won't delete the heavy resources the slim backup deliberately omits).
     private const val settingsOnlyFileName = "FUTOKeyboardSettings_SettingsOnly"
+    // kxkb: markers for the other two partial scopes (learned data; models & dictionaries).
+    private const val learnedOnlyFileName = "FUTOKeyboardSettings_LearnedOnly"
+    private const val modelsOnlyFileName = "FUTOKeyboardSettings_ModelsOnly"
+
+    private fun scopeMarkerName(scope: BackupScope): String? = when (scope) {
+        BackupScope.Settings -> settingsOnlyFileName
+        BackupScope.Learned -> learnedOnlyFileName
+        BackupScope.Models -> modelsOnlyFileName
+        BackupScope.Full -> null
+    }
 
     private const val datastoreFileName = "datastore.preferences_pb"
     private const val sharedPreferencesFileName = "sharedPreferences.json"
@@ -195,10 +213,16 @@ object SettingsExporter {
     suspend fun exportSettings(
         context: Context,
         outputStream: OutputStream,
-        includeHeavyResources: Boolean,
-        settingsOnly: Boolean = false
+        scope: BackupScope = BackupScope.Full
     ) = ZipOutputStream(outputStream).use { zipOut ->
         zipOut.setLevel(1)
+
+        // kxkb: which categories this backup carries. Full carries all three; each partial scope carries
+        // exactly one. Import auto-detects the scope from the marker entry and stays non-destructive for
+        // the partial scopes (only Full deletes-then-restores).
+        val includeConfig  = scope == BackupScope.Full || scope == BackupScope.Settings
+        val includeLearned = scope == BackupScope.Full || scope == BackupScope.Learned
+        val includeModels  = scope == BackupScope.Full || scope == BackupScope.Models
 
         // Write version and date
         zipOut.putNextEntry(ZipEntry(versionFileName))
@@ -209,118 +233,121 @@ object SettingsExporter {
         }.array())
         zipOut.closeEntry()
 
-        // kxkb: mark a settings-only backup so import knows to stay non-destructive.
-        if (settingsOnly) {
-            zipOut.putNextEntry(ZipEntry(settingsOnlyFileName))
+        // kxkb: scope marker for partial backups (none for Full) — read back by getCfgFileMetadata.
+        scopeMarkerName(scope)?.let { marker ->
+            zipOut.putNextEntry(ZipEntry(marker))
             zipOut.closeEntry()
         }
 
-        // Collect preferences
-        context.getUnlockedPreferences()?.let { prefs ->
-            zipOut.putNextEntry(ZipEntry(datastoreFileName))
-            val array = ByteArrayOutputStream()
-            val sink = array.sink().buffer()
-            PreferencesSerializer.writeTo(prefs, sink)
-            sink.flush()
-            zipOut.write(array.toByteArray())
-            zipOut.closeEntry()
+        // ---- Config (Keyboard settings): datastore + SharedPreferences + themes ----
+        if (includeConfig) {
+            // Collect preferences
+            context.getUnlockedPreferences()?.let { prefs ->
+                zipOut.putNextEntry(ZipEntry(datastoreFileName))
+                val array = ByteArrayOutputStream()
+                val sink = array.sink().buffer()
+                PreferencesSerializer.writeTo(prefs, sink)
+                sink.flush()
+                zipOut.write(array.toByteArray())
+                zipOut.closeEntry()
+            }
+
+            // Collect SharedPreferences
+            getDefaultSharedPreferences(context).let { sharedPrefs ->
+                zipOut.putNextEntry(ZipEntry(sharedPreferencesFileName))
+                writeSharedPrefs(sharedPrefs, zipOut)
+                zipOut.closeEntry()
+            }
         }
 
-        // Collect SharedPreferences
-        getDefaultSharedPreferences(context).let { sharedPrefs ->
-            zipOut.putNextEntry(ZipEntry(sharedPreferencesFileName))
-            writeSharedPrefs(sharedPrefs, zipOut)
-            zipOut.closeEntry()
+        // ---- Learned data: personal dictionary + clipboard + user-history + mozc + rime ----
+        if (includeLearned) {
+            // Collect personal dictionary
+            run {
+                zipOut.putNextEntry(ZipEntry(personalDictFileName))
+                writePersonalDict(context, zipOut)
+                zipOut.closeEntry()
+            }
+
+            // Collect clipboard
+            val clipboardFile = context.clipboardFile
+            if (clipboardFile.exists()) {
+                zipOut.putNextEntry(ZipEntry(clipboardFileName))
+                clipboardFile.inputStream().use { it.copyTo(zipOut) }
+                zipOut.closeEntry()
+            }
+
+            // Collect UserHistoryDictionaries
+            context.filesDir.listFiles()?.forEach { resourceFile ->
+                if(resourceFile.name.startsWith("UserHistoryDictionary")
+                    && resourceFile.isDirectory
+                ) {
+                    resourceFile.listFiles()!!.forEach { subfile ->
+                        val entry = ZipEntry("userdict/${resourceFile.name}/${subfile.name}")
+                        zipOut.putNextEntry(entry)
+                        subfile.inputStream().use { it.copyTo(zipOut) }
+                        zipOut.closeEntry()
+                    }
+                }
+            }
+
+            // Collect clipboard files
+            context.clipboardDir.listFiles()?.forEach { clipboardFile ->
+                assert(!clipboardFile.isDirectory)
+                val entry = ZipEntry("clipboard/${clipboardFile.name}")
+                zipOut.putNextEntry(entry)
+                clipboardFile.inputStream().use { it.copyTo(zipOut) }
+                zipOut.closeEntry()
+            }
+
+            // Collect mozc (Japanese user typing history, etc)
+            mozcUserProfileDir(context).listFiles()?.forEach { subfile ->
+                assert(!subfile.isDirectory)
+                val entry = ZipEntry("mozc/${subfile.name}")
+                zipOut.putNextEntry(entry)
+                subfile.inputStream().use { it.copyTo(zipOut) }
+                zipOut.closeEntry()
+            }
+
+            // Collect RIME (Chinese user typing history, etc)
+            val rimeDir = ChineseIME.getRimeDir(context)
+            rimeDir.walk().filter { it.isFile }.forEach { subfile ->
+                val rel = subfile.toRelativeString(rimeDir)
+
+                val entry = ZipEntry("rime/$rel")
+                zipOut.putNextEntry(entry)
+                subfile.inputStream().use { it.copyTo(zipOut) }
+                zipOut.closeEntry()
+            }
         }
 
-        // kxkb: everything below (user data — personal dict, clipboard, dictionaries, typing history,
-        // mozc/rime) is omitted from a settings-only backup. Datastore + SharedPreferences (above) and
-        // themes (below) are always included, since those carry the full keyboard configuration.
-        if (!settingsOnly) {
-        // Collect personal dictionary
-        run {
-            zipOut.putNextEntry(ZipEntry(personalDictFileName))
-            writePersonalDict(context, zipOut)
-            zipOut.closeEntry()
-        }
-
-        // Collect clipboard
-        val clipboardFile = context.clipboardFile
-        if (clipboardFile.exists()) {
-            zipOut.putNextEntry(ZipEntry(clipboardFileName))
-            clipboardFile.inputStream().use { it.copyTo(zipOut) }
-            zipOut.closeEntry()
-        }
-
-        // Collect resources
-        context.getExternalFilesDir(null)?.listFiles()?.filter { it.isFile }?.forEach { resourceFile ->
-            // if includeHeavyResources, then only include this if its not a .dict
-            if (resourceFile.extension == "dict" || includeHeavyResources) {
+        // ---- Models & dictionaries (the heavy resources): ext/ (voice + .dict) + transformers/ ----
+        if (includeModels) {
+            // Collect resources (voice models, dictionaries, other imported resources)
+            context.getExternalFilesDir(null)?.listFiles()?.filter { it.isFile }?.forEach { resourceFile ->
                 zipOut.putNextEntry(ZipEntry("ext/${resourceFile.name}"))
                 resourceFile.inputStream().use { it.copyTo(zipOut) }
                 zipOut.closeEntry()
             }
-        }
 
-        // Collect transformer models
-        val modelDirectory = ModelPaths.getModelDirectory(context)
-        modelDirectory.listFiles()?.forEach { resourceFile ->
-            if (includeHeavyResources && ModelPaths.shouldFileBeIncludedInExport(resourceFile)) {
-                zipOut.putNextEntry(ZipEntry("transformers/${resourceFile.name}"))
-                resourceFile.inputStream().use { it.copyTo(zipOut) }
-                zipOut.closeEntry()
-            }
-        }
-
-        // Collect UserHistoryDictionaries
-        context.filesDir.listFiles()?.forEach { resourceFile ->
-            if(resourceFile.name.startsWith("UserHistoryDictionary")
-                && resourceFile.isDirectory
-            ) {
-                resourceFile.listFiles()!!.forEach { subfile ->
-                    val entry = ZipEntry("userdict/${resourceFile.name}/${subfile.name}")
-                    zipOut.putNextEntry(entry)
-                    subfile.inputStream().use { it.copyTo(zipOut) }
+            // Collect transformer models
+            val modelDirectory = ModelPaths.getModelDirectory(context)
+            modelDirectory.listFiles()?.forEach { resourceFile ->
+                if (ModelPaths.shouldFileBeIncludedInExport(resourceFile)) {
+                    zipOut.putNextEntry(ZipEntry("transformers/${resourceFile.name}"))
+                    resourceFile.inputStream().use { it.copyTo(zipOut) }
                     zipOut.closeEntry()
                 }
             }
         }
 
-        // Collect clipboard files
-        context.clipboardDir.listFiles()?.forEach { clipboardFile ->
-            assert(!clipboardFile.isDirectory)
-            val entry = ZipEntry("clipboard/${clipboardFile.name}")
-            zipOut.putNextEntry(entry)
-            clipboardFile.inputStream().use { it.copyTo(zipOut) }
-            zipOut.closeEntry()
-        }
-
-        // Collect mozc (Japanese user typing history, etc)
-        mozcUserProfileDir(context).listFiles()?.forEach { subfile ->
-            assert(!subfile.isDirectory)
-            val entry = ZipEntry("mozc/${subfile.name}")
-            zipOut.putNextEntry(entry)
-            subfile.inputStream().use { it.copyTo(zipOut) }
-            zipOut.closeEntry()
-        }
-
-        // Collect RIME (Chinese user typing history, etc)
-        val rimeDir = ChineseIME.getRimeDir(context)
-        rimeDir.walk().filter { it.isFile }.forEach { subfile ->
-            val rel = subfile.toRelativeString(rimeDir)
-
-            val entry = ZipEntry("rime/$rel")
-            zipOut.putNextEntry(entry)
-            subfile.inputStream().use { it.copyTo(zipOut) }
-            zipOut.closeEntry()
-        }
-        } // kxkb: end if(!settingsOnly)
-
-        // Collect themes
-        ZipThemes.customThemesDir(context).listFiles()?.forEach { themeFile ->
-            zipOut.putNextEntry(ZipEntry("themes/${themeFile.name}"))
-            themeFile.inputStream().use { it.copyTo(zipOut) }
-            zipOut.closeEntry()
+        // ---- Themes (config: custom theme files carry colours) ----
+        if (includeConfig) {
+            ZipThemes.customThemesDir(context).listFiles()?.forEach { themeFile ->
+                zipOut.putNextEntry(ZipEntry("themes/${themeFile.name}"))
+                themeFile.inputStream().use { it.copyTo(zipOut) }
+                zipOut.closeEntry()
+            }
         }
     }
 
@@ -481,11 +508,16 @@ object SettingsExporter {
         GlobalIMEMessage.tryEmit(IMEMessage.ReloadResources)
     }
 
-    fun triggerExportSettings(context: Context, settingsOnly: Boolean = false) {
+    fun triggerExportSettings(context: Context, scope: BackupScope = BackupScope.Full) {
         val date = Date()
         val formatter = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", context.resources.configuration.locale)
         val formattedDate = formatter.format(date)
-        val prefix = if (settingsOnly) "FUTOKeyboardSettings_KB" else "FUTOKeyboardSettings"
+        val prefix = when (scope) {
+            BackupScope.Settings -> "FUTOKeyboardSettings_KB"
+            BackupScope.Learned -> "FUTOKeyboardSettings_Learned"
+            BackupScope.Models -> "FUTOKeyboardSettings_Models"
+            BackupScope.Full -> "FUTOKeyboardSettings"
+        }
         val defaultFileName = "${prefix}_${formattedDate}.backup"
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -494,7 +526,7 @@ object SettingsExporter {
         }
 
         val activity: SettingsActivity = findSettingsActivity(context)
-        activity.exportSettingsOnly = settingsOnly
+        activity.exportScope = scope
         activity.startActivityForResult(intent, EXPORT_SETTINGS_REQUEST)
     }
 
@@ -509,7 +541,7 @@ object SettingsExporter {
     data class CfgFileMetadata(
         val dateExported: Date,
         val isNewer: Boolean,
-        val isSettingsOnly: Boolean = false
+        val scope: BackupScope = BackupScope.Full
     )
 
     fun getCfgFileMetadata(inputStream: InputStream): CfgFileMetadata? {
@@ -518,7 +550,7 @@ object SettingsExporter {
                 var entry = zipIn.nextEntry
                 var dateExported: Date? = null
                 var isNewer = false
-                var isSettingsOnly = false
+                var scope = BackupScope.Full
                 while (entry != null) {
                     if (!entry.isDirectory && entry.name == versionFileName) {
                         val bytes = zipIn.readAllBytesCompat()
@@ -529,13 +561,17 @@ object SettingsExporter {
 
                         dateExported = Date(date)
                         isNewer = version > currentVersion
-                    } else if (!entry.isDirectory && entry.name == settingsOnlyFileName) {
-                        isSettingsOnly = true
+                    } else if (!entry.isDirectory) {
+                        when (entry.name) {
+                            settingsOnlyFileName -> scope = BackupScope.Settings
+                            learnedOnlyFileName -> scope = BackupScope.Learned
+                            modelsOnlyFileName -> scope = BackupScope.Models
+                        }
                     }
                     zipIn.closeEntry()
                     entry = zipIn.nextEntry
                 }
-                dateExported?.let { CfgFileMetadata(it, isNewer, isSettingsOnly) }
+                dateExported?.let { CfgFileMetadata(it, isNewer, scope) }
             }
         } catch (_: Exception) {
             null
@@ -544,14 +580,14 @@ object SettingsExporter {
 
 
     @Composable
-    fun ExportingMenu(navController: NavHostController = rememberNavController(), settingsOnly: Boolean = false) {
+    fun ExportingMenu(navController: NavHostController = rememberNavController(), scope: BackupScope = BackupScope.Full) {
         val context = LocalContext.current
         val activity = remember { findSettingsActivity(context) }
         val triggered = remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             activity.exportInProgress.value = 1
-            triggerExportSettings(context, settingsOnly)
+            triggerExportSettings(context, scope)
             triggered.value = true
         }
 

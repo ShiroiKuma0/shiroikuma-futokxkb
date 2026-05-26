@@ -389,6 +389,22 @@
     <string name="settings_kb_import_subtitle">Re-import a keyboard settings backup. Restores your configuration without touching dictionaries, models or learned words.</string>
     <string name="resource_importer_cfg_backup_settings_only">This is a keyboard settings backup. It will restore your configuration (layouts, sizes, colours, themes and other settings), replacing your current settings — but it will NOT delete your dictionaries, voice/transformer models, learned words or clipboard.</string>
 
+    <!-- kxkb: learned-data backup (personal dictionary, clipboard, learned-word/typing history) -->
+    <string name="settings_learned_backup_title">Learned Data Backup</string>
+    <string name="settings_learned_export">Export learned data</string>
+    <string name="settings_learned_export_subtitle">Your personal dictionary, clipboard, and learned-word/typing history (including Japanese and Chinese input data). Usually a few MB.</string>
+    <string name="settings_learned_import">Import learned data</string>
+    <string name="settings_learned_import_subtitle">Restore learned words and typing history. Leaves your settings and models untouched.</string>
+    <string name="resource_importer_cfg_backup_learned_only">This is a learned-data backup. It will restore your personal dictionary, clipboard and learned-word/typing history, without touching your settings, voice/transformer models or dictionaries.</string>
+
+    <!-- kxkb: models &amp; dictionaries backup (the heavy resources) -->
+    <string name="settings_models_backup_title">Models &amp; Dictionaries Backup</string>
+    <string name="settings_models_export">Export models &amp; dictionaries</string>
+    <string name="settings_models_export_subtitle">Voice and transformer models plus dictionaries. This can be large (potentially gigabytes).</string>
+    <string name="settings_models_import">Import models &amp; dictionaries</string>
+    <string name="settings_models_import_subtitle">Restore voice/transformer models and dictionaries. Leaves your settings and learned data untouched.</string>
+    <string name="resource_importer_cfg_backup_models_only">This is a models &amp; dictionaries backup. It will restore your voice/transformer models and dictionaries, without touching your settings or learned data.</string>
+
     <!-- Keyboard actions -->
     <string name="action_editor_title">Edit Actions</string>
     <string name="action_editor_subtitle">Edit favorite actions, pinned actions, and the action key next to the spacebar</string>

@@ -40,6 +40,7 @@ import org.futo.inputmethod.latin.uix.EXPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.ImportResourceActivity
 import org.futo.inputmethod.latin.uix.SettingsExporter
+import org.futo.inputmethod.latin.uix.BackupScope
 import org.futo.inputmethod.latin.uix.THEME_KEY
 import org.futo.inputmethod.latin.uix.getSettingBlocking
 import org.futo.inputmethod.latin.uix.getSettingFlow
@@ -285,9 +286,10 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
 
     val exportInProgress = mutableStateOf(0)
 
-    // kxkb: set by SettingsExporter.triggerExportSettings; selects the slim config-only export
-    // (datastore + SharedPreferences + themes, no models/dicts/typing-history) when true.
-    var exportSettingsOnly = false
+    // kxkb: set by SettingsExporter.triggerExportSettings; selects which slice to export — Full, or one
+    // of the three partial scopes (Settings = config, Learned = personal/typing data, Models = models +
+    // dictionaries). Partial scopes write a marker so import stays non-destructive.
+    var exportScope: BackupScope = BackupScope.Full
     @Deprecated("This method has been deprecated in favor of using the Activity Result API\n      which brings increased type safety via an {@link ActivityResultContract} and the prebuilt\n      contracts for common intents available in\n      {@link androidx.activity.result.contract.ActivityResultContracts}, provides hooks for\n      testing, and allow receiving results in separate, testable classes independent from your\n      activity. Use\n      {@link #registerForActivityResult(ActivityResultContract, ActivityResultCallback)}\n      with the appropriate {@link ActivityResultContract} and handling the result in the\n      {@link ActivityResultCallback#onActivityResult(Object) callback}.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -324,7 +326,7 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
                     data?.data?.let { uri ->
                         contentResolver.openOutputStream(uri)!!
                     }?.use {
-                        SettingsExporter.exportSettings(this@SettingsActivity, it, true, settingsOnly = exportSettingsOnly)
+                        SettingsExporter.exportSettings(this@SettingsActivity, it, exportScope)
                     }
                 }
                 exportInProgress.value = 0

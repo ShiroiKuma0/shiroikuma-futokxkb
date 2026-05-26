@@ -19,6 +19,7 @@ import org.futo.inputmethod.latin.uix.ErrorDialog
 import org.futo.inputmethod.latin.uix.InfoDialog
 import org.futo.inputmethod.latin.uix.LocalNavController
 import org.futo.inputmethod.latin.uix.SettingsExporter.ExportingMenu
+import org.futo.inputmethod.latin.uix.BackupScope
 import org.futo.inputmethod.latin.uix.actions.AllActions
 import org.futo.inputmethod.latin.uix.settings.pages.ActionEditorScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ActionsScreen
@@ -187,7 +188,9 @@ fun SettingsNavigator(
             composable("paid") { PaymentThankYouScreen { navController.navigateUp() } }
             composable("credits") { CreditsScreen(navController) }
             composable("exportingcfg") { ExportingMenu(navController) }
-            composable("exportingkbcfg") { ExportingMenu(navController, settingsOnly = true) }
+            composable("exportingkbcfg") { ExportingMenu(navController, BackupScope.Settings) }
+            composable("exportinglearnedcfg") { ExportingMenu(navController, BackupScope.Learned) }
+            composable("exportingmodelscfg") { ExportingMenu(navController, BackupScope.Models) }
             dialog("update") {
                 UpdateDialog(navController = navController)
             }

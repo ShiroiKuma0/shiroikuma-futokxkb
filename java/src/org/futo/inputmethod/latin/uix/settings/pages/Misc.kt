@@ -54,5 +54,45 @@ val MiscMenu = UserSettingsMenu(
                 SettingsExporter.triggerImportSettings(nav.context)
             }
         ).copy(searchTags = R.string.settings_import_export_tags),
+
+        // kxkb: learned data — personal dictionary, clipboard, learned-word/typing history (incl.
+        // mozc/rime). Usually a few MB. Import is non-destructive (won't touch settings or models).
+        userSettingDecorationOnly {
+            ScreenTitle(stringResource(R.string.settings_learned_backup_title))
+        },
+        userSettingNavigationItem(
+            title = (R.string.settings_learned_export),
+            subtitle = (R.string.settings_learned_export_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigateTo = "exportinglearnedcfg"
+        ).copy(searchTags = R.string.settings_import_export_tags),
+        userSettingNavigationItem(
+            title = (R.string.settings_learned_import),
+            subtitle = (R.string.settings_learned_import_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigate = { nav ->
+                SettingsExporter.triggerImportSettings(nav.context)
+            }
+        ).copy(searchTags = R.string.settings_import_export_tags),
+
+        // kxkb: the heavy resources — transformer & voice models + dictionaries (can be GBs). Import is
+        // non-destructive (won't touch settings or learned data).
+        userSettingDecorationOnly {
+            ScreenTitle(stringResource(R.string.settings_models_backup_title))
+        },
+        userSettingNavigationItem(
+            title = (R.string.settings_models_export),
+            subtitle = (R.string.settings_models_export_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigateTo = "exportingmodelscfg"
+        ).copy(searchTags = R.string.settings_import_export_tags),
+        userSettingNavigationItem(
+            title = (R.string.settings_models_import),
+            subtitle = (R.string.settings_models_import_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigate = { nav ->
+                SettingsExporter.triggerImportSettings(nav.context)
+            }
+        ).copy(searchTags = R.string.settings_import_export_tags),
     )
 )
