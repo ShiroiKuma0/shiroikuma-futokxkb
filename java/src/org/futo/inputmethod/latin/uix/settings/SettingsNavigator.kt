@@ -187,6 +187,7 @@ fun SettingsNavigator(
             composable("paid") { PaymentThankYouScreen { navController.navigateUp() } }
             composable("credits") { CreditsScreen(navController) }
             composable("exportingcfg") { ExportingMenu(navController) }
+            composable("exportingkbcfg") { ExportingMenu(navController, settingsOnly = true) }
             dialog("update") {
                 UpdateDialog(navController = navController)
             }

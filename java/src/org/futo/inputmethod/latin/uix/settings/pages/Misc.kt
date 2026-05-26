@@ -32,5 +32,27 @@ val MiscMenu = UserSettingsMenu(
                 SettingsExporter.triggerImportSettings(nav.context)
             }
         ).copy(searchTags = R.string.settings_import_export_tags),
+
+        // kxkb: a slim, non-destructive backup of just the keyboard configuration — all the per-combo
+        // Keyboard UI settings (colours, sizes for every layout · language · geometry), toggles, layout
+        // setup and themes — without the GB-scale voice/transformer models or dictionaries. Import keeps
+        // those untouched (restore them by hand). Import auto-detects the slim file via its marker.
+        userSettingDecorationOnly {
+            ScreenTitle(stringResource(R.string.settings_kb_backup_title))
+        },
+        userSettingNavigationItem(
+            title = (R.string.settings_kb_export),
+            subtitle = (R.string.settings_kb_export_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigateTo = "exportingkbcfg"
+        ).copy(searchTags = R.string.settings_import_export_tags),
+        userSettingNavigationItem(
+            title = (R.string.settings_kb_import),
+            subtitle = (R.string.settings_kb_import_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigate = { nav ->
+                SettingsExporter.triggerImportSettings(nav.context)
+            }
+        ).copy(searchTags = R.string.settings_import_export_tags),
     )
 )

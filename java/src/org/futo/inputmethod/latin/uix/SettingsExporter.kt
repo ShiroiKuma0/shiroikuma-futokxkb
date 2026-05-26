@@ -182,6 +182,11 @@ object SettingsExporter {
     private const val versionFileName = "FUTOKeyboardSettings_CfgExportVersion"
     private const val currentVersion: Byte = 1
 
+    // kxkb: marker entry present only in a "settings only" backup (datastore + sharedPrefs + themes,
+    // no models / dictionaries / typing history / clipboard). Lets import auto-detect it and stay
+    // NON-destructive (it won't delete the heavy resources the slim backup deliberately omits).
+    private const val settingsOnlyFileName = "FUTOKeyboardSettings_SettingsOnly"
+
     private const val datastoreFileName = "datastore.preferences_pb"
     private const val sharedPreferencesFileName = "sharedPreferences.json"
     private const val clipboardFileName = ClipboardFileName
@@ -190,7 +195,8 @@ object SettingsExporter {
     suspend fun exportSettings(
         context: Context,
         outputStream: OutputStream,
-        includeHeavyResources: Boolean
+        includeHeavyResources: Boolean,
+        settingsOnly: Boolean = false
     ) = ZipOutputStream(outputStream).use { zipOut ->
         zipOut.setLevel(1)
 
@@ -202,6 +208,12 @@ object SettingsExporter {
             it.putLong(Date().time)
         }.array())
         zipOut.closeEntry()
+
+        // kxkb: mark a settings-only backup so import knows to stay non-destructive.
+        if (settingsOnly) {
+            zipOut.putNextEntry(ZipEntry(settingsOnlyFileName))
+            zipOut.closeEntry()
+        }
 
         // Collect preferences
         context.getUnlockedPreferences()?.let { prefs ->
@@ -221,6 +233,10 @@ object SettingsExporter {
             zipOut.closeEntry()
         }
 
+        // kxkb: everything below (user data — personal dict, clipboard, dictionaries, typing history,
+        // mozc/rime) is omitted from a settings-only backup. Datastore + SharedPreferences (above) and
+        // themes (below) are always included, since those carry the full keyboard configuration.
+        if (!settingsOnly) {
         // Collect personal dictionary
         run {
             zipOut.putNextEntry(ZipEntry(personalDictFileName))
@@ -298,6 +314,7 @@ object SettingsExporter {
             subfile.inputStream().use { it.copyTo(zipOut) }
             zipOut.closeEntry()
         }
+        } // kxkb: end if(!settingsOnly)
 
         // Collect themes
         ZipThemes.customThemesDir(context).listFiles()?.forEach { themeFile ->
@@ -464,11 +481,12 @@ object SettingsExporter {
         GlobalIMEMessage.tryEmit(IMEMessage.ReloadResources)
     }
 
-    fun triggerExportSettings(context: Context) {
+    fun triggerExportSettings(context: Context, settingsOnly: Boolean = false) {
         val date = Date()
         val formatter = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", context.resources.configuration.locale)
         val formattedDate = formatter.format(date)
-        val defaultFileName = "FUTOKeyboardSettings_${formattedDate}.backup"
+        val prefix = if (settingsOnly) "FUTOKeyboardSettings_KB" else "FUTOKeyboardSettings"
+        val defaultFileName = "${prefix}_${formattedDate}.backup"
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "application/octet-stream"
@@ -476,6 +494,7 @@ object SettingsExporter {
         }
 
         val activity: SettingsActivity = findSettingsActivity(context)
+        activity.exportSettingsOnly = settingsOnly
         activity.startActivityForResult(intent, EXPORT_SETTINGS_REQUEST)
     }
 
@@ -489,13 +508,17 @@ object SettingsExporter {
 
     data class CfgFileMetadata(
         val dateExported: Date,
-        val isNewer: Boolean
+        val isNewer: Boolean,
+        val isSettingsOnly: Boolean = false
     )
 
     fun getCfgFileMetadata(inputStream: InputStream): CfgFileMetadata? {
         return try {
             ZipInputStream(inputStream).use { zipIn ->
                 var entry = zipIn.nextEntry
+                var dateExported: Date? = null
+                var isNewer = false
+                var isSettingsOnly = false
                 while (entry != null) {
                     if (!entry.isDirectory && entry.name == versionFileName) {
                         val bytes = zipIn.readAllBytesCompat()
@@ -504,16 +527,16 @@ object SettingsExporter {
                         val version = buff.get()
                         val date = buff.getLong()
 
-                        return CfgFileMetadata(
-                            dateExported = Date(date),
-                            isNewer = version > currentVersion
-                        )
+                        dateExported = Date(date)
+                        isNewer = version > currentVersion
+                    } else if (!entry.isDirectory && entry.name == settingsOnlyFileName) {
+                        isSettingsOnly = true
                     }
                     zipIn.closeEntry()
                     entry = zipIn.nextEntry
                 }
+                dateExported?.let { CfgFileMetadata(it, isNewer, isSettingsOnly) }
             }
-            null
         } catch (_: Exception) {
             null
         }
@@ -521,14 +544,14 @@ object SettingsExporter {
 
 
     @Composable
-    fun ExportingMenu(navController: NavHostController = rememberNavController()) {
+    fun ExportingMenu(navController: NavHostController = rememberNavController(), settingsOnly: Boolean = false) {
         val context = LocalContext.current
         val activity = remember { findSettingsActivity(context) }
         val triggered = remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             activity.exportInProgress.value = 1
-            triggerExportSettings(context)
+            triggerExportSettings(context, settingsOnly)
             triggered.value = true
         }
 
