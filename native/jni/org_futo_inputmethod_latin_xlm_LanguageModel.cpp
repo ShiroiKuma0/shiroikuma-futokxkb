@@ -28,7 +28,12 @@
 #define RETURNVAL_UNCERTAIN "uncertain"
 #define RETURNVAL_CLUELESS "clueless"
 
-#define NUM_RESULTS 3
+// kxkb: was 3. The LM emits only its top NUM_RESULTS candidates back to Kotlin, and for ambiguous
+// cluster input its top picks are often short common words that the in-set prefix filter drops as
+// too short to cover all the taps -- so the LM ends up contributing nothing and longer in-set words
+// like "people"/"simple" never reach the suggestion bar even though the beam generated them. 10 is
+// generous enough to give those a slot while staying cheap (the beam itself doesn't widen).
+#define NUM_RESULTS 10
 
 static std::string trim(const std::string &s) {
     auto start = s.begin();
@@ -1073,6 +1078,41 @@ namespace latinime {
             std::vector<float> proportions = pInfo->decomposeTapPosition(xCoordinates[i], tapY);
             for(float &f : proportions) {
                 if(f < 0.05f) f = 0.0f;
+            }
+
+            // kxkb: cluster mix-purification. After the spatial flatten all of a cluster's mains
+            // share one key rect, which no ordinary key does -- so two or more keys with positive
+            // overlap at the same (keyX, keyY) means this tap landed on a cluster. In that case we
+            // zero out everything except the co-located mains, so the per-position token mix the
+            // transformer sees is exactly the cluster's letters (no neighbour pulling predictions
+            // off the band). Gesture is naturally excluded: the Kotlin caller sets partialWord = ""
+            // for batch mode, so this loop runs 0 times for swipe input.
+            int primaryKey = -1;
+            float primaryProp = 0.0f;
+            for (size_t k = 0; k < proportions.size(); k++) {
+                if (proportions[k] > primaryProp) {
+                    primaryProp = proportions[k];
+                    primaryKey = (int)k;
+                }
+            }
+            if (primaryKey >= 0 && primaryProp > 0.5f) {
+                const int px = pInfo->getKeyX(primaryKey);
+                const int py = pInfo->getKeyY(primaryKey);
+                int coLocatedCount = 0;
+                for (size_t k = 0; k < proportions.size(); k++) {
+                    if (proportions[k] > 0.0f
+                            && pInfo->getKeyX((int)k) == px
+                            && pInfo->getKeyY((int)k) == py) {
+                        coLocatedCount++;
+                    }
+                }
+                if (coLocatedCount >= 2) {
+                    for (size_t k = 0; k < proportions.size(); k++) {
+                        if (pInfo->getKeyX((int)k) != px || pInfo->getKeyY((int)k) != py) {
+                            proportions[k] = 0.0f;
+                        }
+                    }
+                }
             }
 
             std::vector<std::pair<float, int>> index_value;

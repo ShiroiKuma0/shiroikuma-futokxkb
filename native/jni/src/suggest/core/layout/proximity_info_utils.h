@@ -53,7 +53,8 @@ class ProximityInfoUtils {
             const int *const proximityCharsArray, const int cellHeight, const int cellWidth,
             const int gridWidth, const int mostCommonKeyWidth, const int keyCount,
             const std::vector<int> *locale,
-            const std::unordered_map<int, int> *const codeToKeyMap, int *inputProximities) {
+            const std::unordered_map<int, int> *const codeToKeyMap, int *inputProximities,
+            int *const inputIsExactSet) {
         // Initialize
         // - mInputCodes
         // - mNormalizedSquaredDistances
@@ -65,7 +66,8 @@ class ProximityInfoUtils {
             int *proximities = &inputProximities[i * MAX_PROXIMITY_CHARS_SIZE];
             calculateProximities(keyXCoordinates, keyYCoordinates, keyWidths, keyHeights,
                     proximityCharsArray, cellHeight, cellWidth, gridWidth, mostCommonKeyWidth,
-                    keyCount, x, y, primaryKey, locale, codeToKeyMap, proximities);
+                    keyCount, x, y, primaryKey, locale, codeToKeyMap, proximities,
+                    &inputIsExactSet[i]);
         }
 
         if (DEBUG_PROXIMITY_CHARS) {
@@ -145,9 +147,11 @@ class ProximityInfoUtils {
             const int *const proximityCharsArray, const int cellHeight, const int cellWidth,
             const int gridWidth, const int mostCommonKeyWidth, const int keyCount,
             const int x, const int y, const int primaryKey, const std::vector<int> *locale,
-            const std::unordered_map<int, int> *const codeToKeyMap, int *proximities) {
+            const std::unordered_map<int, int> *const codeToKeyMap, int *proximities,
+            int *const outIsExactSet) {
         const int mostCommonKeyWidthSquare = mostCommonKeyWidth * mostCommonKeyWidth;
         int insertPos = 0;
+        *outIsExactSet = 0;
         proximities[insertPos++] = primaryKey;
         if (x == NOT_A_COORDINATE || y == NOT_A_COORDINATE) {
             for (int i = insertPos; i < MAX_PROXIMITY_CHARS_SIZE; ++i) {
@@ -157,6 +161,52 @@ class ProximityInfoUtils {
         }
         const int startIndex = getStartIndexFromCoordinates(x, y, cellHeight, cellWidth, gridWidth);
         if (startIndex >= 0) {
+            // kxkb: cluster detection. The Java side (CLUSTER_PREDICTION_SPREAD == 1) gives every
+            // main of a cluster the identical key rectangle, which no ordinary key shares. If a cell
+            // code's key sits on the same rectangle as the primary key, this tap is a cluster: emit
+            // it as an exact letter SET -- only the co-located mains, every one an equal match --
+            // and flag it so getProximityType() classifies off-set chars as UNRELATED. The dictionary
+            // and language model then disambiguate the band (T9-style) instead of the centre main
+            // winning on distance, and the search cannot wander to off-band letters.
+            const int primaryKeyIndex = getKeyIndexOf(keyCount, primaryKey, codeToKeyMap);
+            if (primaryKeyIndex != NOT_AN_INDEX) {
+                const int pX = keyXCoordinates[primaryKeyIndex];
+                const int pY = keyYCoordinates[primaryKeyIndex];
+                bool isCluster = false;
+                for (int i = 0; i < MAX_PROXIMITY_CHARS_SIZE; ++i) {
+                    const int c = proximityCharsArray[startIndex + i];
+                    if (c < KEYCODE_SPACE || c == primaryKey) {
+                        continue;
+                    }
+                    const int ki = getKeyIndexOf(keyCount, c, codeToKeyMap);
+                    if (ki != NOT_AN_INDEX && keyXCoordinates[ki] == pX
+                            && keyYCoordinates[ki] == pY) {
+                        isCluster = true;
+                        break;
+                    }
+                }
+                if (isCluster) {
+                    *outIsExactSet = 1;
+                    for (int i = 0; i < MAX_PROXIMITY_CHARS_SIZE; ++i) {
+                        const int c = proximityCharsArray[startIndex + i];
+                        if (c < KEYCODE_SPACE || c == primaryKey) {
+                            continue;
+                        }
+                        const int ki = getKeyIndexOf(keyCount, c, codeToKeyMap);
+                        if (ki != NOT_AN_INDEX && keyXCoordinates[ki] == pX
+                                && keyYCoordinates[ki] == pY) {
+                            proximities[insertPos++] = c;
+                            if (insertPos >= MAX_PROXIMITY_CHARS_SIZE) {
+                                break;
+                            }
+                        }
+                    }
+                    for (int i = insertPos; i < MAX_PROXIMITY_CHARS_SIZE; ++i) {
+                        proximities[i] = NOT_A_CODE_POINT;
+                    }
+                    return;
+                }
+            }
             for (int i = 0; i < MAX_PROXIMITY_CHARS_SIZE; ++i) {
                 const int c = proximityCharsArray[startIndex + i];
                 if (c < KEYCODE_SPACE || c == primaryKey) {

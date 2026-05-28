@@ -179,6 +179,11 @@ public interface DictionaryFacilitator {
 
     boolean isValidSuggestionWord(final String word);
 
+    // kxkb: dictionary frequency of an exact word (max across all dicts), used by the
+    // LanguageModelFacilitator's cluster enumeration to rank Multiling-style in-set candidates.
+    // Returns Dictionary.NOT_A_PROBABILITY (-1) if the word is not in any dictionary.
+    int getFrequency(final String word);
+
     boolean clearUserHistoryDictionary(final Context context);
 
     void flushUserHistoryDictionaries();

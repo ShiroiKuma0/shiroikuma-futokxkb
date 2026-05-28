@@ -43,6 +43,14 @@ public class ProximityInfo {
     private static final List<Key> EMPTY_KEY_LIST = Collections.emptyList();
     private static final float DEFAULT_TOUCH_POSITION_CORRECTION_RADIUS = 0.15f;
 
+    // kxkb: a cluster's mains are a predictive letter SET, not spatially-aimed keys, so the decoder
+    // should weigh them equally and let the dictionary/LM disambiguate (T9-style) rather than favouring
+    // the main nearest the tap (which is always the centre). This blends each main's predictive
+    // footprint/centre toward the whole-key centre: 1.0 = fully flat (all mains equidistant, LM
+    // decides — matches Multiling); 0.0 = original per-third sub-rects (centre-biased). The committed
+    // letter on a no-dictionary tap is unaffected (that uses the key's primary code = the centre main).
+    private static final float CLUSTER_PREDICTION_SPREAD = 1.0f;
+
     private final int mGridWidth;
     private final int mGridHeight;
     private final int mGridSize;
@@ -195,14 +203,23 @@ public class ProximityInfo {
 
         for (int infoIndex = 0, keyIndex = 0; keyIndex < sortedKeys.size(); keyIndex++) {
             final Key key = sortedKeys.get(keyIndex);
-            // kxkb: a cluster emits one sub-entry per letter main (tiled sub-rects) instead of one.
+            // kxkb: a cluster emits one sub-entry per letter main. For prediction they are an equal-
+            // weight letter set, so each main is given the WHOLE-KEY footprint with its centre blended
+            // toward the key centre by CLUSTER_PREDICTION_SPREAD — a tap is then ~equidistant to all
+            // mains and the dictionary/LM disambiguates instead of the centre main winning on distance.
             final List<int[]> sub = clusterSubKeys(key);
             if (sub != null) {
+                final float keyCx = key.getX() + key.getWidth() / 2.0f;
+                final float keyCy = key.getY() + key.getHeight() / 2.0f;
                 for (final int[] s : sub) {
-                    keyXCoordinates[infoIndex] = s[0];
-                    keyYCoordinates[infoIndex] = s[1];
-                    keyWidths[infoIndex] = s[2];
-                    keyHeights[infoIndex] = s[3];
+                    final float subCx = s[0] + s[2] / 2.0f;
+                    final float subCy = s[1] + s[3] / 2.0f;
+                    final float cx = subCx + CLUSTER_PREDICTION_SPREAD * (keyCx - subCx);
+                    final float cy = subCy + CLUSTER_PREDICTION_SPREAD * (keyCy - subCy);
+                    keyXCoordinates[infoIndex] = Math.round(cx - key.getWidth() / 2.0f);
+                    keyYCoordinates[infoIndex] = Math.round(cy - key.getHeight() / 2.0f);
+                    keyWidths[infoIndex] = key.getWidth();
+                    keyHeights[infoIndex] = key.getHeight();
                     keyCharCodes[infoIndex] = s[4];
                     infoIndex++;
                 }
@@ -232,14 +249,18 @@ public class ProximityInfo {
                     * (float)Math.hypot(mMostCommonKeyWidth, mMostCommonKeyHeight);
             for (int infoIndex = 0, keyIndex = 0; keyIndex < sortedKeys.size(); keyIndex++) {
                 final Key key = sortedKeys.get(keyIndex);
-                // kxkb: cluster sub-entries get sweet spots in lockstep so the arrays stay aligned
-                // with keyCount (no per-row correction for the synthetic sub-rects — their own
-                // centre + the default radius; the user's HCY layout has correction off anyway).
+                // kxkb: cluster sub-entries get sweet spots blended toward the key centre by
+                // CLUSTER_PREDICTION_SPREAD (see the coordinate loop above and the constant) so the
+                // spatial term is flat across the band and the dictionary/LM disambiguates the mains.
                 final List<int[]> sub = clusterSubKeys(key);
                 if (sub != null) {
+                    final float keyCx = key.getX() + key.getWidth() / 2.0f;
+                    final float keyCy = key.getY() + key.getHeight() / 2.0f;
                     for (final int[] s : sub) {
-                        sweetSpotCenterXs[infoIndex] = s[0] + s[2] / 2.0f;
-                        sweetSpotCenterYs[infoIndex] = s[1] + s[3] / 2.0f;
+                        final float subCx = s[0] + s[2] / 2.0f;
+                        final float subCy = s[1] + s[3] / 2.0f;
+                        sweetSpotCenterXs[infoIndex] = subCx + CLUSTER_PREDICTION_SPREAD * (keyCx - subCx);
+                        sweetSpotCenterYs[infoIndex] = subCy + CLUSTER_PREDICTION_SPREAD * (keyCy - subCy);
                         sweetSpotRadii[infoIndex] = defaultRadius;
                         infoIndex++;
                     }

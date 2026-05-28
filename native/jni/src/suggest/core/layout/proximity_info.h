@@ -126,11 +126,12 @@ class ProximityInfo {
 
     AK_FORCE_INLINE void initializeProximities(const int *const inputCodes,
             const int *const inputXCoordinates, const int *const inputYCoordinates,
-            const int inputSize, int *allInputCodes, const std::vector<int> *locale) const {
+            const int inputSize, int *allInputCodes, const std::vector<int> *locale,
+            int *const inputIsExactSet) const {
         ProximityInfoUtils::initializeProximities(inputCodes, inputXCoordinates, inputYCoordinates,
                 inputSize, mKeyXCoordinates, mKeyYCoordinates, mKeyWidths, mKeyHeights,
                 mProximityCharsArray, CELL_HEIGHT, CELL_WIDTH, GRID_WIDTH, MOST_COMMON_KEY_WIDTH,
-                KEY_COUNT, locale, &mLowerCodePointToKeyMap, allInputCodes);
+                KEY_COUNT, locale, &mLowerCodePointToKeyMap, allInputCodes, inputIsExactSet);
     }
 
     AK_FORCE_INLINE int getKeyIndexOf(const int c) const {
@@ -190,6 +191,11 @@ class ProximityInfo {
     AK_FORCE_INLINE int getKeyCodePoint(const int key) const {
         return mKeyCodePoints[key];
     }
+
+    // kxkb: per-key rect origin, used by the transformer LM JNI to detect cluster taps (after the
+    // spatial flatten all mains of a cluster share one rect, which no other key does).
+    AK_FORCE_INLINE int getKeyX(const int key) const { return mKeyXCoordinates[key]; }
+    AK_FORCE_INLINE int getKeyY(const int key) const { return mKeyYCoordinates[key]; }
 
  private:
     DISALLOW_IMPLICIT_CONSTRUCTORS(ProximityInfo);

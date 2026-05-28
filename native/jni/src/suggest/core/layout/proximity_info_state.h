@@ -225,6 +225,9 @@ class ProximityInfoState {
     std::vector<std::vector<int>> mSampledSearchKeyVectors;
     bool mTouchPositionCorrectionEnabled;
     int mInputProximities[MAX_PROXIMITY_CHARS_SIZE * MAX_WORD_LENGTH];
+    // kxkb: per-input-index flag set by ProximityInfoUtils when the tap landed on a cluster (all
+    // mains share one key rect). getProximityType() treats such positions as an exact letter set.
+    int mInputIsExactSet[MAX_WORD_LENGTH];
     int mSampledInputSize;
     int mPrimaryInputWord[MAX_WORD_LENGTH];
     float mMostProbableStringProbability;

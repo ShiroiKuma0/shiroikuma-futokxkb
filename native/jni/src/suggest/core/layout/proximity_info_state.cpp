@@ -63,10 +63,11 @@ void ProximityInfoState::initInputParams(const int pointerId, const float maxPoi
     mGridWidth = proximityInfo->getGridHeight();
 
     memset(mInputProximities, 0, sizeof(mInputProximities));
+    memset(mInputIsExactSet, 0, sizeof(mInputIsExactSet));
 
     if (!isGeometric && pointerId == 0) {
         mProximityInfo->initializeProximities(inputCodes, xCoordinates, yCoordinates,
-                inputSize, mInputProximities, locale);
+                inputSize, mInputProximities, locale, mInputIsExactSet);
     }
 
     ///////////////////////
@@ -202,6 +203,23 @@ ProximityType ProximityInfoState::getProximityType(const int index, const int co
     const int *currentCodePoints = getProximityCodePointsAt(index);
     const int firstCodePoint = currentCodePoints[0];
     const int baseLowerC = CharUtils::toBaseLowerCase(codePoint);
+
+    // kxkb: an exact-set (cluster) position has no spatial winner -- every listed main is an equal
+    // match and anything off the set is UNRELATED (not a substitution), so the dictionary/LM picks
+    // among the in-set words (T9-style) and the search cannot wander to off-band letters.
+    if (mInputIsExactSet[index]) {
+        for (int j = 0; j < MAX_PROXIMITY_CHARS_SIZE; ++j) {
+            const int c = currentCodePoints[j];
+            if (c <= ADDITIONAL_PROXIMITY_CHAR_DELIMITER_CODE) {
+                break;
+            }
+            if (c == baseLowerC || c == codePoint
+                    || CharUtils::toBaseLowerCase(c) == baseLowerC) {
+                return MATCH_CHAR;
+            }
+        }
+        return UNRELATED_CHAR;
+    }
 
     // The first char in the array is what user typed. If it matches right away, that means the
     // user typed that same char for this pos.

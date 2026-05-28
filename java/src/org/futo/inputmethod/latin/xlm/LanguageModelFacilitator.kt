@@ -230,6 +230,109 @@ public class LanguageModelFacilitator(
         return lmSuggestions
     }
 
+    // kxkb: for cluster-style (tap, non-swipe) input, each tap commits to a SET of letters (the
+    // cluster's mains). Returns the per-tap allowed lowercase codepoints, or null when the constraint
+    // must NOT apply: gesture/swipe input, no current keyboard, or a layout with no cluster keys at
+    // all. That null path is what keeps ordinary/qwerty layouts and all swipe typing untouched -- on
+    // a swipe keyboard off-path candidates are desirable, so the filter is bypassed entirely there.
+    private fun clusterAllowedSets(values: PredictionInputValues): List<Set<Int>>? {
+        if (values.composedData.mIsBatchMode) return null
+        val keyboard = keyboardSwitcher.keyboard ?: return null
+        val pointers = values.composedData.mInputPointers
+        val n = pointers.pointerSize
+        if (n <= 0) return null
+        val xs = pointers.xCoordinates
+        val ys = pointers.yCoordinates
+        val sets = ArrayList<Set<Int>>(n)
+        var anyCluster = false
+        for (i in 0 until n) {
+            val nearest = keyboard.getNearestKeys(xs[i], ys[i])
+            val key = nearest.firstOrNull { it.isOnKey(xs[i], ys[i]) } ?: nearest.firstOrNull()
+            val mains = key?.clusterMains
+            if (mains != null && mains.isNotEmpty()) {
+                anyCluster = true
+                sets.add(mains.map { Character.toLowerCase(it.codePoint) }.toHashSet())
+            } else {
+                // A non-cluster key mixed into a cluster layout pins its own letter; an unresolved
+                // tap (empty set) is left unconstrained so we never over-filter on bad coordinates.
+                val c = key?.code ?: -1
+                sets.add(if (c > 0) hashSetOf(Character.toLowerCase(c)) else emptySet())
+            }
+        }
+        return if (anyCluster) sets else null
+    }
+
+    // kxkb: the word's typed prefix (its first sets.size chars) must each fall in that tap's allowed
+    // set; anything beyond the tap count is unconstrained, so "simp" still completes to "simple",
+    // "simply", "simplistic". Words shorter than the tap count don't cover the taps and are dropped.
+    private fun prefixInClusterSets(word: String, sets: List<Set<Int>>): Boolean {
+        if (word.length < sets.size) return false
+        for (i in sets.indices) {
+            val allowed = sets[i]
+            if (allowed.isEmpty()) continue
+            if (!allowed.contains(Character.toLowerCase(word[i].code))) return false
+        }
+        return true
+    }
+
+    // kxkb: exact-length matches get a 2x boost while completions get an exponential penalty. The
+    // tug-of-war on the penalty alone was unwinnable -- too aggressive killed completions like
+    // "simp"->"simple", too soft let long content words like "cable"/"dehydration" through because
+    // their LM raw scores are huge. Boosting exact-length directly makes the comparison decisive:
+    // an exact-length match wins easily over any completion, while completions still appear in the
+    // alternative slots when no exact-length match dominates. Words below the tap count are dropped
+    // by the prefix filter.
+    private fun clusterLengthBias(len: Int, tapCount: Int): Float {
+        if (tapCount <= 0 || len < tapCount) return 1.0f
+        if (len == tapCount) return 2.0f
+        // kxkb: for 4-tap prefixes like "simp" -> "simple"/"simply", use a gentler completion
+        // penalty so the obvious completions stay visible in the alternative slots. Other lengths
+        // keep the steeper bias -- shorter inputs (3-tap "cat") get exact-length matches injected
+        // by enumeration so don't need completion help; longer inputs (>=5 tap) tend to be full-word
+        // typing where completions are usually noise rather than the intent.
+        val baseFactor = if (tapCount == 4) 0.7 else 0.55
+        return Math.pow(baseFactor, (len - tapCount).toDouble()).toFloat()
+    }
+
+    // kxkb: Multiling's actual mechanism. The LM beam and the dict's incremental tap-decoder both
+    // miss many common in-set exact-length words for ambiguous cluster input (people, simple, ...).
+    // Enumerate the cartesian product of per-tap cluster main letters (symbols filtered out, since
+    // a typed word can't contain them), dictionary-check each combination, and return the valid
+    // ones with their dictionary frequency. Capped at 2000 combinations so the cost per keystroke
+    // stays bounded; very long/wide inputs fall back to the existing engines.
+    private fun clusterEnumerateValid(clusterSets: List<Set<Int>>): List<Pair<String, Int>> {
+        val n = clusterSets.size
+        if (n == 0) return emptyList()
+        val letterSets = clusterSets.map { set ->
+            set.filter { Character.isLetter(it) }.toList()
+        }
+        if (letterSets.any { it.isEmpty() }) return emptyList()
+        var total = 1L
+        for (lst in letterSets) {
+            total *= lst.size
+            if (total > 2000) return emptyList()
+        }
+        val results = mutableListOf<Pair<String, Int>>()
+        val sb = StringBuilder(n)
+        fun recurse(pos: Int) {
+            if (pos == n) {
+                val word = sb.toString()
+                if (dictionaryFacilitator.isValidSuggestionWord(word)) {
+                    val freq = dictionaryFacilitator.getFrequency(word)
+                    results.add(word to freq.coerceAtLeast(0))
+                }
+                return
+            }
+            for (codePoint in letterSets[pos]) {
+                sb.append(codePoint.toChar())
+                recurse(pos + 1)
+                sb.deleteCharAt(sb.length - 1)
+            }
+        }
+        recurse(0)
+        return results
+    }
+
     fun processAndMergeSuggestions(
         values: PredictionInputValues,
         suggestedWordsDict: SuggestedWords,
@@ -238,16 +341,26 @@ public class LanguageModelFacilitator(
         var transformerWeight = context.getSetting(BinaryDictTransformerWeightSetting)
         if(dictionaryFacilitator.locales.size > 1) transformerWeight = 1.0f
 
+        // kxkb: on cluster-style layouts each tap commits to a SET of letters (the key's mains), so
+        // constrain suggestions to words whose typed prefix stays within the tapped sets (Multiling-
+        // style). clusterSets is null for swipe/gesture input and for layouts with no cluster keys,
+        // leaving ordinary and gesture typing completely unaffected. The typed word is always exempt.
+        val clusterSets = clusterAllowedSets(values)
+        val lmSuggestions = if(clusterSets != null) {
+            ArrayList(lmSuggestions.filter { prefixInClusterSets(it.mWord, clusterSets) })
+        } else lmSuggestions
+
         val suggestionResults = SuggestionResults(
             14, values.ngramContext.isBeginningOfSentenceContext, false)
 
 
         val reweightedSuggestions = lmSuggestions.mapIndexedNotNull { i, it ->
             if(transformerWeight == Float.NEGATIVE_INFINITY) { null } else {
+                val lengthFactor = if (clusterSets != null) clusterLengthBias(it.mWord.length, clusterSets.size) else 1.0f
                 SuggestedWordInfo(
                     it.mWord,
                     it.mPrevWordsContext,
-                    (it.mScore.toFloat() * transformerWeight).toLong().coerceAtMost(Int.MAX_VALUE.toLong() - lmSuggestions.size)
+                    (it.mScore.toFloat() * transformerWeight * lengthFactor).toLong().coerceAtMost(Int.MAX_VALUE.toLong() - lmSuggestions.size)
                         .toInt() - i + (lmSuggestions.size - 1),
                     it.mKindAndFlags,
                     it.mSourceDict,
@@ -261,9 +374,60 @@ public class LanguageModelFacilitator(
 
         val maxWord = reweightedSuggestions.maxByOrNull { it.mScore }
 
-        val suggestedWordsDictList = suggestedWordsDict.mSuggestedWordInfoList.filter {
-            suggestionBlacklist.isSuggestedWordOk(it)
+        val suggestedWordsDictList = suggestedWordsDict.mSuggestedWordInfoList.mapNotNull { sw ->
+            if (!suggestionBlacklist.isSuggestedWordOk(sw)) return@mapNotNull null
+            val isTyped = sw === suggestedWordsDict.typedWordInfo
+            if (clusterSets != null && !isTyped && !prefixInClusterSets(sw.mWord, clusterSets)) {
+                return@mapNotNull null
+            }
+            if (clusterSets != null && !isTyped) {
+                val factor = clusterLengthBias(sw.mWord.length, clusterSets.size)
+                if (factor != 1.0f) {
+                    SuggestedWordInfo(sw.mWord, sw.mPrevWordsContext,
+                        (sw.mScore.toFloat() * factor).toInt(),
+                        sw.mKindAndFlags, sw.mSourceDict,
+                        sw.mIndexOfTouchPointOfSecondWord,
+                        sw.mAutoCommitFirstWordConfidence)
+                } else sw
+            } else sw
         }.toMutableList()
+
+        // kxkb: Multiling-style injection. Anything missing from the dict's tap-decoder output that
+        // is nonetheless a real in-set exact-length word gets injected here so it always reaches the
+        // bar. Score is a high base plus a frequency tiebreak (so common words like "people"/"simple"
+        // rank above rare in-set siblings), with the 2x exact-length boost pre-applied since these
+        // bypass the bias mapNotNull above.
+        if (clusterSets != null) {
+            // kxkb: cross-reference enumeration with the LM. Words the language model also generated
+            // are contextually plausible -- freq >= 30 is enough to admit them. Words the LM did NOT
+            // generate are likely proper nouns or abbreviations the dictionary happens to know about
+            // (Diu, diu, yip, ...), so require a much higher freq floor (>= 100) to keep them out of
+            // the alternative slots. When the LM is silent (still warming up, or it really had
+            // nothing for this input), fall back to the single moderate floor used before.
+            val enumerated = if (lmSuggestions.isNotEmpty()) {
+                val lmWords = lmSuggestions.mapTo(HashSet()) { it.mWord.lowercase() }
+                clusterEnumerateValid(clusterSets).filter { (word, freq) ->
+                    if (word.lowercase() in lmWords) freq >= 30 else freq >= 100
+                }
+            } else {
+                clusterEnumerateValid(clusterSets).filter { (_, freq) -> freq >= 50 }
+            }
+            if (enumerated.isNotEmpty()) {
+                val existing = suggestedWordsDictList.mapTo(HashSet()) { it.mWord.lowercase() }
+                for ((word, freq) in enumerated) {
+                    if (word.lowercase() !in existing) {
+                        val score = (100_000_000 + freq * 1_000_000) * 2
+                        suggestedWordsDictList.add(SuggestedWordInfo(
+                            word, "", score,
+                            SuggestedWordInfo.KIND_CORRECTION,
+                            null,
+                            SuggestedWordInfo.NOT_AN_INDEX,
+                            SuggestedWordInfo.NOT_A_CONFIDENCE
+                        ))
+                    }
+                }
+            }
+        }
 
         var maxWordDict = suggestedWordsDictList.maxByOrNull {
             if(it == suggestedWordsDict.typedWordInfo
