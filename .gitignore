@@ -10,4 +10,10 @@ keystore.properties
 key.jks
 java/res/raw/mozc.data
 .cxx
-java/src/org/futo/inputmethod/keyboard/internal/KeyboardTextsTable.java
+java/src/org/futo/inputmethod/keyboard/internal/KeyboardTextsTable.java# Claude Code — per-user settings (Claude Code creates these)
+.claude/settings.local.json
+.claude/*.local.json
+
+# Claude Code — transient session files (if Claude Code ever drops them in-tree)
+.claude/sessions/
+.claude/.cache/

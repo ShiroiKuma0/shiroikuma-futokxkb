@@ -1,0 +1,54 @@
+# shiroikuma-futokxkb
+
+Fork of [FUTO Keyboard](https://github.com/futo-org/futo-keyboard-android) — package `shiroikuma.futokxkb`, label "白い熊 FUTO kxkb", installable side-by-side with the official FUTO Keyboard from F-Droid.
+
+The `custom` branch carries ~56 customisation commits (all prefixed `kxkb:`) over the FUTO `0.1.28` release tag, rebased onto each new upstream release.
+
+## Skills
+
+Two skills in `.claude/skills/` document this project's workflow, conventions, and architecture in dense reference prose. **Read the relevant SKILL.md before starting work** — they encode hard-won detail (build env quirks, the kxkb commit stack's architecture, gotchas hit during development) that you won't find by reading the source. Each is named by trigger; the descriptions are tuned for automatic invocation.
+
+- **`futo-keyboard-build`** (primary, ~664 lines) — project identity, branch/remote model, commits 1–2 documented in full, build + sign + deploy pipeline, versioning (local counter + env injection), keystore convention, per-change delivery workflow, upstream-rebase procedure, and the **Implemented features** reference covering every kxkb feature commit in dense paragraphs. Read this any time the user asks to apply a change, rebuild, sync to a new FUTO release, or work on anything in the kxkb stack.
+- **`multiling-futo-conversion`** (companion, ~271 lines) — porting the user's Multiling O `kxkb` layouts to FUTO v2 YAML. Deliverable is a `.yaml` for FUTO's Dev/Custom Layouts import, NOT fork code. Read this any time a Multiling layout file (with `[4D:…]`, `[MC:…]`, `[3+2:…]`, `[SYM]`, `[ALTGR]`, `[Lock]` codes) is the input.
+
+The `futo-keyboard-build` skill body has incidental references to two further skills — `shell-block-formatting` and `patch-naming` — that are NOT included here because they're obsolete in Claude Code (see workflow adaptations below). Just ignore those references; the rest of the skill is fully applicable.
+
+## Claude Code vs claude.ai — workflow adaptations
+
+The skills were originally written for claude.ai chat where Claude can't touch the user's filesystem. In Claude Code you can — adapt as follows:
+
+- **Patch delivery is obsolete.** The "deliver patch + apply-and-build block, STOP" workflow (futo-keyboard-build §"Per-change delivery workflow", and any mention of `.patch` files or `patch-naming`) does not apply. Instead: edit files directly with `Edit`/`Write`, run the build with `Bash`, report results to the user. The user still tests each change on-device before committing.
+- **Shell-block formatting is obsolete.** The `r()` helper, cyan `>>>` echo prefixes, ANSI-C-quoted stderr recolouring, and y/n pause gates (futo-keyboard-build §"Build + sign + deploy pipeline" intro and the `shell-block-formatting` skill it references) are for shell blocks the user copy-pastes into a terminal. In Claude Code you run commands directly via `Bash`; the user sees clean output. Just invoke gradle / adb / git plainly. The technical content (gradle invocation, NOISE filter, env-var versioning, keystore.properties heredoc, sideload steps) still applies — only the chat-formatting wrapper around it doesn't.
+- **The one discipline that stays: do not commit or push until the user says "Push".** Treat the working tree as your scratchpad between user "Push" commands — multiple uncommitted fixes can stack. This is the same rule as in claude.ai, just without the patch-as-checkpoint mechanism.
+- **`/mnt/skills/user/...` and `/home/claude/...` paths** in skill bodies are claude.ai sandbox paths — ignore them. Skills live in `.claude/skills/` here; the project clone IS your cwd.
+- **Sandbox re-sync** on user "Done" (futo-keyboard-build §"Per-change delivery workflow" step 3) doesn't apply — there's no sandbox-to-resync. After a push, you're already at the new tip.
+- **The `sandbox-environment` skill** referenced in futo-keyboard-build §"Companion skills" is claude.ai-only and not included here.
+- **`skill-export`** referenced in user preferences is a zip-naming convention for sharing skills back to claude.ai; not used inside Claude Code (you edit `.claude/skills/` directly).
+- **Skill edits take effect immediately** for subsequent invocations. Commit skill edits as their own `kxkb: ` commit, or bundle into a feature commit when the skill change documents that feature (which is the usual case — see how the cluster-prediction commit and its skill bullet were paired).
+
+## Quick reference
+
+- Branch: `custom`, rebased onto each upstream release tag
+- Commit subject prefix: `kxkb:`
+- Build (release / stable / arm64):
+  ```
+  BRANCH_NAME='shiroikuma' VERSION_NAME=<name> VERSION_CODE=<code> \
+    ./gradlew :assembleStableRelease --console=plain
+  ```
+  See futo-keyboard-build §"Build + sign + deploy pipeline" for the full block.
+- Versioning: per-build counter at `$HOME/tmp/.shiroikuma_futokxkb_build`, format `<tag>+N`; versionCode `tag_first_parent_count * 10000 + N`. Counter increments only on a successful build.
+- Sideload: `adb push <apk> /sdcard/tmp/<name>.apk`, install via on-device file manager.
+- Keystore: `keystore.properties` regenerated at build time from a heredoc — never committed.
+- Submodules: `git submodule update --init --recursive` before first build; the `java/assets/layouts` and `java/assets/themes` submodules live on gitlab.futo.org (may be unreachable) but builds work without them as long as they were initialised once.
+
+## Repo layout notes
+
+- `java/src/` — Java/Kotlin sources (Android app)
+- `native/jni/` — native C++ (dict decoder, transformer LM JNI bridge)
+- `java/assets-custom/` — kxkb assets that ride alongside the upstream `java/assets/` submodule (used by the GNU-language registration, custom layouts, etc.)
+- `common/`, `libs/` — shared infrastructure
+- `build.gradle` — flavors (stable / unstable / playstore), signing, version env reads
+
+## Active recent work
+
+Last shipped: `kxkb: Multiling-style cluster prediction` (commit `3bb85d1a1`). Five-layer feature for cluster keys (Multiling 3+2 style) — spatial flatten + native dict exact-set classifier + native LM mix purification + getFrequency exposure + Kotlin merge with prefix filter, length bias, cartesian enumeration and dual-threshold injection. Documented in full in futo-keyboard-build §"Implemented features". Two known small anomalies left in place; see the bullet for tuning history and where to extend next.
