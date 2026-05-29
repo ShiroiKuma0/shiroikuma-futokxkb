@@ -229,6 +229,8 @@ data class SavedKeyboardSizingSettings(
     val keyboardBackgroundColor: Int? = null,
     val suggestionBarColor: Int? = null,
     val suggestionTextColor: Int? = null,
+    // kxkb: colour the Shift keys take when caps-lock is on (null = the default blue). Draw-time only.
+    val capsLockColor: Int? = null,
 
     // Per-geometry sizing knobs (Multiling-style live knobs). Neutral defaults reproduce the
     // current look exactly, so old saved blobs and not-yet-configured geometries are unchanged.

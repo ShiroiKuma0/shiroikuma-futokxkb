@@ -356,6 +356,23 @@ class KeyboardState(private val switchActions: SwitchActions) {
         }
     }
 
+    // kxkb: tapping Shift cycles unshifted → shift (one-shot) → caps-lock → unshifted, timing-free
+    // (replaces the double-tap-for-caps-lock; two quick taps still reach caps-lock via the cycle).
+    // A manual shift is what advances to caps-lock; auto-caps (Shifted) and caps-lock both unshift on
+    // tap (so tapping Shift still cancels an auto-capitalised start, as users expect).
+    private fun cycleShift() {
+        if (!isAlphabet) {
+            toggleShift(manually = true)
+            return
+        }
+        when (currentLayout.page) {
+            KeyboardLayoutPage.ManuallyShifted -> lockShift()              // shift → caps-lock
+            KeyboardLayoutPage.ShiftLocked,
+            KeyboardLayoutPage.Shifted         -> toggleShift(to = false)  // caps-lock / auto-caps → off
+            else                               -> toggleShift(to = true, manually = true) // off → shift
+        }
+    }
+
     private var shiftTime: Long? = null
     private fun onShiftTapForShiftLockTimer() {
         if(!isAlphabet) return onCancelShiftTimer()
@@ -393,8 +410,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
         when (code) {
             Constants.CODE_SHIFT -> {
                 shiftKeyState.onPress()
-                toggleShift(manually = true)
-                onShiftTapForShiftLockTimer()
+                cycleShift()
             }
             Constants.CODE_CAPSLOCK -> {
                 // only in onReleaseKey?
