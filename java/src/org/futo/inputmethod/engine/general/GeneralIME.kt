@@ -77,7 +77,7 @@ interface OnGetSuggestedWordsCallbackWithInputStyle {
 
 val UseExpandableSuggestionsForGeneralIME = SettingsKey(
     booleanPreferencesKey("use_expandable_suggestions_for_generalime"),
-    false
+    true // kxkb: default on — the expandable candidates panel (Multiling-style) for all languages
 )
 
 /**

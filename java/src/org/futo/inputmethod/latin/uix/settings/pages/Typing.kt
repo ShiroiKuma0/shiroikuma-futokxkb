@@ -96,6 +96,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 import org.futo.inputmethod.accessibility.AccessibilityUtils
 import org.futo.inputmethod.engine.IMESettingsMenu
+import org.futo.inputmethod.engine.general.UseExpandableSuggestionsForGeneralIME
 import org.futo.inputmethod.latin.HideKeyboardWhenHardKeyboardConnected
 import org.futo.inputmethod.latin.LayoutSwitcherShortcutCatalog
 import org.futo.inputmethod.latin.layoutSwitcherShortcutPrefKey
@@ -1424,6 +1425,11 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             icon = {
                 Icon(painterResource(id = R.drawable.more_horizontal), contentDescription = null)
             }
+        ),
+        userSettingToggleDataStore(
+            title = R.string.keyboard_settings_expandable_suggestions,
+            subtitle = R.string.keyboard_settings_expandable_suggestions_subtitle,
+            setting = UseExpandableSuggestionsForGeneralIME
         ),
         userSettingToggleDataStore(
             title = R.string.keyboard_settings_inline_autofill,
