@@ -784,6 +784,7 @@ Default is %1$s</string>
     <string name="kxkb_color_keyboard_bg">Keyboard background</string>
     <string name="kxkb_color_suggestion_bg">Suggestion bar background</string>
     <string name="kxkb_color_suggestion_text">Suggestion font</string>
+    <string name="kxkb_color_caps_lock">Caps-lock Shift colour</string>
     <string name="kxkb_color_alpha">Alpha</string>
     <string name="kxkb_color_red">Red</string>
     <string name="kxkb_color_green">Green</string>

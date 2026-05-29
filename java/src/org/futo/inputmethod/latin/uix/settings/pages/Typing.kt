@@ -782,6 +782,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                         onChange = { v -> writeColor { it.copy(suggestionTextColor = v) } }
                     )
                 }
+
+                KxkbSubgroup("Caps lock") {
+                    // kxkb: the colour the Shift glyph takes when caps-lock is on. Default is pure
+                    // blue (0xFF0000FF) so it stands out against any theme; recolours the shape only.
+                    ColorSetting(
+                        title = stringResource(R.string.kxkb_color_caps_lock),
+                        current = parsed.capsLockColor,
+                        inherited = 0xFF0000FF.toInt(),
+                        onChange = { v -> writeColor { it.copy(capsLockColor = v) } }
+                    )
+                }
             }
 
             KxkbSection("Layout switcher")

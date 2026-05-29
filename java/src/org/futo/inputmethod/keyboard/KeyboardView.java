@@ -387,6 +387,26 @@ public class KeyboardView extends View {
                     kdc.getTextSize(),
                     kdc.getHintSize());
         }
+        // kxkb: caps lock on → recolour the Shift glyph (icon/label foreground) with the configured
+        // colour, leaving the key background alone. The icon is tinted with getTextColor() and labels
+        // are painted with it, so overriding textColor turns the shift shape itself blue. Caps lock
+        // switches the keyboard to a SHIFT_LOCKED element (a full reload), so detecting it at draw
+        // time is enough — no extra invalidation needed.
+        if (key.getCode() == Constants.CODE_SHIFT && mKeyboard != null
+                && (mKeyboard.mId.mElementId == KeyboardId.ELEMENT_ALPHABET_SHIFT_LOCKED
+                    || mKeyboard.mId.mElementId == KeyboardId.ELEMENT_ALPHABET_SHIFT_LOCK_SHIFTED)) {
+            kdc = new KeyDrawingConfiguration(
+                    kdc.getBackground(),
+                    kdc.getBackgroundPadding(),
+                    kdc.getIcon(),
+                    kdc.getHintIcon(),
+                    kdc.getLabel(),
+                    kdc.getHintLabel(),
+                    sCapsLockColor,
+                    kdc.getHintColor(),
+                    kdc.getTextSize(),
+                    kdc.getHintSize());
+        }
         final Drawable background = kdc.getBackground();
         if (background != null) {
             onDrawKeyBackground(key, canvas, background);
@@ -643,6 +663,13 @@ public class KeyboardView extends View {
     public static void setClusterMainOffsets(final float left, final float right) {
         sClusterLeftOff = left;
         sClusterRightOff = right;
+    }
+
+    // kxkb: colour the Shift glyph takes when caps-lock is on, so it's visually obvious. Pushed
+    // per-(language·layout·geometry) from LatinIME.withPerKindLook; defaults to pure blue.
+    private static int sCapsLockColor = 0xFF0000FF;
+    public static void setCapsLockColor(final int color) {
+        sCapsLockColor = color;
     }
 
     // kxkb 4D: draw a flick key's eight directional labels on its face, mirroring the hold-popup

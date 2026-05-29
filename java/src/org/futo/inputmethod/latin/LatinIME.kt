@@ -321,6 +321,9 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             saved.clusterLeftOffset, saved.clusterRightOffset
         )
 
+        // kxkb: push the caps-lock Shift-glyph colour (null = the default pure blue).
+        org.futo.inputmethod.keyboard.KeyboardView.setCapsLockColor(saved.capsLockColor ?: 0xFF0000FF.toInt())
+
         val a = scheme.extended.advancedThemeOptions
         val overlaid = a.copy(
             keyLetterScale = if (saved.fontSizeMultiplier >= 0f) saved.fontSizeMultiplier else a.keyLetterScale,
@@ -377,7 +380,8 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                 a.keyBorderColor != b.keyBorderColor ||
                 a.keyboardBackgroundColor != b.keyboardBackgroundColor ||
                 a.suggestionBarColor != b.suggestionBarColor ||
-                a.suggestionTextColor != b.suggestionTextColor
+                a.suggestionTextColor != b.suggestionTextColor ||
+                a.capsLockColor != b.capsLockColor
     }
 
     private fun updateDrawableProvider(colorScheme: KeyboardColorScheme) {
