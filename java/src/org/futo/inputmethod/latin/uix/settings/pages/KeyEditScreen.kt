@@ -3,6 +3,13 @@ package org.futo.inputmethod.latin.uix.settings.pages
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.futo.inputmethod.keyboard.Keyboard as RuntimeKeyboard
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -181,6 +188,32 @@ private fun AttributesEditor(seedKey: String, attrs: KeyAttributes, overrideWidt
     TriBoolRow("fastMoreKeys", attrs.fastMoreKeys) { onChange(attrs.copy(fastMoreKeys = it)) }
 }
 
+// A size override as a PERCENTAGE of the theme size (the stored value is a multiplier, 1.0 = 100%).
+// Off (Switch) = null = use the theme/geometry size. On = a slider 20%–300%.
+@Composable
+private fun SizePercentRow(label: String, value: Float?, onChange: (Float?) -> Unit) {
+    Column(Modifier.padding(16.dp, 4.dp)) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(
+                label + (value?.let { " — ${(it * 100).roundToInt()}%" } ?: " — theme"),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f)
+            )
+            androidx.compose.material3.Switch(
+                checked = value != null,
+                onCheckedChange = { on -> onChange(if (on) (value ?: 1f) else null) }
+            )
+        }
+        if (value != null) {
+            androidx.compose.material3.Slider(
+                value = (value * 100f).coerceIn(20f, 300f),
+                onValueChange = { onChange(it / 100f) },
+                valueRange = 20f..300f
+            )
+        }
+    }
+}
+
 // ---- change type ----
 
 private val TYPE_OPTIONS = listOf("base", "compass", "cluster", "column", "macro", "chord", "cycle", "case", "gap")
@@ -276,6 +309,7 @@ private fun DirectionRow(
 
 @Composable
 fun KeyEditScreen(navController: NavHostController = rememberNavController(), pathStr: String) {
+    val context = LocalContext.current
     val path = remember(pathStr) { EditPath.decode(pathStr) }
     // subscribe to working-model changes
     val working = KeyboardEditorSession.working
@@ -432,6 +466,36 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
             else -> keyAttributes(key)?.let { it to { a: KeyAttributes -> withAttributes(key, a) } }
         }
         attrsForEdit?.let { (attrs, build) ->
+            HorizontalDivider(Modifier.padding(16.dp, 8.dp))
+            Text("Appearance (live)" + if (key is CaseSelector) " — applied to all shift states" else "",
+                style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
+
+            // Single-key live preview at REAL size: build the full page keyboard (at the device
+            // keyboard width), find this key, and crop to it — so its true width:height proportions
+            // show 1:1. Rebuilds when the key changes, so colour/size edits show live.
+            var pageKb by remember { mutableStateOf<RuntimeKeyboard?>(null) }
+            LaunchedEffect(key, path.page) {
+                pageKb = withContext(Dispatchers.Default) {
+                    KeyboardEditorSession.buildPreview(context, context.resources.displayMetrics.widthPixels, path.page)
+                }
+            }
+            val tgtKey = pageKb?.sortedKeys?.firstOrNull { it.row == path.row && it.column == path.col }
+            if (tgtKey != null) {
+                Box(Modifier.fillMaxWidth().padding(16.dp, 8.dp), contentAlignment = Alignment.Center) {
+                    SingleKeyCrop(pageKb!!, tgtKey)
+                }
+            }
+
+            ColorSetting("Text colour", attrs.color, 0xFFFFFFFF.toInt()) { put(build(attrs.copy(color = it))) }
+            if (attrs.color != null) {
+                OutlinedButton(
+                    onClick = { put(build(attrs.copy(color = null))) },
+                    modifier = Modifier.padding(16.dp, 2.dp)
+                ) { Text("Use theme colour") }
+            }
+            SizePercentRow("Font size", attrs.fontScale) { put(build(attrs.copy(fontScale = it))) }
+            SizePercentRow("Secondary (hint) size", attrs.hintScale) { put(build(attrs.copy(hintScale = it))) }
+
             HorizontalDivider(Modifier.padding(16.dp, 8.dp))
             Text(
                 if (key is CaseSelector) "Attributes (applied to all shift states)"

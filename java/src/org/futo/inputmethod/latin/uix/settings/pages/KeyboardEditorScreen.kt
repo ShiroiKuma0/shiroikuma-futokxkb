@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -92,6 +96,51 @@ internal fun EditorPreview(keyboard: Keyboard, onTapKey: (Key) -> Unit) {
                         }?.let(onTapKey)
                     }
                 }
+        )
+    }
+}
+
+// kxkb: render a SINGLE key at its REAL size. Rather than fight Compose layout with offset/clip, we
+// draw the FULL keyboard into a Bitmap and crop that bitmap to the key's exact pixel rectangle —
+// deterministic and true 1:1 proportions.
+private fun renderKeyBitmap(ctx: android.content.Context, kb: Keyboard, key: Key): android.graphics.Bitmap? {
+    return try {
+        val fullW = kb.mId.mWidth
+        val fullH = kb.mOccupiedHeight
+        if (fullW <= 0 || fullH <= 0) return null
+        val kv = KeyboardView(ctx, null)
+        kv.setKeyboard(kb)
+        kv.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(fullW, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(fullH, android.view.View.MeasureSpec.EXACTLY)
+        )
+        kv.layout(0, 0, kv.measuredWidth, kv.measuredHeight)
+        if (kv.measuredWidth <= 0 || kv.measuredHeight <= 0) return null
+        val full = android.graphics.Bitmap.createBitmap(kv.measuredWidth, kv.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
+        kv.draw(android.graphics.Canvas(full))
+        // The key is drawn at drawX = x + horizontalGap/2, spanning drawWidth × height.
+        val x = key.drawX.coerceIn(0, full.width - 1)
+        val y = key.y.coerceIn(0, full.height - 1)
+        val w = key.drawWidth.coerceIn(1, full.width - x)
+        val h = key.height.coerceIn(1, full.height - y)
+        android.graphics.Bitmap.createBitmap(full, x, y, w, h)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+@Composable
+internal fun SingleKeyCrop(fullKeyboard: Keyboard, targetKey: Key) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val ctx = remember { ContextThemeWrapper(context, R.style.KeyboardTheme_LXX_Light) }
+    // re-render whenever the keyboard (rebuilt from the edited model) or the target key changes
+    val bmp = remember(fullKeyboard, targetKey.row, targetKey.column) { renderKeyBitmap(ctx, fullKeyboard, targetKey) }
+    if (bmp != null) {
+        androidx.compose.foundation.Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier.size(with(density) { bmp.width.toDp() }, with(density) { bmp.height.toDp() })
         )
     }
 }
