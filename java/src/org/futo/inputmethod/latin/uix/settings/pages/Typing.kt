@@ -321,7 +321,7 @@ val KxkbSizingResetMenu = UserSettingsMenu(
 // channels are seeded from `inherited`, so the first drag promotes the inherited colour to an
 // explicit override rather than starting from black.
 @Composable
-private fun ColorChannelSlider(
+internal fun ColorChannelSlider(
     label: String,
     effective: Int,
     current: Int?,
@@ -349,7 +349,7 @@ private fun ColorChannelSlider(
 // the full ARGB through onChange, which drives LatinIME.withPerKindLook so the docked keyboard and
 // the suggestion bar recolour live.
 @Composable
-private fun ColorSetting(
+internal fun ColorSetting(
     title: String,
     current: Int?,
     inherited: Int,

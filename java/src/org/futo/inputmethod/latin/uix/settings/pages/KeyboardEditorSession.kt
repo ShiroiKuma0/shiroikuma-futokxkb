@@ -22,12 +22,15 @@ import org.futo.inputmethod.v2keyboard.CompassSlot
 import org.futo.inputmethod.v2keyboard.CycleKey
 import org.futo.inputmethod.v2keyboard.FlickKey
 import org.futo.inputmethod.v2keyboard.GapKey
+import org.futo.inputmethod.v2keyboard.KeyAttributes
 import org.futo.inputmethod.v2keyboard.KeySlot
+import org.futo.inputmethod.v2keyboard.MoreKeyMode
 import org.futo.inputmethod.v2keyboard.KeyWidth
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2Params
 import org.futo.inputmethod.v2keyboard.MacroKey
 import org.futo.inputmethod.v2keyboard.ModSlot
+import org.futo.inputmethod.v2keyboard.NumberRowMode
 import org.futo.inputmethod.v2keyboard.RegularKeyboardSize
 import org.futo.inputmethod.v2keyboard.Row
 import org.futo.inputmethod.v2keyboard.emitKeyboardYaml
@@ -317,6 +320,22 @@ object KeyboardEditorSession {
         val srcKb = try { parseKeyboardYamlString(src.layoutYaml) } catch (e: Exception) { return null }
         val rows = srcKb.altPages.getOrNull(srcPage) ?: return null
         return buildPreviewFor(context, widthPx, srcKb.copy(rows = rows, altPages = emptyList()), src.language)
+    }
+
+    /** Render a SINGLE key in a throwaway 1-key keyboard, so the editor can show its appearance live
+     *  while colour/size sliders move. The empty gap "bottom row" stops getEffectiveRows from
+     *  mangling the lone letter row. */
+    fun buildSingleKeyPreview(context: Context, widthPx: Int, key: AbstractKey, language: String): RuntimeKeyboard? {
+        val kb = V2Keyboard(
+            name = "preview",
+            rows = listOf(Row(letters = listOf(key)), Row(bottom = listOf(GapKey()))),
+            numberRowMode = NumberRowMode.AlwaysDisabled,
+            // OnlyExplicit: a lone non-counting key (cluster/compass) crashes FUTO's auto-moreKeys
+            // builder otherwise (numColumnsByRow out of bounds) → build fails → error layout shown.
+            attributes = KeyAttributes(moreKeyMode = MoreKeyMode.OnlyExplicit, useKeySpecShortcut = false),
+            overrideWidths = working?.overrideWidths ?: emptyMap()
+        )
+        return buildPreviewFor(context, widthPx, kb, language)
     }
 
     /**
