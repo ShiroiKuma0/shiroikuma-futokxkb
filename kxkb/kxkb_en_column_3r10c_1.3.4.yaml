@@ -1,64 +1,6 @@
-# kxkb gnu 5r13c 1.3.4  —  Multiling O → FUTO v2 layout
-# Source: kxkb_gnu-emacs_5r13c_1.3.4.txt  (Emacs-oriented Czech layout, v1.3.4)
-#
-# This is your Emacs layout: nearly every letter is a compass whose LEFT slide is its
-# Meta chord (M-x) and DOWN slide its Control chord (C-x), with the capital on UP, the
-# Czech-accented form on RIGHT, and more accents/symbols in the corners. The base page is
-# a clean 13-column grid; sym (alt0) and altGr (alt1) are 10-column grids — every page has
-# uniform columns, so everything fills at Regular with NO custom widths needed.
-#
-# ============================ CHORDS (the point of this layout) ============================
-#  * All [MC:[Mod]base:LABEL] chords use the fork's Emacs notation, taken straight from your
-#    LABELs: [MC:[Alt]c:M-c] → { chord: "M-c", label: "M-c" }; [MC:[Ctrl]c:C-c] → "C-c". Named
-#    bases pass through: M-TAB, S-TAB, C-TAB, M-RET, C-RET, C-SPC. C=Ctrl M=Alt S=Shift s=Super.
-#  * [MC:[Ctrl][Shift]x:C-X] needs an explicit Shift, so it's { chord: "C-S-x", label: "C-X" }
-#    (the engine wants S- spelled out; the key face still reads "C-X").
-#  * VERIFY these chord bases on device — the fork's chord base-map covers a–z, 0–9 and the
-#    UNSHIFTED terminal symbols [ ] \ / - = ; ' , . ` only. So C--, C-\, C-/ should work, but
-#    the SHIFTED-symbol chords M-: / C-: / C-> / C-< may not register — flag if they no-op.
-#  * MALFORMED in source: [MC:[Ctrl]is:C-i] (the i-key's down slide — base "is" is a typo for
-#    "i"). Mapped to { chord: "C-i", label: "C-i" }. Confirm that's what you meant.
-#
-# ============================ STRUCTURE / DECISIONS ============================
-#  * [4D:…] = compass, Multiling slot order primary,left,up,right,down,UL,UR,DR,DL; a SPACE
-#    skips a slot (e.g. [4D:~   `] = primary ~, down `).
-#  * Number row (row 0): CaseSelector — DIGIT on tap, the symbol on shift (your "numbers
-#    primary" design: 1↔@, 2↔&, 3↔(, …); the ordinal macro [MC:1ˢᵗ] rides each one's left slide.
-#  * Letter rows: I kept the BASE (unshifted) compass and let FUTO auto-capitalise the primary;
-#    the slide slots are NOT re-ordered on shift (FUTO only caps the centre). Everything is
-#    still reachable from the base key — capital on UP, accent on RIGHT, more in the corners —
-#    so shifting just changes the tap letter. (Same call as your 5r4c/5r9c.) The one non-letter
-#    swap, the '/" apostrophe key, likewise keeps its base form (tap ', up ").
-#  * Bottom row: $shift, $space, the Tab compass (M-/S-/C-TAB slides), the ?,! cluster, Tool
-#    (settings), the : compass (M-:/C-: + !/?), a single | (your || → one |), $delete, the
-#    Enter compass (M-/C-RET slides), $space, $shift. Spacebars are $space/Grow so they fill.
-#  * [4D:[Ctrl] [SYM] [MC:…C-SPC]] (row 3) = tap one-shot Ctrl, slide ↑ to sym/alt0, slide ↓
-#    for C-SPC (set-mark).  [ALTGR:[Esc]] (row 3) = tap Esc, slide ↑ to altGr/alt1.
-#  * Alt-page bottoms: [Lock] → return-to-letters (← ABC); [ALTGR:[Tab]]/[SYM:[Del]] keep their
-#    slide-to-page; [123:[Enter]] → plain Enter (the 123 slide is dropped).
-#  * DROPPED: [Predict] (no FUTO action); the source-noted "sym/symShifted spacing bug" is a
-#    Multiling quirk and doesn't apply here.
-#  * Scope (as before): symShifted and altGrShifted ignored — altGrShifted is identical to altGr,
-#    and symShifted differs only trivially (row 3/7) from sym. Say if you want symShifted's
-#    variant row added.
-#  * BOTTOM BAR: the engine derives one shared functional-key width from the WHOLE layout
-#    (the min across any row that has a functional key). Your 5r15c has a Delete at the end of
-#    a letter row that anchors it small; this 5r13c has no letter-row functional key, so the
-#    bottom row's own estimate ballooned shift/delete and starved the middle keys. Fix: the
-#    bottom-row functional keys (shift/delete; alt-page return) are pinned to explicit widths
-#    (Custom2/Custom3) so the bar is self-contained — wide Custom1 spacebars, uniform middle,
-#    no cram — and renders the same in any layout. Delete keeps hold-to-repeat
-#    (repeatableEnabled: true). Trade-off: shift now uses a static icon (no shifted-state glyph
-#    swap); say the word if you'd rather keep the dynamic $shift and accept slightly narrower
-#    spacebars instead.
 name: "kxkb en column 3r10c 1.3.4"
 attributes: { useKeySpecShortcut: false }
 numberRowMode: AlwaysDisabled
-# Bottom-bar widths (from your 5r15c): fixed Custom1 spacebars + zeroed functional minimums
-# so the row sizes deterministically instead of Grow-stretching.
-# Bottom-bar widths: spacebars fixed at Custom1; the bottom-row functional keys (shift/delete,
-# and the alt-page return) are pinned to explicit widths too, so the row is self-contained and
-# renders identically regardless of the rest of the layout (see note below).
 minimumFunctionalKeyWidth: 0.0
 minimumBottomRowFunctionalKeyWidth: 0.0
 overrideWidths: { Custom1: 0.2, Custom2: 0.0666667, Custom3: 0.1 }

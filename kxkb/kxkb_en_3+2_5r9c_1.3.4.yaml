@@ -1,36 +1,3 @@
-# kxkb en 3+2 5r9c 1.3.4  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
-#
-# UPDATE 2026-05-26: cluster keys now SHOW their shifted (UPPERCASE) faces when Shift, caps-lock,
-# or auto-caps is active. Each letter cluster is a CaseSelector now ({ type: case, normal: <lower>,
-# shifted: <UPPER> } — `shifted` covers all three shift states). Previously only the committed
-# output was capitalised while the key face stayed lower-case. Width attrs are carried into both
-# variants; punctuation/digit/symbol clusters (?!@%, ;.,, the number row) are unchanged.
-#
-# Same family as the 5r4c, with SIDE COLUMNS added to the three middle letter rows. Number row,
-# bottom row, and both alt pages (sym/altGr) are identical to the 5r4c conversion.
-#
-# WIDTHS:
-#   Letter rows 1–3 are a 22-cell grid (the [] extenders): each cluster = 3 cells = Custom2 ≈ 0.1364,
-#   every other key (side functions, the centre arrow cross, the doubled-punctuation keys) = 2 cells
-#   = Custom1 ≈ 0.0909. 5×0.0909 + 4×0.1364 = 1.0 per row. Per-key widths (the rows are not uniform).
-#   Row 0 (11 keys) fills at Regular (1/11). Custom3 = 0.1 fills sym rows 1–6 (sym row 0 has 14 keys).
-#   altGr rows (10) fill at Regular. Bottom rows: non-space = Custom1, two $space (Grow) → 0.1818.
-#   Delete keeps hold-to-repeat. Shift is a static icon; bottom enter keeps its Action accent (no
-#   IME-adaptive icon).
-#
-# FLAGGED CONVERSION CHOICES (please test):
-#  * Doubled punctuation (( )) :: "" "" !! ?? → ONE key each, width 2 cells (your || → | preference).
-#  * Centre arrow cross: row1 ↑, row2 ← →, row3 ↓ (action_up/left/right/down), flanked by those
-#    doubled-punct keys. Side functions: row1 Esc (slide ↑ = altGr), row2 Ctrl (slide ↑ = sym),
-#    row3 gear; row3 also ends in Delete.
-#  * ROW 0 reproduces the UNSHIFTED layer only (digits tap, symbols/accents on slides). The shifted
-#    layer's digit↔symbol swap and its accent-key→four-arrows change aren't reproduced (FUTO can't);
-#    arrows are on the centre cross and the sym page anyway.
-#  * Dropped (no equivalent): [WDEL] (row1 mwk ↓), [Predict] (row3 !x? ↑). Keys stay; only those slides go.
-#  * Cluster bands commit their CENTRE on tap (e.g. "mwk"→w, "(io"→i, ";l:"→l, "sh)"→h).
-#  * sym arrows = compasses with PgUp/Home/PgDn as modifier-less chords + C-s; ordinals are macros.
-#  * [123:[Enter]]→plain Enter; bottom Tab keeps its altGr slide. moreKeyMode: OnlyExplicit (per skill).
-
 name: "kxkb en 3+2 5r9c 1.3.4"
 attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
 numberRowMode: AlwaysDisabled

@@ -1,30 +1,3 @@
-# kxkb 日本語 5r10c 1.3.3  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
-#
-# SCOPE: main (+shifted), sym→alt0, altGr→alt1. Ignored: num, the duplicate sym block, altGrShifted,
-#        topBar. (The source lists "sym" twice, identically — used once.)
-#
-# WIDTHS:
-#   Custom2 = 0.1  → main letter rows 1–3 (10 keys each). Row 0 (13 keys) fills at Regular (1/13).
-#   sym letter rows are 10 (Regular 1/10); altGr letter rows are 12 (Regular 1/12) — both self-fill.
-#   BOTTOM ROWS: the spacebar is []-extended to 3 cells (12 cells total); the nine 1-cell keys are
-#   pinned to Custom1 = 1/12 ≈ 0.0833 and one $space (Grow) fills to 0.25. Sums to 1.0, no cram.
-#   Delete keeps hold-to-repeat; shift static icon; bottom enter keeps Action accent (no adaptive icon).
-#
-# FLAGGED CONVERSION CHOICES (please test):
-#  * ROW 0 digit↔symbol swap IS reproduced via CaseSelectors: tap = digit, Shift = symbol
-#    (1→@ 2→& 3→( 4→# 5→[ 6→] 7→* 8→) 9→$ ; the 0 cluster → ^ on shift). The shifted row is the same
-#    13-key shape here, so unlike the en/ru 5r4c this swap is faithful. ← ↑ → and the 0/^ cluster
-#    (〇 + Hide on slides) sit to the right.
-#  * Rows 1–3 latin letters auto-capitalise on shift. Cluster slide contents and the bottom
-#    gear→lock / shift→lock on shift are NOT reproduced (caps-lock = shift double-tap).
-#  * Dropped (no equivalent): [Predict] (row3 ;: ↑). Kept action slides: [Copy]/[Cut] (row1 ・), [HIDE].
-#    Bottom Tab keeps its altGr slide; Ctrl→sym, Esc→altGr.
-#  * Cluster bands commit their CENTRE on tap — note the 2-char bands "「」", "）（"-style, and ";:"/";.,".
-#  * sym row4 [MC:...] → a macro typing three literal periods "..." (flag: maybe meant as … or a
-#    placeholder). [VOICE] → voice. Era/squared-kana glyphs reproduced as-is.
-#  * [123:[Enter]] → plain Enter (number-layer slide dropped). moreKeyMode: OnlyExplicit (per skill).
-#  * Return label "← ABC" — change if you'd prefer e.g. あ / 戻る.
-
 name: "kxkb 日本語 5r10c 1.3.3"
 attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
 numberRowMode: AlwaysDisabled
