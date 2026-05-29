@@ -474,7 +474,10 @@ data class BaseKey(
             showPopup = attributes.showPopup!!,
             moreKeys = moreKeys.specs,
             longPressEnabled = (attributes.longPressEnabled ?: false) || moreKeys.specs.isNotEmpty(),
-            repeatable = (attributes.repeatableEnabled ?: false) || isRepeatableActionCode(code),
+            // kxkb: backspace always repeats when held, in any layout — even longhand delete keys
+            // that don't set repeatableEnabled (the $delete template already does).
+            repeatable = (attributes.repeatableEnabled ?: false) || isRepeatableActionCode(code)
+                || code == Constants.CODE_DELETE,
             moreKeyFlags = moreKeys.flags,
             countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
             hint = hint ?: "",
