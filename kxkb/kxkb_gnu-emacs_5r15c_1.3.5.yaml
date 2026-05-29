@@ -1,34 +1,5 @@
-name: "kxkb gnu 5r15c 1.3.4"
+name: "kxkb gnu 5r15c 1.3.5"
 
-# Converted from the Multiling O layout "5r15c 1.3.4". Scope per request: the `main` layer (with the
-# top row's shifted symbols), Multiling `sym` -> alt0, `altGr` -> alt1. Ignored: num / symShifted /
-# altGrShifted / topBar.
-#
-# Mapping used:
-#   [4D:p L U R D TL TR BR BL]      -> compass (Multiling slot order: left,up,right,down,TL,TR,BR,BL)
-#   [3+2:abc t b]                   -> cluster main:"abc" up:t down:b (centre commits; <- -> = side mains)
-#   [MC:[Ctrl]c:C-c]                -> { chord: "C-c", label: "C-c" }
-#   [MC:1ˢᵗ]                        -> { macro: "1ˢᵗ" } / standalone { type: macro, text: "1ˢᵗ" }
-#   [SYM]  -> alt0 switch (key_to_alt_0_layout) ; [ALTGR] -> alt1 switch (key_to_alt_1_layout)
-#   [ALTGR:[Esc]] / [SYM:[Del]]     -> combined: tap = the char, slide UP = open the alt page
-#   [Lock] (on sym/altGr)           -> "← ABC" return-to-letters (key_to_alpha_0_layout)
-#   [Esc]/[Ctrl]/[Tab]/[Enter]/[Del]/[Space]/[Shift] -> their FUTO codes/templates
-#   [HIDE]->action_hide_keyboard  [Up/Down/Left/Right]->arrow actions  [Undo]->action_undo
-#   [Tool]->key_settings (gear)   [VOICE]->action_voice_input
-#
-# KNOWN CAVEATS (flagged for testing):
-#   * Shift: top row carries exact shifted symbols via per-key {type: case}; letter rows auto-capitalise
-#     the PRIMARY only (FUTO native) — the slide slots do NOT swap case like Multiling did.
-#   * Chords whose base is a shifted symbol (C->, C-<, C-:) may not emit on the current chord engine
-#     (its base map covers a–z, 0–9 and unshifted terminal symbols). Left in faithfully; verify.
-#   * [MC:[Ctrl]is:C-i] had an odd payload "[Ctrl]is" — mapped to chord "C-i" (the labelled intent).
-#   * Bottom row: Multiling's spacer-gap structure normalised to a clean functional row (matches your
-#     earlier test YAML). Say if you want the literal gap-for-gap version instead.
-#   * "||" in the Multiling bottom row rendered as a single "|" key (as in your test YAML).
-
-numberRowMode: AlwaysDisabled
-# Keep "$" a literal dollar (otherwise FUTO swaps bare "$" for the locale currency symbol),
-# and stop bare keys auto-growing long-press popups — everything here lives in slides/slots.
 attributes: { useKeySpecShortcut: false }
 minimumFunctionalKeyWidth: 0.0
 minimumBottomRowFunctionalKeyWidth: 0.0
@@ -68,7 +39,7 @@ rows:
     - { type: compass, primary: f, left: { chord: "M-f", label: "M-f" }, up: F, right: ℉, down: { chord: "C-f", label: "C-f" } }
     - { type: compass, primary: r, left: { chord: "M-r", label: "M-r" }, up: R, right: ř, down: { chord: "C-r", label: "C-r" }, upLeft: ₽, upRight: Ř, downRight: ŕ, downLeft: ® }
     - { type: compass, primary: l, left: { chord: "M-l", label: "M-l" }, up: L, right: ľ, down: { chord: "C-l", label: "C-l" }, upLeft: ł, upRight: Ľ, downRight: ĺ, downLeft: £ }
-    - { type: compass, primary: "'", left: "+", up: "\"", right: "=", down: "%", upLeft: "´", upRight: "ˇ", downRight: "¨", downLeft: "'" }
+    - { type: compass, primary: "'", left: "+", up: "\"", right: "=", down: "%", upLeft: "´", upRight: "ˇ", downRight: "¨", downLeft: "¯" }
     - { type: compass, primary: "?", up: "!" }
 
   # ---- Row 3: Ctrl | i o a e v | ← ~ → | b t n s h | Del ----
