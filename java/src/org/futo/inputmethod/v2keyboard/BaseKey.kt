@@ -676,7 +676,9 @@ enum class KeyVisualStyle {
  */
 @Serializable
 @SerialName("gap")
-class GapKey(val attributes: KeyAttributes = KeyAttributes()) : AbstractKey {
+// kxkb: `data class` (was a plain `class`) so two gap keys with equal attributes compare equal —
+// the layout editor relies on structural key equality (template matching, round-trip checks).
+data class GapKey(val attributes: KeyAttributes = KeyAttributes()) : AbstractKey {
     override fun countsToKeyCoordinate(params: KeyboardParams, row: Row, keyboard: Keyboard): Boolean = false
 
     override fun computeData(
