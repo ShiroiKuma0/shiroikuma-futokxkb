@@ -2,7 +2,7 @@
 
 Fork of [FUTO Keyboard](https://github.com/futo-org/futo-keyboard-android) — package `shiroikuma.futokxkb`, label "白い熊 FUTO kxkb", installable side-by-side with the official FUTO Keyboard from F-Droid.
 
-The `custom` branch carries ~56 customisation commits (all prefixed `kxkb:`) over the FUTO `0.1.28` release tag, rebased onto each new upstream release.
+The `custom` branch carries ~76 customisation commits (the two base commits plus the `kxkb:`-prefixed feature commits) over the FUTO `0.1.28` release tag, rebased onto each new upstream release.
 
 ## Skills
 
@@ -51,7 +51,9 @@ The skills were originally written for claude.ai chat where Claude can't touch t
 
 ## Active recent work
 
-Last shipped: `kxkb: backspace auto-repeats when held in any layout` (commit `bfe244fbb`) — `BaseKey.computeData` now treats `CODE_DELETE` as repeatable (alongside the arrow actions), so longhand delete keys repeat when held without needing `repeatableEnabled` in the layout (the `$delete` template already did). 1 file.
+Last shipped: `kxkb: Caps-lock via Shift tap-cycle + blue Shift-glyph indicator` (commit `f99c2f2f1`; preceded by a one-line `.gitignore` housekeeping fix `030bb4bb8`). Tapping Shift now **cycles** unshifted → shift (one-shot) → caps-lock → unshifted, timing-free (replaces double-tap-for-caps-lock; two quick taps still reach caps-lock via the cycle). A *manual* shift advances to caps-lock; auto-caps (`Shifted`) and caps-lock both unshift on tap (so a tap still cancels an auto-capitalised start). Driven by `KeyboardState.cycleShift()` (the `CODE_SHIFT` press now calls it instead of `toggleShift`+`onShiftTapForShiftLockTimer`). When caps-lock is engaged the **Shift glyph** on both Shift keys recolours (default pure blue `#0000FF`) so the locked state is obvious; the key *background* is untouched — done by overriding `textColor` in the `KeyDrawingConfiguration` for `CODE_SHIFT` keys when the keyboard is in a `SHIFT_LOCKED`/`SHIFT_LOCK_SHIFTED` element (the icon tint and label paint both honour `textColor`), detected at draw time since caps-lock toggling is a full element reload. The colour is a new per-(language·layout·geometry) Keyboard UI setting: `SavedKeyboardSizingSettings.capsLockColor`, pushed via `KeyboardView.setCapsLockColor` in `LatinIME.withPerKindLook` (null ⇒ default blue), `lookFieldsDiffer` re-looks on change, and a "Caps lock → Caps-lock Shift colour" ColorSetting row in Settings → Keyboard UI. 6 files, no native change. Documented in full in futo-keyboard-build §"Implemented features".
+
+Prior: `kxkb: backspace auto-repeats when held in any layout` (commit `bfe244fbb`) — `BaseKey.computeData` now treats `CODE_DELETE` as repeatable (alongside the arrow actions), so longhand delete keys repeat when held without needing `repeatableEnabled` in the layout (the `$delete` template already did). 1 file.
 
 Prior: `kxkb: append topBar defaults after next-word predictions (combined bar)` (commit `f25c887eb`), on top of the Multiling-style "topBar" feature (`432f70487`). The topBar static entries (emoji/snippets, `A…B` bracket-pairs with caret-between, `[Paste]`, `{{date` stamps) show in the suggestion bar's idle/next-word state; now they're **appended after any next-word predictions** (so both are selectable) instead of only when the bar is empty. While composing a word the bar stays pure (no defaults). Global list editable in Settings → Typing → "Suggestion bar candidates"; a layout's own `topBar:` overrides it. Engine: `GeneralIME.showPredictionsWithTopBar()` + `engine/general/TopBar.kt` parser + identity-matched pick interception in `onEventInternal`. No native change. Also confirmed this session: next-word prediction for cs/ru is **user-history-only by design** (no transformer model covers them; bundled dicts are unigram-only) — not a bug. Documented in full in futo-keyboard-build §"Implemented features".
 
