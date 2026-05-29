@@ -498,7 +498,14 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             }
 
             dictResult != null -> {
-                onGetSuggestedWords(dictResult, inputStyle, sequenceNumber)
+                // kxkb: no LM result (e.g. a language with no transformer model, like Czech/Russian).
+                // If the active layout is a cluster layout, apply the cluster filter + enumeration to
+                // the raw dict result; otherwise this returns null and the legacy result is used as-is.
+                val dr = dictResult!!
+                onGetSuggestedWords(
+                    languageModelFacilitator.maybeApplyClusterConstraint(inputStyle, dr) ?: dr,
+                    inputStyle, sequenceNumber
+                )
             }
 
             // Note: we don't support LM results but not dict

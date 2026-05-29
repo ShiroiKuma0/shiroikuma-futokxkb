@@ -25,12 +25,15 @@ import org.futo.inputmethod.latin.SuggestedWords
 import org.futo.inputmethod.latin.SuggestedWords.SuggestedWordInfo
 import org.futo.inputmethod.latin.SuggestionBlacklist
 import org.futo.inputmethod.latin.common.ComposedData
+import org.futo.inputmethod.latin.common.Constants
+import org.futo.inputmethod.latin.common.InputPointers
 import org.futo.inputmethod.latin.inputlogic.InputLogic
 import org.futo.inputmethod.latin.settings.Settings
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.USE_TRANSFORMER_FINETUNING
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.utils.SuggestionResults
+import java.text.Normalizer
 import kotlin.math.ceil
 
 
@@ -230,15 +233,30 @@ public class LanguageModelFacilitator(
         return lmSuggestions
     }
 
+    // kxkb: fold a codepoint to its base letter (strip diacritics) and lowercase it, so a base-Latin
+    // cluster set ({a,e,v}) matches the accented dictionary letters of the words that share those keys
+    // (ě/é -> e, ž -> z, ...). This mirrors the native dict decoder's accent-insensitive
+    // toBaseLowerCase/BASE_CHARS (char_utils.h): the native layer already surfaces accented words from
+    // base-letter taps, and without this fold our exact-codepoint cluster filter would drop every one
+    // of them -- breaking Czech, Polish, Slovak and every other diacritic Latin language. All-ASCII
+    // languages (English) take the fast path and are byte-for-byte unaffected.
+    private fun clusterBaseFold(codePoint: Int): Int {
+        val lower = Character.toLowerCase(codePoint)
+        if (lower < 0x80) return lower // ASCII has no diacritics to strip; skip the normalizer
+        val decomposed = Normalizer.normalize(String(Character.toChars(lower)), Normalizer.Form.NFD)
+        val base = decomposed.firstOrNull { Character.getType(it) != Character.NON_SPACING_MARK.toInt() }
+        return base?.let { Character.toLowerCase(it.code) } ?: lower
+    }
+
     // kxkb: for cluster-style (tap, non-swipe) input, each tap commits to a SET of letters (the
-    // cluster's mains). Returns the per-tap allowed lowercase codepoints, or null when the constraint
-    // must NOT apply: gesture/swipe input, no current keyboard, or a layout with no cluster keys at
-    // all. That null path is what keeps ordinary/qwerty layouts and all swipe typing untouched -- on
-    // a swipe keyboard off-path candidates are desirable, so the filter is bypassed entirely there.
-    private fun clusterAllowedSets(values: PredictionInputValues): List<Set<Int>>? {
-        if (values.composedData.mIsBatchMode) return null
+    // cluster's mains). Returns the per-tap allowed base-folded codepoints, or null when the
+    // constraint must NOT apply: gesture/swipe input, no current keyboard, or a layout with no cluster
+    // keys at all. That null path is what keeps ordinary/qwerty layouts and all swipe typing untouched
+    // -- on a swipe keyboard off-path candidates are desirable, so the filter is bypassed there.
+    private fun clusterAllowedSets(composedData: ComposedData): List<Set<Int>>? {
+        if (composedData.mIsBatchMode) return null
         val keyboard = keyboardSwitcher.keyboard ?: return null
-        val pointers = values.composedData.mInputPointers
+        val pointers = composedData.mInputPointers
         val n = pointers.pointerSize
         if (n <= 0) return null
         val xs = pointers.xCoordinates
@@ -251,12 +269,12 @@ public class LanguageModelFacilitator(
             val mains = key?.clusterMains
             if (mains != null && mains.isNotEmpty()) {
                 anyCluster = true
-                sets.add(mains.map { Character.toLowerCase(it.codePoint) }.toHashSet())
+                sets.add(mains.map { clusterBaseFold(it.codePoint) }.toHashSet())
             } else {
                 // A non-cluster key mixed into a cluster layout pins its own letter; an unresolved
                 // tap (empty set) is left unconstrained so we never over-filter on bad coordinates.
                 val c = key?.code ?: -1
-                sets.add(if (c > 0) hashSetOf(Character.toLowerCase(c)) else emptySet())
+                sets.add(if (c > 0) hashSetOf(clusterBaseFold(c)) else emptySet())
             }
         }
         return if (anyCluster) sets else null
@@ -270,7 +288,8 @@ public class LanguageModelFacilitator(
         for (i in sets.indices) {
             val allowed = sets[i]
             if (allowed.isEmpty()) continue
-            if (!allowed.contains(Character.toLowerCase(word[i].code))) return false
+            // base-fold so an accented dictionary letter (ě, é) matches its base-Latin cluster set
+            if (!allowed.contains(clusterBaseFold(word[i].code))) return false
         }
         return true
     }
@@ -294,23 +313,101 @@ public class LanguageModelFacilitator(
         return Math.pow(baseFactor, (len - tapCount).toDouble()).toFloat()
     }
 
-    // kxkb: Multiling's actual mechanism. The LM beam and the dict's incremental tap-decoder both
-    // miss many common in-set exact-length words for ambiguous cluster input (people, simple, ...).
-    // Enumerate the cartesian product of per-tap cluster main letters (symbols filtered out, since
-    // a typed word can't contain them), dictionary-check each combination, and return the valid
-    // ones with their dictionary frequency. Capped at 2000 combinations so the cost per keystroke
-    // stays bounded; very long/wide inputs fall back to the existing engines.
-    private fun clusterEnumerateValid(clusterSets: List<Set<Int>>): List<Pair<String, Int>> {
+    // kxkb: Multiling's actual mechanism. The LM beam and the dict's tap-decoder both miss many
+    // common in-set words for ambiguous cluster input (people, simple, těžko, jednoduché, ...). The
+    // cluster letters are base-Latin/Cyrillic but the dictionary stores accented words and our
+    // validity lookups are accent-EXACT, so a base-letter enumeration can't produce them -- and a
+    // cartesian product over accent variants explodes on long words. Instead, WALK the dictionary
+    // trie: at each tap, ask for the valid next code points after the current prefix and follow only
+    // those whose accent-folded form is in that tap's cluster set. This prunes the search to real
+    // dictionary paths (10-tap words stay cheap), yields the accented spelling straight from the trie
+    // (no per-language accent tables), and needs no cartesian-size cap. Returns the valid in-set words
+    // with their dictionary frequency.
+    private val clusterWalkPointers by lazy { InputPointers(1) }
+    private fun clusterTrieWalk(
+        clusterSets: List<Set<Int>>,
+        accentVariants: Map<Int, List<Int>>
+    ): List<Pair<String, Int>> {
+        val n = clusterSets.size
+        if (n == 0) return emptyList()
+        val foldedSets = clusterSets.map { set ->
+            set.filter { Character.isLetter(it) }.map { clusterBaseFold(it) }.toHashSet()
+        }
+        if (foldedSets.any { it.isEmpty() }) return emptyList()
+        // getValidNextCodePoints("") returns nothing (the trie query needs a non-empty prefix), so the
+        // first letter can't come from the dict -- seed position 0 from the cluster's own letters plus
+        // their accent variants (so words starting č/ž/š/ř/ě are reachable). Positions >= 1 follow the
+        // dict's valid continuations of the prefix built so far.
+        val firstSeed = clusterSets[0].filter { Character.isLetter(it) }
+            .flatMap { cp -> listOf(cp) + (accentVariants[clusterBaseFold(cp)] ?: emptyList()) }
+            .distinct()
+        val results = ArrayList<Pair<String, Int>>()
+        val prefix = StringBuilder()
+        fun recurse(pos: Int) {
+            if (results.size >= 200) return // safety bound for very short/ambiguous inputs
+            if (pos == n) {
+                val word = prefix.toString()
+                if (dictionaryFacilitator.isValidSuggestionWord(word)) {
+                    results.add(word to dictionaryFacilitator.getFrequency(word).coerceAtLeast(0))
+                }
+                return
+            }
+            val allowed = foldedSets[pos]
+            val candidates: Collection<Int> = if (pos == 0) firstSeed else {
+                dictionaryFacilitator.getValidNextCodePoints(
+                    ComposedData(clusterWalkPointers, false, prefix.toString())
+                ) ?: return
+            }
+            val seen = HashSet<Int>()
+            for (nc in candidates) {
+                if (nc <= 0 || !seen.add(nc)) continue
+                if (clusterBaseFold(nc) in allowed) {
+                    prefix.appendCodePoint(nc)
+                    recurse(pos + 1)
+                    prefix.setLength(prefix.length - Character.charCount(nc))
+                }
+            }
+        }
+        recurse(0)
+        return results
+    }
+
+    // kxkb: fallback enumeration for when the trie-walk yields nothing -- harvest the accented letters
+    // the dictionary uses near this input (its candidates carry ě/ž/č/í) so the cartesian product can
+    // build the real accented word and validate it exactly. Self-bounding; capped for long inputs.
+    private fun accentVariantsFromDict(dict: SuggestedWords): Map<Int, List<Int>> {
+        val m = HashMap<Int, MutableSet<Int>>()
+        for (info in dict.mSuggestedWordInfoList) {
+            val w = info.mWord
+            var i = 0
+            while (i < w.length) {
+                val cp = w.codePointAt(i)
+                i += Character.charCount(cp)
+                if (!Character.isLetter(cp)) continue
+                val lower = Character.toLowerCase(cp)
+                val base = clusterBaseFold(lower)
+                if (base != lower) m.getOrPut(base) { HashSet() }.add(lower)
+            }
+        }
+        return m.mapValues { it.value.toList() }
+    }
+
+    private fun clusterEnumerateValid(
+        clusterSets: List<Set<Int>>,
+        accentVariants: Map<Int, List<Int>>
+    ): List<Pair<String, Int>> {
         val n = clusterSets.size
         if (n == 0) return emptyList()
         val letterSets = clusterSets.map { set ->
-            set.filter { Character.isLetter(it) }.toList()
+            set.filter { Character.isLetter(it) }
+                .flatMap { cp -> listOf(cp) + (accentVariants[clusterBaseFold(cp)] ?: emptyList()) }
+                .distinct()
         }
         if (letterSets.any { it.isEmpty() }) return emptyList()
         var total = 1L
         for (lst in letterSets) {
             total *= lst.size
-            if (total > 2000) return emptyList()
+            if (total > 20000) return emptyList()
         }
         val results = mutableListOf<Pair<String, Int>>()
         val sb = StringBuilder(n)
@@ -318,13 +415,12 @@ public class LanguageModelFacilitator(
             if (pos == n) {
                 val word = sb.toString()
                 if (dictionaryFacilitator.isValidSuggestionWord(word)) {
-                    val freq = dictionaryFacilitator.getFrequency(word)
-                    results.add(word to freq.coerceAtLeast(0))
+                    results.add(word to dictionaryFacilitator.getFrequency(word).coerceAtLeast(0))
                 }
                 return
             }
             for (codePoint in letterSets[pos]) {
-                sb.append(codePoint.toChar())
+                sb.appendCodePoint(codePoint)
                 recurse(pos + 1)
                 sb.deleteCharAt(sb.length - 1)
             }
@@ -345,13 +441,43 @@ public class LanguageModelFacilitator(
         // constrain suggestions to words whose typed prefix stays within the tapped sets (Multiling-
         // style). clusterSets is null for swipe/gesture input and for layouts with no cluster keys,
         // leaving ordinary and gesture typing completely unaffected. The typed word is always exempt.
-        val clusterSets = clusterAllowedSets(values)
+        val clusterSets = clusterAllowedSets(values.composedData)
         val lmSuggestions = if(clusterSets != null) {
             ArrayList(lmSuggestions.filter { prefixInClusterSets(it.mWord, clusterSets) })
         } else lmSuggestions
 
+        // kxkb: compute the cluster enumeration up front, because whether to auto-correct (commit the
+        // predicted word on space, instead of the meaningless centre-letter literal) must be decided
+        // before SuggestionResults is built -- its confidence flag is constructor-set and final.
+        // kxkb: prefer the trie-walk (handles any length), but fall back to the cartesian+accent
+        // enumeration whenever it yields nothing, so short/medium words always resolve (no regression).
+        val enumRawList: List<Pair<String, Int>> = if (clusterSets != null) {
+            val av = accentVariantsFromDict(suggestedWordsDict)
+            val walk = clusterTrieWalk(clusterSets, av)
+            if (walk.isNotEmpty()) walk else clusterEnumerateValid(clusterSets, av)
+        } else emptyList()
+        // kxkb: cross-reference enumeration with the LM. Words the LM also generated are contextually
+        // plausible -- freq >= 30 is enough. Words the LM did NOT generate are likely proper nouns /
+        // abbreviations the dict happens to know (Diu, yip, ...), so require >= 100. With no LM (e.g.
+        // Czech/Russian have no transformer model), fall back to a single moderate floor.
+        val clusterEnumerated: List<Pair<String, Int>> = if (clusterSets != null) {
+            if (lmSuggestions.isNotEmpty()) {
+                val lmWords = lmSuggestions.mapTo(HashSet()) { it.mWord.lowercase() }
+                enumRawList.filter { (word, freq) -> if (word.lowercase() in lmWords) freq >= 30 else freq >= 100 }
+            } else {
+                enumRawList.filter { (_, freq) -> freq >= 50 }
+            }
+        } else emptyList()
+        // kxkb: on a cluster layout the "typed word" is just the centre-letter commit (e.g. "teuwi"),
+        // never what the user wants, so AOSP's normalized-score-vs-typed-word autocorrect test always
+        // fails. When we have a confident in-cluster exact-length word AND the input is long enough to
+        // be unambiguous (>= 4 taps; shorter inputs stay suggest-only to avoid mis-correcting), force
+        // the confidence flag so the top in-cluster word becomes the autocorrection.
+        val clusterConfidentAutocorrect =
+            clusterSets != null && clusterEnumerated.isNotEmpty() && clusterSets.size >= 4
+
         val suggestionResults = SuggestionResults(
-            14, values.ngramContext.isBeginningOfSentenceContext, false)
+            14, values.ngramContext.isBeginningOfSentenceContext, clusterConfidentAutocorrect)
 
 
         val reweightedSuggestions = lmSuggestions.mapIndexedNotNull { i, it ->
@@ -394,37 +520,21 @@ public class LanguageModelFacilitator(
 
         // kxkb: Multiling-style injection. Anything missing from the dict's tap-decoder output that
         // is nonetheless a real in-set exact-length word gets injected here so it always reaches the
-        // bar. Score is a high base plus a frequency tiebreak (so common words like "people"/"simple"
-        // rank above rare in-set siblings), with the 2x exact-length boost pre-applied since these
-        // bypass the bias mapNotNull above.
-        if (clusterSets != null) {
-            // kxkb: cross-reference enumeration with the LM. Words the language model also generated
-            // are contextually plausible -- freq >= 30 is enough to admit them. Words the LM did NOT
-            // generate are likely proper nouns or abbreviations the dictionary happens to know about
-            // (Diu, diu, yip, ...), so require a much higher freq floor (>= 100) to keep them out of
-            // the alternative slots. When the LM is silent (still warming up, or it really had
-            // nothing for this input), fall back to the single moderate floor used before.
-            val enumerated = if (lmSuggestions.isNotEmpty()) {
-                val lmWords = lmSuggestions.mapTo(HashSet()) { it.mWord.lowercase() }
-                clusterEnumerateValid(clusterSets).filter { (word, freq) ->
-                    if (word.lowercase() in lmWords) freq >= 30 else freq >= 100
-                }
-            } else {
-                clusterEnumerateValid(clusterSets).filter { (_, freq) -> freq >= 50 }
-            }
-            if (enumerated.isNotEmpty()) {
-                val existing = suggestedWordsDictList.mapTo(HashSet()) { it.mWord.lowercase() }
-                for ((word, freq) in enumerated) {
-                    if (word.lowercase() !in existing) {
-                        val score = (100_000_000 + freq * 1_000_000) * 2
-                        suggestedWordsDictList.add(SuggestedWordInfo(
-                            word, "", score,
-                            SuggestedWordInfo.KIND_CORRECTION,
-                            null,
-                            SuggestedWordInfo.NOT_AN_INDEX,
-                            SuggestedWordInfo.NOT_A_CONFIDENCE
-                        ))
-                    }
+        // bar (clusterEnumerated was computed up front). Score is a high base plus a frequency
+        // tiebreak (so common words rank above rare in-set siblings), with the 2x exact-length boost
+        // pre-applied since these bypass the bias mapNotNull above.
+        if (clusterEnumerated.isNotEmpty()) {
+            val existing = suggestedWordsDictList.mapTo(HashSet()) { it.mWord.lowercase() }
+            for ((word, freq) in clusterEnumerated) {
+                if (word.lowercase() !in existing) {
+                    val score = (100_000_000 + freq * 1_000_000) * 2
+                    suggestedWordsDictList.add(SuggestedWordInfo(
+                        word, "", score,
+                        SuggestedWordInfo.KIND_CORRECTION,
+                        null,
+                        SuggestedWordInfo.NOT_AN_INDEX,
+                        SuggestedWordInfo.NOT_A_CONFIDENCE
+                    ))
                 }
             }
         }
@@ -611,11 +721,26 @@ public class LanguageModelFacilitator(
         else -> false
     }
 
+    // kxkb: cluster prediction must work even when there is NO transformer LM model for the language
+    // (e.g. Czech/Russian have a dictionary but no transformer, so they fall through to the legacy
+    // dictionary path where processAndMergeSuggestions -- which holds the whole cluster filter + fold +
+    // enumeration -- never runs). When the active layout is a cluster layout, route its raw dictionary
+    // result through that same machinery with an EMPTY LM list: out-of-set fuzzy-corrections get
+    // dropped and valid in-set words the dict tap-decoder missed (e.g. "daleko") get injected. Returns
+    // null when it is not a cluster layout, so the caller keeps the untouched legacy dict result and
+    // every ordinary (non-cluster) legacy language is completely unaffected.
+    fun maybeApplyClusterConstraint(inputStyle: Int, dictResult: SuggestedWords): SuggestedWords? {
+        val values = makePredictionInputValues(inputStyle, ignorePassthrough = true) ?: return null
+        if (clusterAllowedSets(values.composedData) == null) return null
+        return processAndMergeSuggestions(values, dictResult, arrayListOf<SuggestedWordInfo>())
+    }
+
     // This method should return null if transformer is disabled by settings or locale
     var prevAcceptedLayout: Keyboard? = null
     var prevAcceptedLayoutResult = false
-    fun makePredictionInputValues(inputStyle: Int): PredictionInputValues? {
-        if(shouldPassThroughToLegacy()) return null
+    // (ignorePassthrough lets the cluster-constraint path above build values even on the legacy path).
+    fun makePredictionInputValues(inputStyle: Int, ignorePassthrough: Boolean = false): PredictionInputValues? {
+        if(!ignorePassthrough && shouldPassThroughToLegacy()) return null
 
         if(inputStyle == SuggestedWords.INPUT_STYLE_TAIL_BATCH
             || inputStyle == SuggestedWords.INPUT_STYLE_UPDATE_BATCH) return null
