@@ -1,0 +1,126 @@
+# kxkb 日本語 5r10c 1.3.3  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
+#
+# SCOPE: main (+shifted), sym→alt0, altGr→alt1. Ignored: num, the duplicate sym block, altGrShifted,
+#        topBar. (The source lists "sym" twice, identically — used once.)
+#
+# WIDTHS:
+#   Custom2 = 0.1  → main letter rows 1–3 (10 keys each). Row 0 (13 keys) fills at Regular (1/13).
+#   sym letter rows are 10 (Regular 1/10); altGr letter rows are 12 (Regular 1/12) — both self-fill.
+#   BOTTOM ROWS: the spacebar is []-extended to 3 cells (12 cells total); the nine 1-cell keys are
+#   pinned to Custom1 = 1/12 ≈ 0.0833 and one $space (Grow) fills to 0.25. Sums to 1.0, no cram.
+#   Delete keeps hold-to-repeat; shift static icon; bottom enter keeps Action accent (no adaptive icon).
+#
+# FLAGGED CONVERSION CHOICES (please test):
+#  * ROW 0 digit↔symbol swap IS reproduced via CaseSelectors: tap = digit, Shift = symbol
+#    (1→@ 2→& 3→( 4→# 5→[ 6→] 7→* 8→) 9→$ ; the 0 cluster → ^ on shift). The shifted row is the same
+#    13-key shape here, so unlike the en/ru 5r4c this swap is faithful. ← ↑ → and the 0/^ cluster
+#    (〇 + Hide on slides) sit to the right.
+#  * Rows 1–3 latin letters auto-capitalise on shift. Cluster slide contents and the bottom
+#    gear→lock / shift→lock on shift are NOT reproduced (caps-lock = shift double-tap).
+#  * Dropped (no equivalent): [Predict] (row3 ;: ↑). Kept action slides: [Copy]/[Cut] (row1 ・), [HIDE].
+#    Bottom Tab keeps its altGr slide; Ctrl→sym, Esc→altGr.
+#  * Cluster bands commit their CENTRE on tap — note the 2-char bands "「」", "）（"-style, and ";:"/";.,".
+#  * sym row4 [MC:...] → a macro typing three literal periods "..." (flag: maybe meant as … or a
+#    placeholder). [VOICE] → voice. Era/squared-kana glyphs reproduced as-is.
+#  * [123:[Enter]] → plain Enter (number-layer slide dropped). moreKeyMode: OnlyExplicit (per skill).
+#  * Return label "← ABC" — change if you'd prefer e.g. あ / 戻る.
+
+name: "kxkb 日本語 5r10c 1.3.3"
+attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
+numberRowMode: AlwaysDisabled
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+overrideWidths: { Custom1: 0.0833333, Custom2: 0.1 }
+
+rows:
+  # row 0 — 9 digit/symbol CaseSelectors + ← ↑ → + 0/^ cluster = 13 keys (Regular 1/13)
+  - letters:
+      - { type: case, normal: "1", shiftedManually: "@" }
+      - { type: case, normal: "2", shiftedManually: "&" }
+      - { type: case, normal: "3", shiftedManually: "(" }
+      - { type: case, normal: "4", shiftedManually: "#" }
+      - { type: case, normal: "5", shiftedManually: "[" }
+      - { type: case, normal: "6", shiftedManually: "]" }
+      - { type: case, normal: "7", shiftedManually: "*" }
+      - { type: case, normal: "8", shiftedManually: ")" }
+      - { type: case, normal: "9", shiftedManually: "$" }
+      - "!icon/action_left|!code/action_left"
+      - "!icon/action_up|!code/action_up"
+      - "!icon/action_right|!code/action_right"
+      - { type: case, normal: { type: cluster, main: "0", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }, shiftedManually: { type: cluster, main: "^", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" } }
+  # row 1 — 10 keys
+  - letters:
+      - "ー"
+      - { type: cluster, main: "・", up: "!icon/action_copy|!code/action_copy", down: "!icon/action_cut|!code/action_cut" }
+      - "m"
+      - "w"
+      - "k"
+      - { type: cluster, main: "「」" }
+      - "f"
+      - "r"
+      - "!icon/action_down|!code/action_down"
+      - { type: cluster, main: "？", up: "！", down: "¥" }
+    attributes: { width: Custom2 }
+  # row 2 — 10 plain letters
+  - letters: [ "i","o","a","e","v","b","t","n","s","h" ]
+    attributes: { width: Custom2 }
+  # row 3 — 10 keys ([Predict] dropped on ;:)
+  - letters:
+      - { type: cluster, main: ";:", down: "\"" }
+      - "x"
+      - "p"
+      - "u"
+      - "z"
+      - "g"
+      - "d"
+      - "y"
+      - "j"
+      - { type: cluster, main: "）", up: "（" }
+    attributes: { width: Custom2 }
+  # row 4 — bottom (12 cells; nine 1-cell keys pinned Custom1, one 3-cell $space = Grow)
+  - bottom:
+      - { type: base, spec: "!icon/settings_key|!code/key_settings", attributes: { width: Custom1 } }
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+      - { type: cluster, main: ";.,", up: "…", attributes: { width: Custom1 } }
+      - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+      - $space
+      - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { width: Custom1, style: Action } }
+      - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", attributes: { width: Custom1 } }
+      - { type: compass, primary: "Esc|!code/key_escape", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+      - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Custom1, repeatableEnabled: true } }
+
+altPages:
+  # ---- alt0 (sym) ---- 5 letter rows of 10 + bottom (Regular 1/10)
+  - - letters: [ "1","2","3","4","5","6","7","8","9","0" ]
+    - letters: [ "㌔", "㌕", "㌖", "㍾", "㍽", "㍼", "㍻", "㋿", "@", "〇" ]
+    - letters: [ "｟", "｠", "《", "》", "【", "】", "『", "』", "「", "」" ]
+    - letters: [ "¥", "€", "°", "…", "<", ">", "'", "\"", "〜", "…" ]
+    - letters: [ "{", "}", "[", "]", ":", ";", { type: macro, text: "..." }, "!icon/action_voice_input|!code/action_voice_input", "?", "!" ]
+    - bottom:
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Custom1, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+        - { type: cluster, main: ";.,", up: "…", attributes: { width: Custom1 } }
+        - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+        - $space
+        - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { width: Custom1, style: Action } }
+        - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", attributes: { width: Custom1 } }
+        - { type: compass, primary: "Esc|!code/key_escape", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Custom1, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Custom1, repeatableEnabled: true } }
+  # ---- alt1 (altGr) ---- 4 letter rows of 12 + bottom (Regular 1/12)
+  - - letters: [ "¯", "`", "ˇ", "´", "¨", "˙", "˚", "¸", "﹐", "˛", "˘", "˜" ]
+    - letters: [ "―", "∑", "é", "ə", "®", "†", "Ω", "œ", "ø", "π", "•", "·" ]
+    - letters: [ "æ", "ß", "∂", "ð", "ƒ", "©", "ª", "º", "∆", "≠", "ĸ", "∞" ]
+    - letters: [ "ʒ", "Ω", "≈", "ç", "√", "þ", "∫", "ŋ", "µ", "≤", "≥", "÷" ]
+    - bottom:
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Custom1, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+        - { type: cluster, main: ";.,", up: "…", attributes: { width: Custom1 } }
+        - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+        - $space
+        - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { width: Custom1, style: Action } }
+        - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", attributes: { width: Custom1 } }
+        - { type: compass, primary: "Esc|!code/key_escape", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Custom1, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Custom1, repeatableEnabled: true } }

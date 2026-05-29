@@ -1,0 +1,104 @@
+# kxkb 日本語 携帯 5r5c 1.3.4  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
+#
+# 携帯 (keitai) FLICK board: a 5-column grid where each kana key is a flick compass — tap the centre
+# kana, flick for the rest of its row (あ centre / い← / う↑ / え→ / お↓).
+#
+# SCOPE: main + shifted (hiragana/katakana), sym→alt0, altGr→alt1. Ignored: num, symShifted,
+#        altGrShifted, topBar.
+#
+# WIDTHS: the kana grid rows have 5 keys, so each key (flick compass, arrows, Del/Enter/Space/Tab,
+#   etc.) is Regular = 1/5 = 0.2 — big flick keys. The bottom row uses FUTO's fixed bottom-row unit
+#   (1/10), laid out as eight 1-cell keys + one 2-cell $space (Grow → 0.2). Both fill to 1.0 with NO
+#   Custom widths. Shift/Delete pinned to Regular so they stay 1-cell next to the bottom Grow space.
+#
+# FLAGGED CONVERSION CHOICES (please test):
+#  * HIRAGANA / KATAKANA: each flick key is a CaseSelector — tap = hiragana flick, Shift = katakana
+#    flick. FUTO auto-caps can't convert kana, so this is the faithful mechanism. (Punctuation keys
+#    like 、 ？ ！ … and the ー ・ on the わ key don't change on shift, matching the source.)
+#  * [Langs] → FUTO's language-switch key (cycles your enabled languages), labelled 🌐. There is no
+#    built-in language icon, so it's a text/emoji label — tell me if you'd prefer e.g. "あ" or "言".
+#  * [MC:[Shift][Tab]] → a Shift+Tab (back-tab) chord, labelled "S-Tab".
+#  * The grid has its own nav keys (←/→ arrows, a Tab, a Del, a one-column Space, an Enter) AS WELL
+#    AS the standard bottom bar — both are reproduced, exactly as in the source.
+#  * や flick: ゃ← ゆ↑ ゅ→ よ↓ and ょ on the ↘ (down-right) diagonal (per the source's extra slot).
+#  * symShifted (ordinal macros 1ˢᵗ…31ˢᵗ) DROPPED — FUTO alt pages aren't shift-sensitive; only the
+#    base `sym` page is reproduced. sym row5 [MC:...] → macro typing three periods "...".
+#  * [123:[Tab]]→plain Tab (number layer dropped). moreKeyMode: OnlyExplicit. Return label "← ABC".
+
+name: "kxkb 日本語 携帯 5r5c 1.3.4"
+attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
+numberRowMode: AlwaysDisabled
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+
+rows:
+  # rows 0-3: the 5-column keitai flick grid (Regular = 1/5). Kana keys are hiragana/katakana CaseSelectors.
+  - letters:
+      - { type: chord, keys: "S-TAB", label: "S-Tab" }
+      - { type: case, normal: { type: compass, primary: "あ", left: "い", up: "う", right: "え", down: "お" }, shiftedManually: { type: compass, primary: "ア", left: "イ", up: "ウ", right: "エ", down: "オ" } }
+      - { type: case, normal: { type: compass, primary: "か", left: "き", up: "く", right: "け", down: "こ" }, shiftedManually: { type: compass, primary: "カ", left: "キ", up: "ク", right: "ケ", down: "コ" } }
+      - { type: case, normal: { type: compass, primary: "さ", left: "し", up: "す", right: "せ", down: "そ" }, shiftedManually: { type: compass, primary: "サ", left: "シ", up: "ス", right: "セ", down: "ソ" } }
+      - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { style: Functional, repeatableEnabled: true } }
+  - letters:
+      - "!icon/action_left|!code/action_left"
+      - { type: case, normal: { type: compass, primary: "た", left: "ち", up: "つ", right: "て", down: "と" }, shiftedManually: { type: compass, primary: "タ", left: "チ", up: "ツ", right: "テ", down: "ト" } }
+      - { type: case, normal: { type: compass, primary: "な", left: "に", up: "ぬ", right: "ね", down: "の" }, shiftedManually: { type: compass, primary: "ナ", left: "ニ", up: "ヌ", right: "ネ", down: "ノ" } }
+      - { type: case, normal: { type: compass, primary: "は", left: "ひ", up: "ふ", right: "へ", down: "ほ" }, shiftedManually: { type: compass, primary: "ハ", left: "ヒ", up: "フ", right: "ヘ", down: "ホ" } }
+      - "!icon/action_right|!code/action_right"
+  - letters:
+      - "!icon/tab_key|!code/key_tab"
+      - { type: case, normal: { type: compass, primary: "ま", left: "み", up: "む", right: "め", down: "も" }, shiftedManually: { type: compass, primary: "マ", left: "ミ", up: "ム", right: "メ", down: "モ" } }
+      - { type: case, normal: { type: compass, primary: "や", left: "ゃ", up: "ゆ", right: "ゅ", down: "よ", downRight: "ょ" }, shiftedManually: { type: compass, primary: "ヤ", left: "ャ", up: "ユ", right: "ュ", down: "ヨ", downRight: "ョ" } }
+      - { type: case, normal: { type: compass, primary: "ら", left: "り", up: "る", right: "れ", down: "ろ" }, shiftedManually: { type: compass, primary: "ラ", left: "リ", up: "ル", right: "レ", down: "ロ" } }
+      - "!icon/space_key|!code/key_space"
+  - letters:
+      - { type: base, spec: "🌐|!code/key_language_switch", attributes: { style: Functional } }
+      - "。"
+      - { type: case, normal: { type: compass, primary: "わ", left: "を", up: "ん", right: "ー", down: "・" }, shiftedManually: { type: compass, primary: "ワ", left: "ヲ", up: "ン", right: "ー", down: "・" } }
+      - { type: compass, primary: "、", up: "？", right: "！", down: "…" }
+      - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { style: Action } }
+  - bottom:
+      - "!icon/settings_key|!code/key_settings"
+      - { type: cluster, main: "?!@%" }
+      - { type: cluster, main: ";.,", up: ":", down: "…" }
+      - "!icon/tab_key|!code/key_tab"
+      - $space
+      - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+      - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", attributes: { width: Regular } }
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+      - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }
+
+altPages:
+  # ---- alt0 (sym) ---- 5 letter rows of 10 + bottom
+  - - letters: [ "1","2","3","4","5","6","7","8","9","0" ]
+    - letters: [ "㌔", "㌕", "㌖", "㍾", "㍽", "㍼", "㍻", "㋿", "@", "〇" ]
+    - letters: [ "｟", "｠", "《", "》", "【", "】", "『", "』", "「", "」" ]
+    - letters: [ "¥", "€", "°", "…", "<", ">", "'", "\"", "〜", "…" ]
+    - letters: [ "{", "}", "[", "]", ":", ";", { type: macro, text: "..." }, "!icon/action_voice_input|!code/action_voice_input", "?", "!" ]
+    - bottom:
+        - "!icon/settings_key|!code/key_settings"
+        - { type: cluster, main: "?!@%" }
+        - { type: cluster, main: ";.,", up: ":", down: "…" }
+        - "!icon/tab_key|!code/key_tab"
+        - $space
+        - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Regular, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }
+  # ---- alt1 (altGr) ---- 6 letter rows of 10 + bottom
+  - - letters: [ "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩" ]
+    - letters: [ "¹", "²", "³", "₂", "½", "⅓", "⅔", "¼", "¾", "⓪" ]
+    - letters: [ "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳" ]
+    - letters: [ "㉑", "㉒", "㉓", "㉔", "㉕", "㉖", "㉗", "㉘", "㉙", "㉚" ]
+    - letters: [ "㉛", "㉜", "㉝", "㉞", "㉟", "㊱", "㊲", "㊳", "㊴", "㊵" ]
+    - letters: [ "㊶", "㊷", "㊸", "㊹", "㊺", "㊻", "㊼", "㊽", "㊾", "㊿" ]
+    - bottom:
+        - "!icon/settings_key|!code/key_settings"
+        - { type: cluster, main: "?!@%" }
+        - { type: cluster, main: ";.,", up: ":", down: "…" }
+        - "!icon/tab_key|!code/key_tab"
+        - $space
+        - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Regular, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }

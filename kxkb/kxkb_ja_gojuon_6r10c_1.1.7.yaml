@@ -1,0 +1,136 @@
+# kxkb 日本語 五十音 6r10c 1.1.7  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
+#
+# SCOPE: main + shifted (hiragana/katakana, see below), sym→alt0, altGr→alt1.
+#        Ignored: num, symShifted, altGrShifted, topBar.
+#
+# WIDTHS: every row is 10 keys (Regular = 1/10) and every bottom row is eight 1-cell keys + one
+#   2-cell $space (Grow → 0.2) — so NO Custom widths are needed. Shift/Delete are pinned to width
+#   Regular so they keep the 1-cell size next to the Grow space (otherwise they'd thin to half).
+#   Delete keeps hold-to-repeat; shift static icon; bottom enter keeps its Action accent.
+#
+# FLAGGED CONVERSION CHOICES (please test):
+#  * HIRAGANA / KATAKANA: the whole board's kana keys are CaseSelectors — tap = hiragana, Shift =
+#    katakana (and the dakuten/small-kana slides switch too, per the source's shifted layer). FUTO's
+#    auto-caps can't convert kana, so this is the only way; it's faithful key-by-key. A few authoring
+#    quirks in the source's shifted layer are reproduced verbatim (e.g. shifted ケ has ゲ on up vs
+#    hiragana け's げ on down; shifted ホ shows ポ/ホ). Keys that are identical in both layers (ー,
+#    「, 」, the ゛゜ dakuten key) are plain, not CaseSelectors.
+#  * symShifted (the ordinal-suffix macros 1ˢᵗ…31ˢᵗ) is DROPPED — FUTO alt pages aren't shift-
+#    sensitive, so only the base `sym` page (era/squared-kana glyphs, brackets) is reproduced.
+#  * The ゛゜ key (row4-left of the kana grid) is a compass: tap ゛, slide → ゜, slide ↓ = sym page.
+#    The を/ヲ key is a compass: （ 〜 ） on slides + C-s chord on ↖.
+#  * Dropped: [Predict] (none in grid) n/a; kept action slides [Undo]/[Redo]/[Cut]/[Hide].
+#  * Cluster bands commit their CENTRE on tap (single-kana mains are unaffected; multi-char punct
+#    bands like "?!@%" and ";.," commit the centre).
+#  * sym row4 [MC:...] → macro typing three literal periods "..." (maybe meant as … or placeholder).
+#  * [123:[Tab]]→plain Tab; [123 number layer] dropped. moreKeyMode: OnlyExplicit (per skill).
+#  * Return label "← ABC" — change if you'd prefer あ / 戻る.
+
+name: "kxkb 日本語 五十音 6r10c 1.1.7"
+attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
+numberRowMode: AlwaysDisabled
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+
+rows:
+  # rows 0-4: the gojūon kana grid (10 keys each, Regular 1/10). Kana keys are hiragana/katakana CaseSelectors.
+  - letters:
+      - { type: case, normal: { type: cluster, main: "わ", down: "ゎ" }, shiftedManually: { type: cluster, main: "ワ", down: "ゎ" } }
+      - { type: case, normal: { type: cluster, main: "ら" }, shiftedManually: { type: cluster, main: "ラ" } }
+      - { type: case, normal: { type: cluster, main: "や", down: "ゃ" }, shiftedManually: { type: cluster, main: "ヤ", down: "ャ" } }
+      - { type: case, normal: { type: cluster, main: "ま", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" }, shiftedManually: { type: cluster, main: "マ", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" } }
+      - { type: case, normal: { type: cluster, main: "は", up: "ぱ", down: "ば" }, shiftedManually: { type: cluster, main: "ハ", up: "パ", down: "バ" } }
+      - { type: case, normal: { type: cluster, main: "な", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }, shiftedManually: { type: cluster, main: "ナ", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" } }
+      - { type: case, normal: { type: cluster, main: "た", down: "だ" }, shiftedManually: { type: cluster, main: "タ", down: "ダ" } }
+      - { type: case, normal: { type: cluster, main: "さ", down: "ざ" }, shiftedManually: { type: cluster, main: "サ", down: "ザ" } }
+      - { type: case, normal: { type: cluster, main: "か", down: "が" }, shiftedManually: { type: cluster, main: "カ", down: "ガ" } }
+      - { type: case, normal: { type: cluster, main: "あ", down: "ぁ" }, shiftedManually: { type: cluster, main: "ア", down: "ァ" } }
+  - letters:
+      - { type: cluster, main: "ー", up: "・", down: "￥" }
+      - { type: case, normal: { type: cluster, main: "り" }, shiftedManually: { type: cluster, main: "リ" } }
+      - { type: cluster, main: "「", up: "『", down: "【" }
+      - { type: case, normal: { type: cluster, main: "み" }, shiftedManually: { type: cluster, main: "ミ" } }
+      - { type: case, normal: { type: cluster, main: "ひ", up: "ぴ", down: "び" }, shiftedManually: { type: cluster, main: "ヒ", up: "ピ", down: "ビ" } }
+      - { type: case, normal: { type: cluster, main: "に" }, shiftedManually: { type: cluster, main: "ニ" } }
+      - { type: case, normal: { type: cluster, main: "ち", down: "ぢ" }, shiftedManually: { type: cluster, main: "チ", down: "ヂ" } }
+      - { type: case, normal: { type: cluster, main: "し", down: "じ" }, shiftedManually: { type: cluster, main: "シ", down: "ジ" } }
+      - { type: case, normal: { type: cluster, main: "き", down: "ぎ" }, shiftedManually: { type: cluster, main: "キ", down: "ギ" } }
+      - { type: case, normal: { type: cluster, main: "い", down: "ぃ" }, shiftedManually: { type: cluster, main: "イ", down: "ィ" } }
+  - letters:
+      - { type: case, normal: { type: cluster, main: "ん" }, shiftedManually: { type: cluster, main: "ン" } }
+      - { type: case, normal: { type: cluster, main: "る" }, shiftedManually: { type: cluster, main: "ル" } }
+      - { type: case, normal: { type: cluster, main: "ゆ", down: "ゅ" }, shiftedManually: { type: cluster, main: "ユ", down: "ュ" } }
+      - { type: case, normal: { type: cluster, main: "む", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" }, shiftedManually: { type: cluster, main: "ム", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" } }
+      - { type: case, normal: { type: cluster, main: "ふ", up: "ぷ", down: "ぶ" }, shiftedManually: { type: cluster, main: "フ", up: "プ", down: "ブ" } }
+      - { type: case, normal: { type: cluster, main: "ぬ", down: "!icon/action_cut|!code/action_cut" }, shiftedManually: { type: cluster, main: "ヌ", down: "!icon/action_cut|!code/action_cut" } }
+      - { type: case, normal: { type: cluster, main: "つ", up: "っ", down: "づ" }, shiftedManually: { type: cluster, main: "ツ", up: "ッ", down: "ヅ" } }
+      - { type: case, normal: { type: cluster, main: "す", down: "ず" }, shiftedManually: { type: cluster, main: "ス", down: "ズ" } }
+      - { type: case, normal: { type: cluster, main: "く", down: "ぐ" }, shiftedManually: { type: cluster, main: "ク", down: "グ" } }
+      - { type: case, normal: { type: cluster, main: "う", up: "ゔ", down: "ぅ" }, shiftedManually: { type: cluster, main: "ウ", up: "ヴ", down: "ゥ" } }
+  - letters:
+      - { type: compass, primary: "゛", right: "゜", down: "sym|!code/key_to_alt_0_layout" }
+      - { type: case, normal: { type: cluster, main: "れ" }, shiftedManually: { type: cluster, main: "レ" } }
+      - { type: cluster, main: "」", up: "』", down: "】" }
+      - { type: case, normal: { type: cluster, main: "め" }, shiftedManually: { type: cluster, main: "メ" } }
+      - { type: case, normal: { type: cluster, main: "へ", up: "べ", down: "ぺ" }, shiftedManually: { type: cluster, main: "ヘ", up: "ベ", down: "ペ" } }
+      - { type: case, normal: { type: cluster, main: "ね" }, shiftedManually: { type: cluster, main: "ネ" } }
+      - { type: case, normal: { type: cluster, main: "て", down: "で" }, shiftedManually: { type: cluster, main: "テ", down: "デ" } }
+      - { type: case, normal: { type: cluster, main: "せ", down: "ぜ" }, shiftedManually: { type: cluster, main: "セ", down: "ゼ" } }
+      - { type: case, normal: { type: cluster, main: "け", down: "げ" }, shiftedManually: { type: cluster, main: "ケ", up: "ゲ" } }
+      - { type: case, normal: { type: cluster, main: "え", down: "ぇ" }, shiftedManually: { type: cluster, main: "エ", down: "ェ" } }
+  - letters:
+      - { type: case, normal: { type: compass, primary: "を", left: "（", right: "〜", down: "）", upLeft: { chord: "C-s", label: "C-s" } }, shiftedManually: { type: compass, primary: "ヲ", left: "（", right: "〜", down: "）", upLeft: { chord: "C-s", label: "C-s" } } }
+      - { type: case, normal: { type: cluster, main: "ろ", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }, shiftedManually: { type: cluster, main: "ロ", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" } }
+      - { type: case, normal: { type: cluster, main: "よ", up: "!icon/action_undo|!code/action_undo", down: "ょ" }, shiftedManually: { type: cluster, main: "ヨ", up: "!icon/action_undo|!code/action_undo", down: "ョ" } }
+      - { type: case, normal: { type: cluster, main: "も" }, shiftedManually: { type: cluster, main: "モ" } }
+      - { type: case, normal: { type: cluster, main: "ほ", up: "ぼ", down: "ぽ" }, shiftedManually: { type: cluster, main: "ホ", up: "ポ", down: "ホ" } }
+      - { type: case, normal: { type: cluster, main: "の" }, shiftedManually: { type: cluster, main: "ノ" } }
+      - { type: case, normal: { type: cluster, main: "と", down: "ど" }, shiftedManually: { type: cluster, main: "ト", down: "ド" } }
+      - { type: case, normal: { type: cluster, main: "そ", down: "ぞ" }, shiftedManually: { type: cluster, main: "ソ", down: "ゾ" } }
+      - { type: case, normal: { type: cluster, main: "こ", down: "ご" }, shiftedManually: { type: cluster, main: "コ", down: "ゴ" } }
+      - { type: case, normal: { type: cluster, main: "お", down: "ぉ" }, shiftedManually: { type: cluster, main: "オ", down: "ォ" } }
+  - bottom:
+      - "!icon/settings_key|!code/key_settings"
+      - { type: cluster, main: "?!@%" }
+      - { type: cluster, main: ";.,", up: ":", down: "…" }
+      - "!icon/tab_key|!code/key_tab"
+      - $space
+      - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+      - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", attributes: { width: Regular } }
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+      - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }
+
+altPages:
+  # ---- alt0 (sym) ---- 5 letter rows of 10 + bottom
+  - - letters: [ "1","2","3","4","5","6","7","8","9","0" ]
+    - letters: [ "㌔", "㌕", "㌖", "㍾", "㍽", "㍼", "㍻", "㋿", "@", "〇" ]
+    - letters: [ "｟", "｠", "《", "》", "【", "】", "『", "』", "「", "」" ]
+    - letters: [ "¥", "€", "°", "…", "<", ">", "'", "\"", "〜", "…" ]
+    - letters: [ "{", "}", "[", "]", ":", ";", { type: macro, text: "..." }, "!icon/action_voice_input|!code/action_voice_input", "?", "!" ]
+    - bottom:
+        - "!icon/settings_key|!code/key_settings"
+        - { type: cluster, main: "?!@%" }
+        - { type: cluster, main: ";.,", up: ":", down: "…" }
+        - "!icon/tab_key|!code/key_tab"
+        - $space
+        - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Regular, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }
+  # ---- alt1 (altGr) ---- 6 letter rows of 10 + bottom
+  - - letters: [ "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩" ]
+    - letters: [ "¹", "²", "³", "₂", "½", "⅓", "⅔", "¼", "¾", "⓪" ]
+    - letters: [ "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳" ]
+    - letters: [ "㉑", "㉒", "㉓", "㉔", "㉕", "㉖", "㉗", "㉘", "㉙", "㉚" ]
+    - letters: [ "㉛", "㉜", "㉝", "㉞", "㉟", "㊱", "㊲", "㊳", "㊴", "㊵" ]
+    - letters: [ "㊶", "㊷", "㊸", "㊹", "㊺", "㊻", "㊼", "㊽", "㊾", "㊿" ]
+    - bottom:
+        - "!icon/settings_key|!code/key_settings"
+        - { type: cluster, main: "?!@%" }
+        - { type: cluster, main: ";.,", up: ":", down: "…" }
+        - "!icon/tab_key|!code/key_tab"
+        - $space
+        - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Regular, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }

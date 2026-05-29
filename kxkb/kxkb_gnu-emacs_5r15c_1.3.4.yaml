@@ -1,0 +1,163 @@
+name: "kxkb gnu 5r15c 1.3.4"
+
+# Converted from the Multiling O layout "5r15c 1.3.4". Scope per request: the `main` layer (with the
+# top row's shifted symbols), Multiling `sym` -> alt0, `altGr` -> alt1. Ignored: num / symShifted /
+# altGrShifted / topBar.
+#
+# Mapping used:
+#   [4D:p L U R D TL TR BR BL]      -> compass (Multiling slot order: left,up,right,down,TL,TR,BR,BL)
+#   [3+2:abc t b]                   -> cluster main:"abc" up:t down:b (centre commits; <- -> = side mains)
+#   [MC:[Ctrl]c:C-c]                -> { chord: "C-c", label: "C-c" }
+#   [MC:1ˢᵗ]                        -> { macro: "1ˢᵗ" } / standalone { type: macro, text: "1ˢᵗ" }
+#   [SYM]  -> alt0 switch (key_to_alt_0_layout) ; [ALTGR] -> alt1 switch (key_to_alt_1_layout)
+#   [ALTGR:[Esc]] / [SYM:[Del]]     -> combined: tap = the char, slide UP = open the alt page
+#   [Lock] (on sym/altGr)           -> "← ABC" return-to-letters (key_to_alpha_0_layout)
+#   [Esc]/[Ctrl]/[Tab]/[Enter]/[Del]/[Space]/[Shift] -> their FUTO codes/templates
+#   [HIDE]->action_hide_keyboard  [Up/Down/Left/Right]->arrow actions  [Undo]->action_undo
+#   [Tool]->key_settings (gear)   [VOICE]->action_voice_input
+#
+# KNOWN CAVEATS (flagged for testing):
+#   * Shift: top row carries exact shifted symbols via per-key {type: case}; letter rows auto-capitalise
+#     the PRIMARY only (FUTO native) — the slide slots do NOT swap case like Multiling did.
+#   * Chords whose base is a shifted symbol (C->, C-<, C-:) may not emit on the current chord engine
+#     (its base map covers a–z, 0–9 and unshifted terminal symbols). Left in faithfully; verify.
+#   * [MC:[Ctrl]is:C-i] had an odd payload "[Ctrl]is" — mapped to chord "C-i" (the labelled intent).
+#   * Bottom row: Multiling's spacer-gap structure normalised to a clean functional row (matches your
+#     earlier test YAML). Say if you want the literal gap-for-gap version instead.
+#   * "||" in the Multiling bottom row rendered as a single "|" key (as in your test YAML).
+
+numberRowMode: AlwaysDisabled
+# Keep "$" a literal dollar (otherwise FUTO swaps bare "$" for the locale currency symbol),
+# and stop bare keys auto-growing long-press popups — everything here lives in slides/slots.
+attributes: { useKeySpecShortcut: false }
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+overrideWidths: { Custom1: 0.2 }
+
+rows:
+  # ---- Row 1: symbols + numbers (top-row shift via {type: case}) ----
+  - letters:
+    - "+"
+    - { type: case, normal: { type: compass, primary: "1", left: { macro: "1ˢᵗ" }, up: ⓪, right: ①, down: "@" }, shiftedManually: { type: compass, primary: "@", left: { macro: "1ˢᵗ" }, up: ⓪, right: ①, down: "1" } }
+    - { type: case, normal: { type: compass, primary: "2", left: { macro: "2ⁿᵈ" }, up: "&", right: ②, down: ₂ }, shiftedManually: { type: compass, primary: "&", left: { macro: "2ⁿᵈ" }, up: "2", right: ②, down: ₂ } }
+    - { type: case, normal: { type: compass, primary: "3", left: { macro: "3ʳᵈ" }, up: "(", right: ③, down: "[" }, shiftedManually: { type: compass, primary: "(", left: { macro: "3ʳᵈ" }, up: "3", right: ③, down: "[" } }
+    - { type: case, normal: { type: compass, primary: "4", left: { macro: "4ᵗʰ" }, up: "^", right: ④, down: ⇨ }, shiftedManually: { type: compass, primary: "^", left: { macro: "4ᵗʰ" }, up: "4", right: ④, down: ⇨ } }
+    - { type: case, normal: { type: compass, primary: "5", left: { macro: "5ᵗʰ" }, up: "[", right: ⑤, down: "{" }, shiftedManually: { type: compass, primary: "[", left: { macro: "5ᵗʰ" }, up: "5", right: ⑤, down: "{" } }
+    - "("
+    - "$"
+    - ")"
+    - { type: case, normal: { type: compass, primary: "6", left: { macro: "6ᵗʰ" }, up: "]", right: ⑥, down: "}" }, shiftedManually: { type: compass, primary: "]", left: { macro: "6ᵗʰ" }, up: "6", right: ⑥, down: "}" } }
+    - { type: case, normal: { type: compass, primary: "7", left: { macro: "7ᵗʰ" }, up: "*", right: ⑦, down: "^" }, shiftedManually: { type: compass, primary: "*", left: { macro: "7ᵗʰ" }, up: "7", right: ⑦, down: "^" } }
+    - { type: case, normal: { type: compass, primary: "8", left: { macro: "8ᵗʰ" }, up: ")", right: ⑧, down: "]" }, shiftedManually: { type: compass, primary: ")", left: { macro: "8ᵗʰ" }, up: "8", right: ⑧, down: "]" } }
+    - { type: case, normal: { type: compass, primary: "9", left: { macro: "9ᵗʰ" }, up: "$", right: ⑨, down: "!icon/action_undo|!code/action_undo" }, shiftedManually: { type: compass, primary: "$", left: { macro: "9ᵗʰ" }, up: "9", right: ⑨, down: "!icon/action_undo|!code/action_undo" } }
+    - { type: compass, primary: "0", left: "^", up: 〇, down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }
+    - { type: compass, primary: "*", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }
+
+  # ---- Row 2: Esc | - c m w k | [ ↑ ] | q f r l | ' ? ----
+  - letters:
+    - { type: compass, primary: "Esc|!code/key_escape", up: "altGr|!code/key_to_alt_1_layout" }
+    - { type: compass, primary: "-", left: "<", up: { chord: "C--", label: "C--" }, right: ">", down: "_", upLeft: "–", upRight: "—", downRight: { chord: "C->", label: "C->" }, downLeft: { chord: "C-<", label: "C-<" } }
+    - { type: compass, primary: c, left: { chord: "M-c", label: "M-c" }, up: C, right: č, down: { chord: "C-c", label: "C-c" }, upLeft: ç, upRight: Č, downRight: ℃, downLeft: © }
+    - { type: compass, primary: m, left: { chord: "M-m", label: "M-m" }, up: M, right: ¯, down: { chord: "C-m", label: "C-m" }, upRight: ʻ }
+    - { type: compass, primary: w, left: { chord: "M-w", label: "M-w" }, up: W, down: { chord: "C-w", label: "C-w" } }
+    - { type: compass, primary: k, left: { chord: "M-k", label: "M-k" }, up: K, down: { chord: "C-k", label: "C-k" } }
+    - "["
+    - "!icon/action_up|!code/action_up"
+    - "]"
+    - { type: compass, primary: q, left: { chord: "M-q", label: "M-q" }, up: Q, down: { chord: "C-q", label: "C-q" } }
+    - { type: compass, primary: f, left: { chord: "M-f", label: "M-f" }, up: F, right: ℉, down: { chord: "C-f", label: "C-f" } }
+    - { type: compass, primary: r, left: { chord: "M-r", label: "M-r" }, up: R, right: ř, down: { chord: "C-r", label: "C-r" }, upLeft: ₽, upRight: Ř, downRight: ŕ, downLeft: ® }
+    - { type: compass, primary: l, left: { chord: "M-l", label: "M-l" }, up: L, right: ľ, down: { chord: "C-l", label: "C-l" }, upLeft: ł, upRight: Ľ, downRight: ĺ, downLeft: £ }
+    - { type: compass, primary: "'", left: "+", up: "\"", right: "=", down: "%", upLeft: "´", upRight: "ˇ", downRight: "¨", downLeft: "'" }
+    - { type: compass, primary: "?", up: "!" }
+
+  # ---- Row 3: Ctrl | i o a e v | ← ~ → | b t n s h | Del ----
+  - letters:
+    - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", down: { chord: "C-SPC", label: "C-SPC" } }
+    - { type: compass, primary: i, left: { chord: "M-i", label: "M-i" }, up: I, right: í, down: { chord: "C-i", label: "C-i" }, upLeft: Ī, upRight: Í, downRight: ï, downLeft: ī }
+    - { type: compass, primary: o, left: { chord: "M-o", label: "M-o" }, up: O, right: ó, down: { chord: "C-o", label: "C-o" }, upLeft: Ō, upRight: Ó, downRight: ö, downLeft: ō }
+    - { type: compass, primary: a, left: { chord: "M-a", label: "M-a" }, up: A, right: á, down: { chord: "C-a", label: "C-a" }, upLeft: Ā, upRight: Á, downRight: ä, downLeft: ā }
+    - { type: compass, primary: e, left: { chord: "M-e", label: "M-e" }, up: E, right: é, down: { chord: "C-e", label: "C-e" }, upLeft: Ě, upRight: É, downRight: ě, downLeft: ē }
+    - { type: compass, primary: v, left: { chord: "M-v", label: "M-v" }, up: V, down: { chord: "C-v", label: "C-v" } }
+    - "!icon/action_left|!code/action_left"
+    - "~"
+    - "!icon/action_right|!code/action_right"
+    - { type: compass, primary: b, left: { chord: "M-b", label: "M-b" }, up: B, right: β, down: { chord: "C-b", label: "C-b" }, upLeft: α }
+    - { type: compass, primary: t, left: { chord: "M-t", label: "M-t" }, up: T, right: ť, down: { chord: "C-t", label: "C-t" }, upRight: Ť }
+    - { type: compass, primary: n, left: { chord: "M-n", label: "M-n" }, up: N, right: ň, down: { chord: "C-n", label: "C-n" }, upRight: Ň }
+    - { type: compass, primary: s, left: { chord: "M-s", label: "M-s" }, up: S, right: š, down: { chord: "C-s", label: "C-s" }, upRight: Š }
+    - { type: compass, primary: h, left: { chord: "M-h", label: "M-h" }, up: H, down: { chord: "C-h", label: "C-h" } }
+    - $delete
+
+  # ---- Row 4: Tab | ; x p u z | ` ↓ # | g d y j | / \ ----
+  - letters:
+    - { type: compass, primary: "!icon/tab_key|!code/key_tab", left: { chord: "M-TAB", label: "M-TAB" }, up: { chord: "S-TAB", label: "S-TAB" }, down: { chord: "C-TAB", label: "C-TAB" } }
+    - { type: cluster, main: ";.:", up: "…" }
+    - { type: compass, primary: x, left: { chord: "M-x", label: "M-x" }, up: X, right: { chord: "C-S-x", label: "C-X" }, down: { chord: "C-x", label: "C-x" } }
+    - { type: compass, primary: p, left: { chord: "M-p", label: "M-p" }, up: P, down: { chord: "C-p", label: "C-p" } }
+    - { type: compass, primary: u, left: { chord: "M-u", label: "M-u" }, up: U, right: ú, down: { chord: "C-u", label: "C-u" }, upLeft: ü, upRight: Ú, downRight: ů, downLeft: ū }
+    - { type: compass, primary: z, left: { chord: "M-z", label: "M-z" }, up: Z, right: ž, down: { chord: "C-z", label: "C-z" }, upRight: Ž }
+    - "`"
+    - "!icon/action_down|!code/action_down"
+    - "#"
+    - { type: compass, primary: g, left: { chord: "M-g", label: "M-g" }, up: G, down: { chord: "C-g", label: "C-g" } }
+    - { type: compass, primary: d, left: { chord: "M-d", label: "M-d" }, up: D, right: ď, down: { chord: "C-d", label: "C-d" }, upLeft: "$", upRight: Ď, downRight: đ, downLeft: Đ }
+    - { type: compass, primary: y, left: { chord: "M-y", label: "M-y" }, up: Y, right: ý, down: { chord: "C-y", label: "C-y" }, upRight: Ý }
+    - { type: compass, primary: j, left: { chord: "M-j", label: "M-j" }, up: J, down: { chord: "C-j", label: "C-j" }, downRight: "“", downLeft: "„" }
+    - { type: compass, primary: "/", left: "`", up: "|", right: "~", down: { chord: "C-/", label: "C-/" } }
+    - { type: compass, primary: "\\", left: "`", up: "|", right: "~", down: { chord: "C-\\", label: "C-\\" } }
+
+  # ---- Row 5: bottom (normalised) ----
+  - bottom:
+    - $shift
+    - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+    - { type: compass, primary: "!icon/tab_key|!code/key_tab", left: { chord: "M-TAB", label: "M-TAB" }, up: { chord: "S-TAB", label: "S-TAB" }, down: { chord: "C-TAB", label: "C-TAB" } }
+    - { type: cluster, main: "?,!", up: "…" }
+    # kxkb: tap = cycle to next layout in the current language; long-press keeps the symbol popup.
+    - { type: base, attributes: { moreKeyMode: OnlyExplicit }, spec: "!icon/settings_key|!code/action_next_language_layout", moreKeys: ["%", "\"", ":", "'", "@", "\u2013", "+", "&"] }
+    - { type: compass, primary: ":", left: { chord: "M-:", label: "M-:" }, up: "!", right: "?", down: { chord: "C-:", label: "C-:" } }
+    - { type: base, spec: "\\|" }
+    - $delete
+    - { type: compass, primary: "!icon/enter_key|!code/key_enter", left: { chord: "M-RET", label: "M-RET" }, down: { chord: "C-RET", label: "C-RET" } }
+    - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+    - $shift
+
+# ===================== alt0  (Multiling "sym") =====================
+# ===================== alt1  (Multiling "altGr") ===================
+altPages:
+  - # ---- alt0 : sym ----
+    - letters: [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" ]
+    - letters: [ { type: macro, text: "ˢᵗ" }, { type: macro, text: "ⁿᵈ" }, { type: macro, text: "ʳᵈ" }, { type: macro, text: "ᵗʰ" }, "_", "&", "%", "@", { type: macro, text: "10" }, "〇" ]
+    - letters: [ "<", ">", "≅", "≈", "=", "-", "+", "*", "'", "\"" ]
+    - letters: [ { type: macro, text: "1ˢᵗ" }, { type: macro, text: "2ⁿᵈ" }, { type: macro, text: "3ʳᵈ" }, { type: macro, text: "4ᵗʰ" }, { type: macro, text: "5ᵗʰ" }, { type: macro, text: "6ᵗʰ" }, { type: macro, text: "7ᵗʰ" }, { type: macro, text: "8ᵗʰ" }, { type: macro, text: "9ᵗʰ" }, { type: macro, text: "10ᵗʰ" } ]
+    - letters: [ { type: macro, text: "11ᵗʰ" }, { type: macro, text: "12ᵗʰ" }, { type: macro, text: "13ᵗʰ" }, { type: macro, text: "14ᵗʰ" }, { type: macro, text: "15ᵗʰ" }, { type: macro, text: "16ᵗʰ" }, { type: macro, text: "17ᵗʰ" }, { type: macro, text: "18ᵗʰ" }, { type: macro, text: "19ᵗʰ" }, { type: macro, text: "20ᵗʰ" } ]
+    - letters: [ { type: macro, text: "21ˢᵗ" }, { type: macro, text: "22ⁿᵈ" }, { type: macro, text: "23ʳᵈ" }, { type: macro, text: "24ᵗʰ" }, { type: macro, text: "25ᵗʰ" }, { type: macro, text: "26ᵗʰ" }, { type: macro, text: "27ᵗʰ" }, { type: macro, text: "28ᵗʰ" }, { type: macro, text: "29ᵗʰ" }, { type: macro, text: "30ᵗʰ" } ]
+    - letters: [ { type: macro, text: "31ˢᵗ" }, "\\", ":", ";", "→", "⇒", "⇨", "!icon/action_voice_input|!code/action_voice_input", "#", "/" ]
+    - bottom:
+      - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { style: Functional, showPopup: false } }
+      - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+      - { type: cluster, main: ";.:", up: "…" }
+      - { type: cluster, main: "?,!", up: "…" }
+      - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout" }
+      - { type: compass, primary: "$delete", up: "sym|!code/key_to_alt_0_layout" }
+      - "!icon/enter_key|!code/key_enter"
+      - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+      - $shift
+
+  - # ---- alt1 : altGr ----
+    - letters: [ "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩" ]
+    - letters: [ "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹", "⁰" ]
+    - letters: [ "₀", "₂", "₃", "₄", "½", "⅓", "⅔", "¼", "¾", "⓪" ]
+    - letters: [ "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳" ]
+    - letters: [ "㉑", "㉒", "㉓", "㉔", "㉕", "㉖", "㉗", "㉘", "㉙", "㉚" ]
+    - letters: [ "㉛", "㉜", "㉝", "㉞", "㉟", "㊱", "㊲", "㊳", "㊴", "㊵" ]
+    - bottom:
+      - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { style: Functional, showPopup: false } }
+      - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+      - { type: cluster, main: ";.:", up: "…" }
+      - { type: cluster, main: "?,!", up: "…" }
+      - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout" }
+      - { type: compass, primary: "$delete", up: "sym|!code/key_to_alt_0_layout" }
+      - "!icon/enter_key|!code/key_enter"
+      - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
+      - $shift
