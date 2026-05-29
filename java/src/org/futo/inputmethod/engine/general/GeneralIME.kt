@@ -774,9 +774,8 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
 
     // kxkb: Multiling-style "topBar" — static candidates shown when nothing is composed. See TopBar.kt.
     private var topBarEntries: List<TopBarEntry> = emptyList()
-    private var topBarWords: SuggestedWords? = null
+    private var topBarInfos: List<SuggestedWordInfo> = emptyList() // the topBar entries as candidates
     private var topBarLayoutKey: String? = null // recompute when the active layout changes
-    private var topBarShown: Boolean = false     // is the bar currently showing topBar (not predictions)?
 
     private fun ensureTopBar(): Boolean {
         val ctx = helper.context
@@ -787,26 +786,19 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             topBarLayoutKey = layoutName
             val layoutTopBar = try { LayoutManager.getLayoutOrNull(ctx, layoutName)?.topBar } catch (e: Exception) { null }
             topBarEntries = resolveTopBarEntries(layoutTopBar, ctx.getSetting(TopBarEntriesSetting))
-            topBarWords = if (topBarEntries.isEmpty()) null else buildTopBarWords(topBarEntries)
+            topBarInfos = topBarEntries.mapIndexed { i, e ->
+                SuggestedWordInfo(e.label, "", 1_000_000 - i,
+                    SuggestedWordInfo.KIND_CORRECTION, null,
+                    SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
+            }
         }
-        return topBarWords != null
+        return topBarInfos.isNotEmpty()
     }
 
-    private fun buildTopBarWords(entries: List<TopBarEntry>): SuggestedWords {
-        val infos = ArrayList<SuggestedWordInfo>(entries.size)
-        entries.forEachIndexed { i, e ->
-            infos.add(SuggestedWordInfo(e.label, "", 1_000_000 - i,
-                SuggestedWordInfo.KIND_CORRECTION, null,
-                SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE))
-        }
-        return SuggestedWords(infos, null, null, false, false, false,
-            SuggestedWords.INPUT_STYLE_NONE, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
-    }
-
-    // Returns true if the picked suggestion was a topBar entry (and was handled here).
+    // Returns true if the picked suggestion was a topBar entry (matched by identity — it works whether
+    // the bar held only the topBar or predictions+topBar), and inserts it.
     private fun handleTopBarPick(picked: SuggestedWordInfo): Boolean {
-        if (!topBarShown) return false
-        val idx = topBarWords?.indexOf(picked) ?: -1
+        val idx = topBarInfos.indexOfFirst { it === picked }
         if (idx < 0 || idx >= topBarEntries.size) return false
         val e = topBarEntries[idx]
         when (e.type) {
@@ -814,7 +806,7 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             TopBarType.DATE -> commitTopBarText(e.dateText(), 0)
             else -> commitTopBarText(e.insert, e.cursorBack)
         }
-        setNeutralSuggestionStrip() // re-show the topBar (still neutral)
+        setNeutralSuggestionStrip() // re-show topBar after inserting
         return true
     }
 
@@ -831,37 +823,48 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         ic.endBatchEdit()
     }
 
-    // kxkb: whenever the strip would be empty (no composing word / no predictions — incl. between
-    // words, after Enter, after picking), show the topBar static candidates instead of a blank bar.
-    // Centralised here because the empty state is reached via BOTH setNeutralSuggestionStrip() and
-    // showSuggestionStrip(emptyWords) (and async prediction updates) — handling only one left the bar
-    // inconsistently blank / flashing.
-    private fun showEmptyOrTopBar() {
-        if (ensureTopBar()) {
-            topBarShown = true
-            inputLogic.setSuggestedWords(topBarWords)
-            helper.showSuggestionStrip(topBarWords, expandableCfg)
-        } else {
-            topBarShown = false
+    // kxkb: when NOT composing a word (idle / next-word state), show the next-word predictions (if
+    // any) followed by the topBar static defaults — so both are selectable, the defaults wrapping
+    // after the predictions in the expandable panel. No predictions → just the topBar; no topBar →
+    // just the predictions; neither → a blank bar. (While composing a word, showSuggestionStrip keeps
+    // pure correction candidates so the defaults don't pollute the 3-slot correction strip.) Routing
+    // every empty/neutral path through here also keeps the bar from flashing blank between words.
+    private fun showPredictionsWithTopBar(predWords: SuggestedWords?) {
+        val hasTopBar = ensureTopBar()
+        val preds = predWords?.mSuggestedWordInfoList
+            ?.filter { !it.isKindOf(SuggestedWordInfo.KIND_TYPED) } ?: emptyList()
+        if (!hasTopBar && preds.isEmpty()) {
             inputLogic.setSuggestedWords(SuggestedWords.getEmptyInstance())
             helper.setNeutralSuggestionStrip(expandableCfg)
+            return
         }
+        val combined = ArrayList<SuggestedWordInfo>(preds.size + topBarInfos.size)
+        combined.addAll(preds)
+        combined.addAll(topBarInfos)
+        val sw = SuggestedWords(combined, null, null, false, false, false,
+            SuggestedWords.INPUT_STYLE_NONE, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+        inputLogic.setSuggestedWords(sw)
+        helper.showSuggestionStrip(sw, expandableCfg)
     }
 
     override fun setNeutralSuggestionStrip() {
-        showEmptyOrTopBar()
+        showPredictionsWithTopBar(null)
     }
 
     val blacklist = SuggestionBlacklist(Settings.getInstance(), helper.context, helper.lifecycleScope)
     override fun showSuggestionStrip(words: SuggestedWords?) {
-        if (words == null || words.size() == 0
-                || !settings.current.isSuggestionsEnabledPerUserSettings) {
-            showEmptyOrTopBar()
+        // While composing a word: pure correction candidates, no topBar (it's for the idle/next-word
+        // state). Otherwise: next-word predictions (if any) + the topBar defaults appended.
+        if (inputLogic.mWordComposer.isComposingWord) {
+            inputLogic.setSuggestedWords(words)
+            if (settings.current.isSuggestionsEnabledPerUserSettings && words != null && words.size() > 0) {
+                helper.showSuggestionStrip(words, expandableCfg)
+            } else {
+                helper.setNeutralSuggestionStrip(expandableCfg)
+            }
             return
         }
-        topBarShown = false
-        inputLogic.setSuggestedWords(words)
-        helper.showSuggestionStrip(words, expandableCfg)
+        showPredictionsWithTopBar(if (settings.current.isSuggestionsEnabledPerUserSettings) words else null)
     }
 
     fun debugInfo(): List<String> = buildList {
