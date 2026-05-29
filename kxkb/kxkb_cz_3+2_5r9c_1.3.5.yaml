@@ -1,75 +1,4 @@
-# kxkb cz 3+2 5r9c 1.3.4  —  Multiling O → FUTO v2 layout
-#
-# UPDATE 2026-05-26: cluster keys now SHOW their shifted (UPPERCASE) faces when Shift, caps-lock,
-# or auto-caps is active. Each letter cluster is a CaseSelector now ({ type: case, normal: <lower>,
-# shifted: <UPPER> } — `shifted` covers all three shift states). Previously only the committed
-# output was capitalised while the key face stayed lower-case. Width attrs are carried into both
-# variants; punctuation/digit/symbol clusters (?!@%, ;.,, the number row) are unchanged.
-# Source: kxkb_cz_3+2_5r9c_1.3.4.txt  (Czech "side-columns" layout, v1.3.4)
-#
-# This is the SIDE-COLUMNS sibling of 5r4c: row 0, the bottom row, and BOTH alt pages are
-# identical to 5r4c and reused verbatim. Only the three letter rows differ — they gain a
-# left side-column, a right side-column, and a 3-key centre group, so each letter row is
-# 9 keys instead of 4.
-#
-# THE 22-CELL GRID (how everything lines up):
-#  * Multiling encodes width two ways, both honoured here:
-#      - `[]` extends the preceding key by one cell (e.g. [Up][] = a 2-cell arrow key);
-#      - a DOUBLED bare char is ONE key that many cells wide — `((`,`))`,`!!`,`??`,`::`,`„„`,`““`
-#        each collapse to a single 2-cell key (this is the same rule as your "render || as a
-#        single |", generalised: N copies = one key N cells wide).
-#  * With that, every row totals 22 cells: number row = 11 keys × 2; each letter row =
-#    4 clusters × 3 + 5 side/centre keys × 2; bottom row = 22. So FUTO's Regular width
-#    (= 1/maxKeys = 1/11 = 2/22) is exactly a 2-cell key, and the only override needed is
-#    Custom3 = 3/22 for the clusters: 4×(3/22) + 5×(2/22) = 1.0, the row fills, and the
-#    centre arrows (Up/Down col-11, Left col-9, Right col-13) align into a cross.
-#
-# LETTER-ROW LAYOUT (rows 1-3), left→right:
-#    [side-col] [cluster][cluster] [centre-L][arrow][centre-R] [cluster][cluster] [side-col]
-#  * Left side-col / centre / right side-col per row:
-#      row1: Esc(+altGr↑) · ( Up ) · !
-#      row2: Ctrl(+sym↑)  · Left : Right · ?
-#      row3: Tool(gear)   · „ Down “ · Del
-#    The four arrows form the centred nav-cross; ( ) : „ “ sit in its corners/centre.
-#  * Side-column / centre keys are Regular (2 cells); clusters are Custom3 (3 cells).
-#  * [ALTGR:[Esc]] = tap Esc, slide ↑ to altGr.  [SYM:[Ctrl]] = tap Ctrl, slide ↑ to sym —
-#    so unlike 5r4c the sym page has a real entry key and the bottom Tab key carries ONLY
-#    altGr (no down-slide sym hack). [TOOL] = settings/gear. [Del] (row3 right) is a plain
-#    Regular-width delete, NOT the $delete template (which is FunctionalKey-wide).
-#  * BOTTOM ROW (matches the GNU 5r13c fix): the bottom-row functional keys are pinned to explicit
-#    widths so the row is self-contained (this layout has no letter-row functional key to anchor the
-#    shared functional width small). Spacebars = Custom1 (0.2, wide); shift/delete/enter and the
-#    alt-page return = Custom2 (0.0857 ≈ 0.6/7); clusters + Tab stay Regular and auto-fill to the
-#    same 0.0857 — uniform middle, no cram, each bottom row sums to 1.0. Delete keeps hold-to-repeat;
-#    enter keeps its Action accent but no longer morphs its icon to the IME action (Go/Search/Send).
-#
-# SHARED WITH 5r4c (unchanged):
-#  * Number row (row 0): COMPASS CaseSelectors — tap = number on base, symbol on shift.
-#    Key 8-shift = dead ´ ([Predict] dropped); key 9-shift = dead ˇ.
-#  * Dead-key compass [4D:’´"ˇ'´ˇ+=¨%]: last two glyphs (¨ %) dropped per your call.
-#  * Clusters: FUTO auto-caps only the CENTRE letter on shift; side mains / slide slots
-#    stay as authored (Multiling's main-vs-shifted side swaps like (→[ don't happen).
-#  * Macros use label: (per your Special-keys screenshot).
-#  * Verified vs fork source: action_up/down/left/right, action_undo/redo/cut/copy/paste,
-#    action_hide_keyboard resolve via the actions Registry; key_escape/key_ctrl/key_settings/
-#    key_delete/key_tab/key_space/key_enter exist in KeyboardCodesSet; icons settings_key/
-#    delete_key/action_* all exist.
-#  * DROPPED (no FUTO action exists): [WDEL] (word delete) on row1 mwk ; [Predict] on
-#    row0 key8-shift and row3 !x?.
-#  * 〇 (U+3007) kept literal.  Ignored per scope: num, symShifted, altGrShifted, topBar.
-#  * CRASH FIX (verified vs fork source CompassKey.kt + MoreKeysBuilder.kt): top-level
-#    `attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }`. A cluster's slide
-#    slots decode as default BaseKeys (moreKeyMode=All); on a letter row that calls
-#    getNumForCoordinate/symsForCoord -> numColumnsByRow[regularRow] (unchecked). Cluster &
-#    compass keys don't count toward coordinates, so numColumnsByRow is shorter than the row
-#    count and [regularRow] throws "Index: 1, Size: 1". moreKeyMode: OnlyExplicit gates that
-#    path off for EVERY key (base letter rows, cluster slots, AND the alt-page letter rows --
-#    those bare keys would hit the same crash once Base stopped failing). The layout is all
-#    explicit/slide-based, so no auto long-press is wanted anyway. useKeySpecShortcut: false
-#    keeps `$` literal. (Cluster main-splitting is main.codePoints(), independent of both
-#    flags.) Proper upstream fix: getOrNull in MoreKeysBuilder.getNumForCoordinate/symsForCoord.
-
-name: "kxkb cz 3+2 5r9c 1.3.4"
+name: "kxkb cz 3+2 5r9c 1.3.5"
 attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
 numberRowMode: AlwaysDisabled
 overrideWidths: { Custom1: 0.2, Custom2: 0.0857143, Custom3: 0.1363636 }   # 3/22 — clusters are 3 cells in the 22-cell grid
@@ -86,7 +15,7 @@ rows:
       - { type: case, normal: { type: compass, primary: "7", up: ")", down: "]" }, shiftedManually: { type: compass, primary: ")", up: "7", down: "]" } }
       - { type: case, normal: { type: compass, primary: "8", up: "´", down: "ˇ" }, shiftedManually: { type: compass, primary: "´" } }
       - { type: case, normal: { type: compass, primary: "9", up: "↶|!code/action_undo", down: "↷|!code/action_redo" }, shiftedManually: { type: compass, primary: "ˇ", up: "↶|!code/action_undo", down: "↷|!code/action_redo" } }
-      - { type: compass, primary: "’", left: "´", up: "\"", right: "ˇ", down: "'", upLeft: "´", upRight: "ˇ", downRight: "+", downLeft: "=" }
+      - { type: compass, primary: "’", left: "´", up: "\"", right: "ˇ", down: "'", upLeft: "¯", upRight: "¨", downRight: "+", downLeft: "˚" }
       - { type: case, normal: { type: compass, primary: "0", up: "〇", down: "▾|!code/action_hide_keyboard" }, shiftedManually: { type: compass, primary: "'", up: "〇", down: "▾|!code/action_hide_keyboard" } }
 
   # --- row 1 ---  (left side-col · 2 clusters · centre [ ( Up ) ] · 2 clusters · right side-col)
@@ -98,7 +27,7 @@ rows:
       - "!icon/action_up|!code/action_up"
       - ")"
       - { type: case, normal: { type: cluster, main: "qfr", up: "↶|!code/action_undo", down: "↷|!code/action_redo", attributes: { width: Custom3 } }, shifted: { type: cluster, main: "QFR", up: "↶|!code/action_undo", down: "↷|!code/action_redo", attributes: { width: Custom3 } } }
-      - { type: case, normal: { type: cluster, main: "´lˇ", up: "〇", down: "▾|!code/action_hide_keyboard", attributes: { width: Custom3 } }, shifted: { type: cluster, main: "´Lˇ", up: "〇", down: "▾|!code/action_hide_keyboard", attributes: { width: Custom3 } } }
+      - { type: case, normal: { type: cluster, main: "´lˇ", up: "〇", down: "▾|!code/action_hide_keyboard", upLeft: "¯", upRight: "¨", downLeft: "˚", attributes: { width: Custom3 } }, shifted: { type: cluster, main: "´Lˇ", up: "〇", down: "▾|!code/action_hide_keyboard", upLeft: "¯", upRight: "¨", downLeft: "˚", attributes: { width: Custom3 } } }
       - "!"
 
   # --- row 2 ---  (Ctrl/sym side-col · 2 clusters · centre [ Left : Right ] · 2 clusters · right side-col)

@@ -1,62 +1,4 @@
-# kxkb 3+2 5r4c  —  Multiling O → FUTO v2 layout
-#
-# UPDATE 2026-05-26: cluster keys now SHOW their shifted (UPPERCASE) faces when Shift, caps-lock,
-# or auto-caps is active. Each letter cluster is a CaseSelector now ({ type: case, normal: <lower>,
-# shifted: <UPPER> } — `shifted` covers all three shift states). Previously only the committed
-# output was capitalised while the key face stayed lower-case. Width attrs are carried into both
-# variants; punctuation/digit/symbol clusters (?!@%, ;.,, the number row) are unchanged.
-# Source: kxkb_cz_3_2_5r4c_1_3_4.txt  (Czech "side-columns" layout, v1.3.4)
-#
-# MAPPING DECISIONS / CAVEATS (scan before testing):
-#  * Number row (row 0): rendered as COMPASS keys (primary + up/down slides), not
-#    clusters — the Multiling tokens have blank left/right mains, so a cluster would
-#    carry phantom blank slide-letters. Each key is a CaseSelector: tap = number on
-#    base, tap = symbol on shift (your "numbers primary unshifted" design).
-#      - Key 8 on shift = dead-key ´ ; its shifted [Predict] slot was DROPPED (no FUTO eq).
-#      - Key 9 on shift = dead-key ˇ .
-#  * Dead-key compass [4D:’´"ˇ'´ˇ+=¨%]: last two glyphs (¨ %) dropped per your call;
-#    the remaining 9 fill primary+8 in skill slot order.
-#  * Letter rows (1-3): CLUSTERS (main string = left/centre/right, centre taps).
-#    FUTO auto-caps only the CENTRE letter on shift; side mains and slide slots stay
-#    as authored (so the Multiling main-vs-shifted side swaps like (→[ don't happen).
-#  * Macros use label: (per your Special-keys screenshot) — all descriptive labels kept.
-#  * sym page (alt0) had NO entry key in the source's base layers. Switch placed on the
-#    bottom-row Tab key's DOWN slide (UP = altGr/alt1, DOWN = sym/alt0).
-#  * DROPPED (no confident FUTO mapping — give me the codes and I'll add them):
-#       [WDEL] (word delete) on row1 key2 ; [Predict] on row0 key8-shift and row3 key1.
-#  * BEST-GUESS action codes — verify these exist in your fork:
-#       action_undo, action_redo, action_cut, action_copy, action_paste,
-#       key_tab, action_hide_keyboard, key_enter, key_space.
-#    (action_undo + key_tab + action_hide_keyboard + action_paste are skill-documented;
-#     action_redo / action_cut / action_copy are inferred.)
-#  * Widths: FUTO's Regular width = total / (max keys in any row) = 1/11 here (number row),
-#    so the 4-cluster letter rows would only fill 4/11 and clump in the centre. Fixed by
-#    giving rows 1-3 a row-level `attributes: { width: Custom2 }` with Custom2 = 0.25, so the
-#    four clusters fill the row (4 × 0.25 = 1.0). BOTTOM ROW (matches the GNU 5r13c fix): the
-#    engine derives one shared functional-key width from the whole layout, and this layout has no
-#    functional key in a letter row to anchor it small — so the bottom-row functional keys are
-#    pinned to explicit widths instead. Spacebars = Custom1 (0.2, wide); shift/delete/enter and the
-#    alt-page return = Custom3 (0.0857 ≈ 0.6/7); clusters + Tab stay Regular and auto-fill to the
-#    same 0.0857. Each bottom row is self-contained and sums to 1.0 (uniform middle, no cram).
-#    Delete keeps hold-to-repeat; enter keeps its Action accent but no longer morphs its icon to
-#    the IME action (Go/Search/Send) — say if you'd rather keep the adaptive $enter. The finer
-#    per-key []-extender widths (Shift=2, the
-#    double-width sym macro keys, etc.) are still not individually set — say if you want them exact.
-#  * 〇 (U+3007) kept as a literal character in its slots.
-#  * Ignored per scope: num, symShifted, altGrShifted, topBar.
-#  * CRASH FIX (verified vs fork source CompassKey.kt + MoreKeysBuilder.kt): top-level
-#    `attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }`. A cluster's slide
-#    slots decode as default BaseKeys (moreKeyMode=All); on a letter row that calls
-#    getNumForCoordinate/symsForCoord -> numColumnsByRow[regularRow] (unchecked). Cluster &
-#    compass keys don't count toward coordinates, so numColumnsByRow is shorter than the row
-#    count and [regularRow] throws "Index: 1, Size: 1". moreKeyMode: OnlyExplicit gates that
-#    path off for EVERY key (base letter rows, cluster slots, AND the alt-page letter rows --
-#    those bare keys would hit the same crash once Base stopped failing). The layout is all
-#    explicit/slide-based, so no auto long-press is wanted anyway. useKeySpecShortcut: false
-#    keeps `$` literal. (Cluster main-splitting is main.codePoints(), independent of both
-#    flags.) Proper upstream fix: getOrNull in MoreKeysBuilder.getNumForCoordinate/symsForCoord.
-
-name: "kxkb cz 3+2 5r4c 1.3.4"
+name: "kxkb cz 3+2 5r4c 1.3.5"
 attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
 numberRowMode: AlwaysDisabled
 overrideWidths: { Custom1: 0.2, Custom2: 0.25, Custom3: 0.0857143 }
@@ -73,7 +15,7 @@ rows:
       - { type: case, normal: { type: compass, primary: "7", up: ")", down: "]" }, shiftedManually: { type: compass, primary: ")", up: "7", down: "]" } }
       - { type: case, normal: { type: compass, primary: "8", up: "´", down: "ˇ" }, shiftedManually: { type: compass, primary: "´" } }
       - { type: case, normal: { type: compass, primary: "9", up: "↶|!code/action_undo", down: "↷|!code/action_redo" }, shiftedManually: { type: compass, primary: "ˇ", up: "↶|!code/action_undo", down: "↷|!code/action_redo" } }
-      - { type: compass, primary: "’", left: "´", up: "\"", right: "ˇ", down: "'", upLeft: "´", upRight: "ˇ", downRight: "+", downLeft: "=" }
+      - { type: compass, primary: "’", left: "´", up: "\"", right: "ˇ", down: "'", upLeft: "¯", upRight: "¨", downRight: "+", downLeft: "˚" }
       - { type: case, normal: { type: compass, primary: "0", up: "〇", down: "▾|!code/action_hide_keyboard" }, shiftedManually: { type: compass, primary: "'", up: "〇", down: "▾|!code/action_hide_keyboard" } }
 
   # --- row 1 ---
@@ -81,7 +23,7 @@ rows:
       - { type: case, normal: { type: cluster, main: "„c“", up: "'", down: "…" }, shifted: { type: cluster, main: "„C“", up: "'", down: "…" } }
       - { type: case, normal: { type: cluster, main: "mwk", up: "8" }, shifted: { type: cluster, main: "MWK", up: "8" } }
       - { type: case, normal: { type: cluster, main: "qfr", up: "↶|!code/action_undo", down: "↷|!code/action_redo" }, shifted: { type: cluster, main: "QFR", up: "↶|!code/action_undo", down: "↷|!code/action_redo" } }
-      - { type: case, normal: { type: cluster, main: "´lˇ", up: "〇", down: "▾|!code/action_hide_keyboard" }, shifted: { type: cluster, main: "´Lˇ", up: "〇", down: "▾|!code/action_hide_keyboard" } }
+      - { type: case, normal: { type: cluster, main: "´lˇ", up: "〇", down: "▾|!code/action_hide_keyboard", upLeft: "¯", upRight: "¨", downLeft: "˚" }, shifted: { type: cluster, main: "´Lˇ", up: "〇", down: "▾|!code/action_hide_keyboard", upLeft: "¯", upRight: "¨", downLeft: "˚" } }
     attributes: { width: Custom2 }
 
   # --- row 2 ---
