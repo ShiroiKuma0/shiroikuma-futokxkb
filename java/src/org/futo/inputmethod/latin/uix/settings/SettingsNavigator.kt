@@ -41,6 +41,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.DeveloperScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KeyboardEditorScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KeyboardEditorExportScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KeyEditScreen
+import org.futo.inputmethod.latin.uix.settings.pages.AltPagePreviewScreen
 import org.futo.inputmethod.latin.uix.settings.pages.HelpMenu
 import org.futo.inputmethod.latin.uix.settings.pages.HomeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.HomeScreenLite
@@ -94,6 +95,7 @@ object Route {
     @Serializable data class PersonalDictDelete(val dict: String)
     @Serializable data class DevLayoutEdit(val i: Int)
     @Serializable data class KeyEdit(val path: String)
+    @Serializable data class AltPreview(val srcIdx: Int, val page: Int)
     @Serializable data class CustomTheme(val uri: String)
     @Serializable data class DeleteTheme(val name: String)
     @Serializable data class ThirdPartyInfo(val idx: Int)
@@ -155,6 +157,7 @@ fun SettingsNavigator(
 
                 composable<Route.DevLayoutEdit> { DevLayoutEdit(nav, it.i) }
                 composable<Route.KeyEdit> { KeyEditScreen(nav, it.path) }
+                composable<Route.AltPreview> { AltPagePreviewScreen(nav, it.srcIdx, it.page) }
 
                 composable<Route.CustomTheme> { CustomThemeScreen(it.uri, nav) }
                 dialog<Route.DeleteTheme> { DeleteCustomThemeDialog(it.name, nav) }
