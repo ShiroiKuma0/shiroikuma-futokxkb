@@ -287,6 +287,14 @@ data class Keyboard(
     val combiners: List<CombinerKind> = listOf(CombinerKind.DeadKey),
 
     /**
+     * kxkb: (optional) Multiling-style "topBar" — static candidates shown in the suggestion bar when
+     * nothing is being composed. When non-empty, this overrides the global TopBarEntriesSetting list.
+     * One string per entry; see TopBar.kt for the entry forms (plain text, A…B caret pair, [Paste],
+     * {{date-pattern).
+     */
+    val topBar: List<String> = listOf(),
+
+    /**
      * Whether or not automatic shifting should apply for this keyboard, when input starts or a
      * sentence is finished.
      */
