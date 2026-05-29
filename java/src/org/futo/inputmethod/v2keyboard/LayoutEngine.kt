@@ -742,7 +742,9 @@ data class LayoutEngine(
             // kxkb: per-key visual overrides (null = theme).
             colorOverride = data.color,
             fontScaleOverride = data.fontScale,
-            hintScaleOverride = data.hintScale
+            hintScaleOverride = data.hintScale,
+            backgroundColorOverride = data.backgroundColor,
+            borderColorOverride = data.borderColor
         )
     }
 

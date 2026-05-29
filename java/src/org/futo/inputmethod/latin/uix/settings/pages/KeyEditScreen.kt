@@ -496,6 +496,15 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
             SizePercentRow("Font size", attrs.fontScale) { put(build(attrs.copy(fontScale = it))) }
             SizePercentRow("Secondary (hint) size", attrs.hintScale) { put(build(attrs.copy(hintScale = it))) }
 
+            ColorSetting("Background colour", attrs.backgroundColor, 0xFF888888.toInt()) { put(build(attrs.copy(backgroundColor = it))) }
+            if (attrs.backgroundColor != null) {
+                OutlinedButton(onClick = { put(build(attrs.copy(backgroundColor = null))) }, modifier = Modifier.padding(16.dp, 2.dp)) { Text("Use theme background") }
+            }
+            ColorSetting("Border colour", attrs.borderColor, 0xFF000000.toInt()) { put(build(attrs.copy(borderColor = it))) }
+            if (attrs.borderColor != null) {
+                OutlinedButton(onClick = { put(build(attrs.copy(borderColor = null))) }, modifier = Modifier.padding(16.dp, 2.dp)) { Text("Use theme border") }
+            }
+
             HorizontalDivider(Modifier.padding(16.dp, 8.dp))
             Text(
                 if (key is CaseSelector) "Attributes (applied to all shift states)"

@@ -238,7 +238,9 @@ data class KeyAttributes(
      */
     val color: Int? = null,
     val fontScale: Float? = null,
-    val hintScale: Float? = null
+    val hintScale: Float? = null,
+    val backgroundColor: Int? = null,
+    val borderColor: Int? = null
 ) {
     fun getEffectiveAttributes(row: Row, keyboard: Keyboard, extraAttrs: List<KeyAttributes> = emptyList()): KeyAttributes {
         val attrs = if(row.isBottomRow) {
@@ -280,7 +282,9 @@ data class KeyAttributes(
             heightRows          = resolve(attrs) { it.heightRows         },
             color               = resolve(attrs) { it.color              },
             fontScale           = resolve(attrs) { it.fontScale          },
-            hintScale           = resolve(attrs) { it.hintScale          }
+            hintScale           = resolve(attrs) { it.hintScale          },
+            backgroundColor     = resolve(attrs) { it.backgroundColor    },
+            borderColor         = resolve(attrs) { it.borderColor        }
         )
     }
 
@@ -302,7 +306,9 @@ data class KeyAttributes(
             heightRows          = resolve(attrs) { it.heightRows         },
             color               = resolve(attrs) { it.color              },
             fontScale           = resolve(attrs) { it.fontScale          },
-            hintScale           = resolve(attrs) { it.hintScale          }
+            hintScale           = resolve(attrs) { it.hintScale          },
+            backgroundColor     = resolve(attrs) { it.backgroundColor    },
+            borderColor         = resolve(attrs) { it.borderColor        }
         )
     }
 }
@@ -502,7 +508,9 @@ data class BaseKey(
             swipeLetter = swipeLetter,
             color = attributes.color,
             fontScale = attributes.fontScale,
-            hintScale = attributes.hintScale
+            hintScale = attributes.hintScale,
+            backgroundColor = attributes.backgroundColor,
+            borderColor = attributes.borderColor
         )
     }
 

@@ -26,6 +26,7 @@ import android.graphics.Paint.Align;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.NinePatchDrawable;
 import android.os.Build;
 import android.text.TextUtils;
@@ -418,6 +419,33 @@ public class KeyboardView extends View {
                     kdc.getBackground(), kdc.getBackgroundPadding(), kdc.getIcon(), kdc.getHintIcon(),
                     kdc.getLabel(), kdc.getHintLabel(), textColor, kdc.getHintColor(), textSize, hintSize);
         }
+        // kxkb: per-key background / border colour (Phase 3 Stage 2). Build a rounded-rect matching
+        // the theme's corner radius (read from the existing GradientDrawable) and stroke width; the
+        // half the user didn't override falls back to the key's existing fill / the theme border.
+        if (key.getBackgroundColorOverride() != null || key.getBorderColorOverride() != null) {
+            final Drawable base = kdc.getBackground();
+            float radius = 0f;
+            int existingFill = sKeyBgColor;
+            if (base instanceof GradientDrawable) {
+                radius = ((GradientDrawable) base).getCornerRadius();
+                final android.content.res.ColorStateList csl = ((GradientDrawable) base).getColor();
+                if (csl != null) existingFill = csl.getDefaultColor();
+            }
+            final GradientDrawable gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            gd.setCornerRadius(radius);
+            gd.setColor(key.getBackgroundColorOverride() != null ? key.getBackgroundColorOverride() : existingFill);
+            int strokeWidth = sKeyStrokeWidthPx;
+            final int strokeColor = key.getBorderColorOverride() != null ? key.getBorderColorOverride() : sKeyBorderColor;
+            if (key.getBorderColorOverride() != null && strokeWidth <= 0) {
+                strokeWidth = Math.round(2f * getResources().getDisplayMetrics().density);
+            }
+            if (strokeWidth > 0) gd.setStroke(strokeWidth, strokeColor);
+            kdc = new KeyDrawingConfiguration(
+                    gd, kdc.getBackgroundPadding(), kdc.getIcon(), kdc.getHintIcon(),
+                    kdc.getLabel(), kdc.getHintLabel(), kdc.getTextColor(), kdc.getHintColor(),
+                    kdc.getTextSize(), kdc.getHintSize());
+        }
         final Drawable background = kdc.getBackground();
         if (background != null) {
             onDrawKeyBackground(key, canvas, background);
@@ -681,6 +709,18 @@ public class KeyboardView extends View {
     private static int sCapsLockColor = 0xFF0000FF;
     public static void setCapsLockColor(final int color) {
         sCapsLockColor = color;
+    }
+
+    // kxkb: current theme's key background / border colour + border width (px), pushed per-geometry
+    // from LatinIME.withPerKindLook. Used as the base when a key sets only a per-key background OR
+    // only a border colour, so the other half matches the theme.
+    private static int sKeyBgColor = 0xFFCCCCCC;
+    private static int sKeyBorderColor = 0xFF888888;
+    private static int sKeyStrokeWidthPx = 0;
+    public static void setKeyDrawDefaults(final int bgColor, final int borderColor, final int strokeWidthPx) {
+        sKeyBgColor = bgColor;
+        sKeyBorderColor = borderColor;
+        sKeyStrokeWidthPx = strokeWidthPx;
     }
 
     // kxkb 4D: draw a flick key's eight directional labels on its face, mirroring the hold-popup

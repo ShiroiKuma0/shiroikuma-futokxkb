@@ -333,6 +333,14 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             keyStrokeWidthDp = if (saved.borderWidthDp >= 0f) saved.borderWidthDp else a.keyStrokeWidthDp
         )
 
+        // kxkb: push the theme's key background / border colour + border width so per-key background/
+        // border overrides (the layout editor) can build a matching drawable for the half not overridden.
+        org.futo.inputmethod.keyboard.KeyboardView.setKeyDrawDefaults(
+            saved.keyBackgroundColor ?: scheme.extended.keyboardContainer.toArgb(),
+            saved.keyBorderColor ?: scheme.base.outline.toArgb(),
+            (overlaid.keyStrokeWidthDp * resources.displayMetrics.density).toInt()
+        )
+
         // Per-geometry colour overrides (null = inherit). base.outline drives the key border;
         // everything else lives on the extended scheme. keyboardBackgroundColor also clears the
         // gradient so a chosen solid colour actually shows. The two suggestion-bar overrides ride
