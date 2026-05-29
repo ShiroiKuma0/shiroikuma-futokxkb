@@ -219,7 +219,12 @@ data class CompassKey(
                 label = label,
                 icon = icon
             ),
-            showPopup = true
+            showPopup = true,
+            // kxkb: the compass primary is computed without the compass's own attributes, so apply
+            // the per-key visual overrides here.
+            color = attributes?.color ?: primaryData.color,
+            fontScale = attributes?.fontScale ?: primaryData.fontScale,
+            hintScale = attributes?.hintScale ?: primaryData.hintScale
         )
     }
 }
@@ -265,6 +270,7 @@ data class MacroKey(
             countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
             hint = "",
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
+            color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
         )
     }
 }
@@ -314,6 +320,7 @@ data class ChordKey(
             countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
             hint = "",
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
+            color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
         )
     }
 }
@@ -386,6 +393,7 @@ data class CycleKey(
             countsToKeyCoordinate = moreKeyMode.autoNumFromCoord && moreKeyMode.autoSymFromCoord,
             hint = "",
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
+            color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
         )
     }
 }

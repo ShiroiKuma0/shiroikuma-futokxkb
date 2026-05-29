@@ -225,6 +225,13 @@ data class Key(
 
     /** Override the letter used for swipe */
     val swipeCodeOverride: Int? = null,
+
+    /** kxkb: per-key visual overrides (null = use the theme/style value). [colorOverride] tints the
+     *  label + icon; [fontScaleOverride] / [hintScaleOverride] multiply the computed label / hint
+     *  text size. Applied at draw time in KeyboardView.onDrawKey. */
+    val colorOverride: Int? = null,
+    val fontScaleOverride: Float? = null,
+    val hintScaleOverride: Float? = null,
 ) {
     /** Validation */
     init {

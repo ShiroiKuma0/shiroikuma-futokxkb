@@ -114,4 +114,9 @@ data class ComputedKeyData(
     // kxkb: set only by `cluster` keys — the band of main glyphs, carried to ProximityInfo so a tap
     // injects all of them as predictive candidates. Null on every other key type.
     val clusterMains: List<ClusterMain>? = null,
+    // kxkb: per-key visual overrides (null = theme). color = label/icon colour; fontScale/hintScale =
+    // multipliers on the computed primary / hint text size.
+    val color: Int? = null,
+    val fontScale: Float? = null,
+    val hintScale: Float? = null,
 )

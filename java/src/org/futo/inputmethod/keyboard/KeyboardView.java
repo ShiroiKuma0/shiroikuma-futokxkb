@@ -407,6 +407,17 @@ public class KeyboardView extends View {
                     kdc.getTextSize(),
                     kdc.getHintSize());
         }
+        // kxkb: per-key visual overrides (Phase 3) — text colour, primary font size and hint size.
+        // colorOverride tints the label + icon (both honour textColor); the scales multiply the
+        // computed sizes. Background/border colour overrides are a later stage.
+        if (key.getColorOverride() != null || key.getFontScaleOverride() != null || key.getHintScaleOverride() != null) {
+            final int textColor = key.getColorOverride() != null ? key.getColorOverride() : kdc.getTextColor();
+            final float textSize = key.getFontScaleOverride() != null ? kdc.getTextSize() * key.getFontScaleOverride() : kdc.getTextSize();
+            final float hintSize = key.getHintScaleOverride() != null ? kdc.getHintSize() * key.getHintScaleOverride() : kdc.getHintSize();
+            kdc = new KeyDrawingConfiguration(
+                    kdc.getBackground(), kdc.getBackgroundPadding(), kdc.getIcon(), kdc.getHintIcon(),
+                    kdc.getLabel(), kdc.getHintLabel(), textColor, kdc.getHintColor(), textSize, hintSize);
+        }
         final Drawable background = kdc.getBackground();
         if (background != null) {
             onDrawKeyBackground(key, canvas, background);
