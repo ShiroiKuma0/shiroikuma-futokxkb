@@ -99,6 +99,65 @@ object KeyboardEditorSession {
         dirty = true
     }
 
+    // ---- Phase 2: structural editing (base rows) ----
+
+    private inline fun mutateRows(block: (MutableList<Row>) -> Unit) {
+        val kb = working ?: return
+        val rows = kb.rows.toMutableList()
+        block(rows)
+        working = kb.copy(rows = rows)
+        dirty = true
+    }
+
+    /** Insert [key] at [col] in [row] (col is clamped; col == size appends). */
+    fun insertKey(row: Int, col: Int, key: AbstractKey) = mutateRows { rows ->
+        val r = rows.getOrNull(row) ?: return@mutateRows
+        val ks = r.keys.toMutableList()
+        ks.add(col.coerceIn(0, ks.size), key)
+        rows[row] = r.withKeys(ks)
+    }
+
+    /** Remove the key at [col] in [row]. No-op if it is the row's only key (delete the row instead). */
+    fun removeKey(row: Int, col: Int) = mutateRows { rows ->
+        val r = rows.getOrNull(row) ?: return@mutateRows
+        val ks = r.keys.toMutableList()
+        if (col !in ks.indices || ks.size <= 1) return@mutateRows
+        ks.removeAt(col)
+        rows[row] = r.withKeys(ks)
+    }
+
+    /** Swap the key at [col] with its neighbour [delta] away (±1). Returns the key's new column. */
+    fun moveKey(row: Int, col: Int, delta: Int): Int {
+        val r = working?.rows?.getOrNull(row) ?: return col
+        val target = col + delta
+        if (col !in r.keys.indices || target !in r.keys.indices) return col
+        mutateRows { rows ->
+            val ks = rows[row].keys.toMutableList()
+            val t = ks[col]; ks[col] = ks[target]; ks[target] = t
+            rows[row] = rows[row].withKeys(ks)
+        }
+        return target
+    }
+
+    /** Insert a new single-key letters row after [afterRow]. */
+    fun addRow(afterRow: Int) = mutateRows { rows ->
+        rows.add((afterRow + 1).coerceIn(0, rows.size), Row(letters = listOf(BaseKey("a"))))
+    }
+
+    /** Remove [row]. No-op if it is the only row, or the only letters row. */
+    fun removeRow(row: Int) = mutateRows { rows ->
+        if (row !in rows.indices || rows.size <= 1) return@mutateRows
+        if (rows[row].isLetterRow && rows.count { it.isLetterRow } <= 1) return@mutateRows
+        rows.removeAt(row)
+    }
+
+    /** Swap [row] with its neighbour [delta] away (±1). */
+    fun moveRow(row: Int, delta: Int) = mutateRows { rows ->
+        val target = row + delta
+        if (row !in rows.indices || target !in rows.indices) return@mutateRows
+        val t = rows[row]; rows[row] = rows[target]; rows[target] = t
+    }
+
     /** Replace the key at [path], rebuilding the working model. */
     fun replaceKey(path: EditPath, newKey: AbstractKey) {
         val kb = working ?: return
@@ -186,6 +245,13 @@ private fun Row.withKeyAt(col: Int, newKey: AbstractKey): Row = when {
     numbers != null -> copy(numbers = numbers!!.toMutableList().also { it[col] = newKey })
     bottom != null  -> copy(bottom  = bottom!!.toMutableList().also  { it[col] = newKey })
     else            -> copy(letters = letters!!.toMutableList().also { it[col] = newKey })
+}
+
+// Replace the whole key list, keeping the row's kind (numbers / letters / bottom).
+private fun Row.withKeys(newKeys: List<AbstractKey>): Row = when {
+    numbers != null -> copy(numbers = newKeys)
+    bottom != null  -> copy(bottom  = newKeys)
+    else            -> copy(letters = newKeys)
 }
 
 // ---- composite-key field navigation ----

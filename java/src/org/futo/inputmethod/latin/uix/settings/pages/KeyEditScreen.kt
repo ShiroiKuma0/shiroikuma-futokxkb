@@ -140,6 +140,21 @@ private fun withAttributes(k: AbstractKey, a: KeyAttributes): AbstractKey = when
     else -> k
 }
 
+// A CaseSelector (e.g. the shift key) has no attributes of its own — width/style live on its per-state
+// branches. So for editing we surface a UNIFIED attributes editor: read the `normal` branch's
+// attributes and write the edited set to every attribute-bearing branch at once.
+private fun applyAttrsIfPossible(k: AbstractKey, a: KeyAttributes): AbstractKey =
+    if (keyAttributes(k) != null) withAttributes(k, a) else k
+
+private fun caseWithUnifiedAttributes(cs: CaseSelector, a: KeyAttributes): CaseSelector = cs.copy(
+    normal = applyAttrsIfPossible(cs.normal, a),
+    shifted = applyAttrsIfPossible(cs.shifted, a),
+    shiftedManually = applyAttrsIfPossible(cs.shiftedManually, a),
+    shiftLocked = applyAttrsIfPossible(cs.shiftLocked, a),
+    symbols = applyAttrsIfPossible(cs.symbols, a),
+    symbolsShifted = applyAttrsIfPossible(cs.symbolsShifted, a)
+)
+
 // A meaningful width label rather than the bare token: Regular/Functional/Grow read plainly, and a
 // Custom token shows its resolved width (from the layout's overrideWidths). Custom values are edited
 // in the "Custom key widths" section on the main editor screen.
@@ -285,6 +300,47 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
         }
         HorizontalDivider(Modifier.padding(16.dp, 8.dp))
 
+        // Position in row (only for a top-level row key, not a nested case branch / slot).
+        if (path.fields.isEmpty()) {
+            val rowKeyCount = working.rows.getOrNull(path.row)?.keys?.size ?: 0
+            Text("Position in row", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
+            Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
+                OutlinedButton(
+                    onClick = { KeyboardEditorSession.moveKey(path.row, path.col, -1); navController.popBackStack() },
+                    modifier = Modifier.weight(1f)
+                ) { Text("◀ Move") }
+                Spacer(Modifier.size(8.dp))
+                OutlinedButton(
+                    onClick = { KeyboardEditorSession.moveKey(path.row, path.col, +1); navController.popBackStack() },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Move ▶") }
+            }
+            Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        KeyboardEditorSession.insertKey(path.row, path.col, BaseKey(spec = "a"))
+                        navController.navigate(Route.KeyEdit(EditPath(path.row, path.col).encode()))
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Insert ◀") }
+                Spacer(Modifier.size(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        KeyboardEditorSession.insertKey(path.row, path.col + 1, BaseKey(spec = "a"))
+                        navController.navigate(Route.KeyEdit(EditPath(path.row, path.col + 1).encode()))
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Insert ▶") }
+            }
+            OutlinedButton(
+                onClick = { KeyboardEditorSession.removeKey(path.row, path.col); navController.popBackStack() },
+                enabled = rowKeyCount > 1,
+                modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) { Text("Delete key") }
+            HorizontalDivider(Modifier.padding(16.dp, 8.dp))
+        }
+
         // Type-specific fields
         when (key) {
             is BaseKey -> {
@@ -361,11 +417,21 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
             }
         }
 
-        // Attributes (not applicable to CaseSelector)
-        keyAttributes(key)?.let { attrs ->
+        // Attributes. A CaseSelector has none of its own, so edit a unified set applied to all its
+        // shift-state branches (read from `normal`); every other key edits its own attributes.
+        val attrsForEdit: Pair<KeyAttributes, (KeyAttributes) -> AbstractKey>? = when (key) {
+            is CaseSelector -> keyAttributes(key.normal)?.let { it to { a: KeyAttributes -> caseWithUnifiedAttributes(key, a) } }
+            else -> keyAttributes(key)?.let { it to { a: KeyAttributes -> withAttributes(key, a) } }
+        }
+        attrsForEdit?.let { (attrs, build) ->
             HorizontalDivider(Modifier.padding(16.dp, 8.dp))
-            Text("Attributes (blank/inherit = use row/keyboard default)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
-            AttributesEditor(seed, attrs, working.overrideWidths) { newAttrs -> put(withAttributes(key, newAttrs)) }
+            Text(
+                if (key is CaseSelector) "Attributes (applied to all shift states)"
+                else "Attributes (blank/inherit = use row/keyboard default)",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(16.dp, 4.dp)
+            )
+            AttributesEditor(seed, attrs, working.overrideWidths) { newAttrs -> put(build(newAttrs)) }
         }
 
         Spacer(Modifier.height(32.dp))
