@@ -13,6 +13,8 @@ java/res/raw/mozc.data
 java/src/org/futo/inputmethod/keyboard/internal/KeyboardTextsTable.java# Claude Code — per-user settings (Claude Code creates these)
 .claude/settings.local.json
 .claude/*.local.json
+.claude/*.*~
+kxkb/*.*~
 
 # Claude Code — transient session files (if Claude Code ever drops them in-tree)
 .claude/sessions/
