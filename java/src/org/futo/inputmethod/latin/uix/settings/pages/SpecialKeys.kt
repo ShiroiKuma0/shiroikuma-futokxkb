@@ -154,6 +154,15 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Para("Prediction is letter-only, same as cluster (non-letter mains commit but never predict). up/down are reserved for the top/bottom band ends and aren't author-settable. The band glyphs draw stacked and slightly smaller so three fit; the side keys draw at the small 4D-label size in their corners.")
         }
 
+        CollapsibleSection("Case (per-shift-state key)") {
+            Para("A `case` swaps the WHOLE key out depending on the keyboard's current shift state — it is not one key with variants, it is a chooser that picks a different key per state. Each branch can be ANY key type (base, compass, cluster, macro, a gap…), so the key can change glyph, type, and behaviour as you shift.")
+            Para("The branches, in priority order: `normal` (the only required one — the fallback for any unlisted state), `shifted` (any shifted state), then the more specific `shiftedManually` (one-shot ⇧), `shiftLocked` (caps-lock), `symbols` (the ?123 page) and `symbolsShifted` (its shifted page). A state falls back to `shifted`, then to `normal`, when its own branch is absent.")
+            Yaml("- type: case\n  normal: a\n  shifted: A")
+            Para("What it is GOOD for — differences that go beyond upper-casing one letter: a different glyph per state (normal `,` → shifted `;`), a different key TYPE per state (a plain letter that becomes a compass or macro when shifted), or a key present in only some states (a gap on the symbols page). Caps-lock vs one-shot can also differ — e.g. show a lock glyph only under `shiftLocked`.")
+            Yaml("- type: case\n  normal: { type: compass, primary: e, up: 3 }\n  shifted: E\n  shiftLocked: { type: macro, text: \"E\", label: \"E (locked)\" }")
+            Para("What you NO LONGER need it for — clusters and columns now upper-case their whole predictive band automatically when the layout is shifted (the band glyphs AND the prediction follow the shift), so you don't have to wrap one in a `case` just to capitalise it. Set `attributes: { shiftable: false }` on the cluster/column to opt a band out of auto-capitalisation. Plain base keys and compass keys have always auto-capitalised this way; `case` remains for when the states must differ in more than letter case.")
+        }
+
         CollapsibleSection("Spanning rows (tall keys)") {
             Para("Any key can be made several rows tall with the heightRows attribute — it then occupies its own row plus the next (heightRows − 1) rows. Useful for flanking a multi-row block (e.g. column keys beside a 3×3 navigation grid).")
             Yaml("- { type: column, main: \"aev\", attributes: { heightRows: 3 } }")

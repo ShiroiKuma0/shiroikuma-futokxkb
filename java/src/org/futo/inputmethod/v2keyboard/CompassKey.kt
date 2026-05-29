@@ -16,6 +16,7 @@ import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.buildSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import org.futo.inputmethod.keyboard.KeyboardId
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
 import org.futo.inputmethod.latin.common.Constants
 
@@ -508,7 +509,18 @@ data class ClusterKey(
         keyboard: Keyboard,
         coordinate: KeyCoordinate
     ): ComputedKeyData? {
-        val cps = main.codePoints().toArray()
+        // kxkb: auto-capitalise the whole band (display + prediction) when the layout is shifted, so a
+        // cluster/column needn't be wrapped in a `case` just to upper-case. `shiftable: false` opts out.
+        val shifted = (attributes ?: KeyAttributes()).getEffectiveAttributes(row, keyboard).shiftable == true && when (params.mId.mElementId) {
+            KeyboardId.ELEMENT_SYMBOLS_SHIFTED,
+            KeyboardId.ELEMENT_ALPHABET_SHIFT_LOCK_SHIFTED,
+            KeyboardId.ELEMENT_ALPHABET_MANUAL_SHIFTED,
+            KeyboardId.ELEMENT_ALPHABET_SHIFT_LOCKED,
+            KeyboardId.ELEMENT_ALPHABET_AUTOMATIC_SHIFTED -> true
+            else -> false
+        }
+        val effMain = if (shifted) main.uppercase(params.mId.locale) else main
+        val cps = effMain.codePoints().toArray()
         if (cps.isEmpty()) return null
         val n = cps.size
         val centerIdx = n / 2   // N=3 -> 1 (centre); N=2 -> 1; N=1 -> 0
@@ -543,7 +555,7 @@ data class ClusterKey(
         val mains = cps.mapIndexed { i, cp -> ClusterMain(cp, i, n) }
 
         return primaryData.copy(
-            label = main,
+            label = effMain,
             moreKeys = emptyList(),
             longPressEnabled = false,
             flick = if (flick.isEmpty()) null
@@ -630,7 +642,18 @@ data class ColumnKey(
         keyboard: Keyboard,
         coordinate: KeyCoordinate
     ): ComputedKeyData? {
-        val cps = main.codePoints().toArray()
+        // kxkb: auto-capitalise the whole band (display + prediction) when the layout is shifted, so a
+        // cluster/column needn't be wrapped in a `case` just to upper-case. `shiftable: false` opts out.
+        val shifted = (attributes ?: KeyAttributes()).getEffectiveAttributes(row, keyboard).shiftable == true && when (params.mId.mElementId) {
+            KeyboardId.ELEMENT_SYMBOLS_SHIFTED,
+            KeyboardId.ELEMENT_ALPHABET_SHIFT_LOCK_SHIFTED,
+            KeyboardId.ELEMENT_ALPHABET_MANUAL_SHIFTED,
+            KeyboardId.ELEMENT_ALPHABET_SHIFT_LOCKED,
+            KeyboardId.ELEMENT_ALPHABET_AUTOMATIC_SHIFTED -> true
+            else -> false
+        }
+        val effMain = if (shifted) main.uppercase(params.mId.locale) else main
+        val cps = effMain.codePoints().toArray()
         if (cps.isEmpty()) return null
         val n = cps.size
         val centerIdx = n / 2
@@ -664,7 +687,7 @@ data class ColumnKey(
         val mains = cps.mapIndexed { i, cp -> ClusterMain(cp, i, n, vertical = true) }
 
         return primaryData.copy(
-            label = main,
+            label = effMain,
             moreKeys = emptyList(),
             longPressEnabled = false,
             flick = if (flick.isEmpty()) null
