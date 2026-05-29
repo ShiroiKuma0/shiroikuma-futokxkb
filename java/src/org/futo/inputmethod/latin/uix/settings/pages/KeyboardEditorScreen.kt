@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +26,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -190,6 +192,29 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                     }
                 } ?: Text("(building preview…)", modifier = Modifier.padding(16.dp, 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+
+            // Rows: reorder / delete / add rows, and append a key to a row. (Tap a key in the preview
+            // to move/insert/delete within a row, or to edit it.)
+            Spacer(Modifier.height(12.dp))
+            Text("Rows", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
+            working.rows.forEachIndexed { i, r ->
+                val type = when { r.isNumberRow -> "number"; r.isBottomRow -> "bottom"; else -> "letters" }
+                Row(Modifier.fillMaxWidth().padding(16.dp, 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("[$i] $type ·${r.keys.size}", style = mono, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { KeyboardEditorSession.moveRow(i, -1) }) { Text("▲") }
+                    TextButton(onClick = { KeyboardEditorSession.moveRow(i, +1) }) { Text("▼") }
+                    TextButton(onClick = {
+                        val n = (KeyboardEditorSession.working?.rows?.getOrNull(i)?.keys?.size) ?: 0
+                        KeyboardEditorSession.insertKey(i, n, org.futo.inputmethod.v2keyboard.BaseKey(spec = "a"))
+                        navController.navigate(Route.KeyEdit(EditPath(i, n).encode()))
+                    }) { Text("+key") }
+                    TextButton(onClick = { KeyboardEditorSession.removeRow(i) }) { Text("✕") }
+                }
+            }
+            OutlinedButton(
+                onClick = { KeyboardEditorSession.addRow(working.rows.indexOfLast { it.isLetterRow }) },
+                modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp)
+            ) { Text("Add row") }
 
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth().padding(16.dp, 4.dp)) {
