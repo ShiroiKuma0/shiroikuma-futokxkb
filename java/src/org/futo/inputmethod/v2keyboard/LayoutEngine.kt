@@ -737,7 +737,12 @@ data class LayoutEngine(
             column = col,
             swipeCodeOverride = data.swipeLetter?.let {
                 it.firstNotNullOfOrNull { it.code }
-            }
+            },
+
+            // kxkb: per-key visual overrides (null = theme).
+            colorOverride = data.color,
+            fontScaleOverride = data.fontScale,
+            hintScaleOverride = data.hintScale
         )
     }
 

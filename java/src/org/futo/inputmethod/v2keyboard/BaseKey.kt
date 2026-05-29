@@ -230,7 +230,15 @@ data class KeyAttributes(
      * upstream's rowSpan engine does the layout (it auto-gaps the covered cell, so older hand-placed
      * `gap` cells in spanned rows are harmless no-ops).
      */
-    val heightRows: Int? = null
+    val heightRows: Int? = null,
+
+    /**
+     * kxkb: per-key visual overrides (null = inherit the theme). [color] is the label/icon colour
+     * (ARGB int); [fontScale] / [hintScale] multiply the computed primary / hint text size.
+     */
+    val color: Int? = null,
+    val fontScale: Float? = null,
+    val hintScale: Float? = null
 ) {
     fun getEffectiveAttributes(row: Row, keyboard: Keyboard, extraAttrs: List<KeyAttributes> = emptyList()): KeyAttributes {
         val attrs = if(row.isBottomRow) {
@@ -269,7 +277,10 @@ data class KeyAttributes(
             shiftable           = resolve(attrs) { it.shiftable          },
             fastMoreKeys        = resolve(attrs) { it.fastMoreKeys       },
             rowSpan             = resolve(attrs) { it.rowSpan            },
-            heightRows          = resolve(attrs) { it.heightRows         }
+            heightRows          = resolve(attrs) { it.heightRows         },
+            color               = resolve(attrs) { it.color              },
+            fontScale           = resolve(attrs) { it.fontScale          },
+            hintScale           = resolve(attrs) { it.hintScale          }
         )
     }
 
@@ -288,7 +299,10 @@ data class KeyAttributes(
             shiftable           = resolve(attrs) { it.shiftable          },
             fastMoreKeys        = resolve(attrs) { it.fastMoreKeys       },
             rowSpan             = resolve(attrs) { it.rowSpan            },
-            heightRows          = resolve(attrs) { it.heightRows         }
+            heightRows          = resolve(attrs) { it.heightRows         },
+            color               = resolve(attrs) { it.color              },
+            fontScale           = resolve(attrs) { it.fontScale          },
+            hintScale           = resolve(attrs) { it.hintScale          }
         )
     }
 }
@@ -485,7 +499,10 @@ data class BaseKey(
             fastLongPress = attributes.fastMoreKeys == true,
             // kxkb: heightRows is our author-facing alias for upstream's rowSpan; map both → rowSpan.
             rowSpan = (attributes.heightRows ?: attributes.rowSpan ?: 1).coerceAtLeast(1),
-            swipeLetter = swipeLetter
+            swipeLetter = swipeLetter,
+            color = attributes.color,
+            fontScale = attributes.fontScale,
+            hintScale = attributes.hintScale
         )
     }
 

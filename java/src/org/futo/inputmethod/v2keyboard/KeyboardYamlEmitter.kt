@@ -117,6 +117,9 @@ private fun attrsNode(a: KeyAttributes?): Y? {
     a.shiftable?.let { e.add("shiftable" to yBool(it)) }
     a.fastMoreKeys?.let { e.add("fastMoreKeys" to yBool(it)) }
     a.heightRows?.let { e.add("heightRows" to yInt(it)) }
+    a.color?.let { e.add("color" to yInt(it)) }
+    a.fontScale?.let { e.add("fontScale" to yFloat(it)) }
+    a.hintScale?.let { e.add("hintScale" to yFloat(it)) }
     return if (e.isEmpty()) null else YMap(e)
 }
 
