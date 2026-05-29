@@ -606,29 +606,13 @@ data class LayoutEngine(
         return trailing + middle + leading
     }
 
-    private fun mergeDuplicates(row: List<LayoutEntry>): List<LayoutEntry> {
-        if(row.isEmpty()) return emptyList()
-
-        return row.fold(mutableListOf()) { acc, curr ->
-            if(acc.isEmpty()) {
-                acc.add(curr)
-            } else {
-                val last = acc.last()
-                if (last is LayoutEntry.Key && curr is LayoutEntry.Key && last.data == curr.data) {
-                    val lastVal = acc.removeAt(acc.size - 1)
-                    acc.add(LayoutEntry.Key(
-                        data = curr.data,
-                        widthPx = last.widthPx + curr.widthPx,
-                        rowSpan = curr.rowSpan
-                    ))
-                } else {
-                    acc.add(curr)
-                }
-            }
-
-            acc
-        }
-    }
+    // kxkb: upstream FUTO merged adjacent keys with identical ComputedKeyData into a single
+    // double-width key. That collapsed any two equal adjacent keys — making the editor's
+    // "Duplicate key" (and any intentional pair of identical adjacent keys) render as one wide key
+    // on the real keyboard, not just the preview. Disabled: adjacent identical keys now render as
+    // separate keys. Wide keys are expressed via width tokens (Custom*/Grow), not by duplication.
+    // (Split-layout middle duplication is unaffected — that happens later in splitRow at render.)
+    private fun mergeDuplicates(row: List<LayoutEntry>): List<LayoutEntry> = row
 
     private val validNumbersForHint = "1234567890".map { it.toString() }.map { params.mTextsSet.resolveTextReference("!text/keyspec_symbols_$it") ?: it }.toSet()
     private val englishNumbers = "1234567890".map { it.toString() }.toSet()
