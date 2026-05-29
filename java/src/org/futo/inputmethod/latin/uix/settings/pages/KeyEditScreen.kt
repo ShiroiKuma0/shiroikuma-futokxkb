@@ -214,6 +214,32 @@ private fun SizePercentRow(label: String, value: Float?, onChange: (Float?) -> U
     }
 }
 
+// A raw fractional override. Off (Switch) = null = inherit (theme/global); on = a slider over
+// [range], seeded at [default]. Shows the stored value.
+@Composable
+private fun OverrideSliderRow(label: String, value: Float?, range: ClosedFloatingPointRange<Float>, default: Float, onChange: (Float?) -> Unit) {
+    Column(Modifier.padding(16.dp, 4.dp)) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(
+                label + (value?.let { " — %.2f".format(it) } ?: " — theme"),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f)
+            )
+            androidx.compose.material3.Switch(
+                checked = value != null,
+                onCheckedChange = { on -> onChange(if (on) (value ?: default) else null) }
+            )
+        }
+        if (value != null) {
+            androidx.compose.material3.Slider(
+                value = value.coerceIn(range.start, range.endInclusive),
+                onValueChange = { onChange(it) },
+                valueRange = range
+            )
+        }
+    }
+}
+
 // ---- change type ----
 
 private val TYPE_OPTIONS = listOf("base", "compass", "cluster", "column", "macro", "chord", "cycle", "case", "gap")
@@ -503,6 +529,26 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
             ColorSetting("Border colour", attrs.borderColor, 0xFF000000.toInt()) { put(build(attrs.copy(borderColor = it))) }
             if (attrs.borderColor != null) {
                 OutlinedButton(onClick = { put(build(attrs.copy(borderColor = null))) }, modifier = Modifier.padding(16.dp, 2.dp)) { Text("Use theme border") }
+            }
+
+            // Character position within the key (moves the main glyph; 0 = centred).
+            OverrideSliderRow("Horizontal position", attrs.labelOffsetX, -0.5f..0.5f, 0f) { put(build(attrs.copy(labelOffsetX = it))) }
+            OverrideSliderRow("Vertical position", attrs.labelOffsetY, -0.5f..0.5f, 0f) { put(build(attrs.copy(labelOffsetY = it))) }
+
+            // Cluster band spacing — only for a horizontal `cluster` key (fraction of key width each
+            // main is offset from centre; null = the global per-geometry value).
+            if (key is ClusterKey) {
+                OverrideSliderRow("Cluster left spacing", attrs.clusterLeftOffset, 0f..0.6f, 0.333f) { put(build(attrs.copy(clusterLeftOffset = it))) }
+                OverrideSliderRow("Cluster right spacing", attrs.clusterRightOffset, 0f..0.6f, 0.333f) { put(build(attrs.copy(clusterRightOffset = it))) }
+            }
+
+            // Secondary (flick) label band offsets — only for keys that show flick labels. Move the
+            // top row / bottom row up-down and the left / right column in-out (fraction of key dim).
+            if (key is CompassKey || key is ClusterKey || key is ColumnKey || key is FlickKey) {
+                OverrideSliderRow("Secondary: top row", attrs.flickTopOffset, 0f..0.6f, 0.30f) { put(build(attrs.copy(flickTopOffset = it))) }
+                OverrideSliderRow("Secondary: bottom row", attrs.flickBottomOffset, 0f..0.6f, 0.40f) { put(build(attrs.copy(flickBottomOffset = it))) }
+                OverrideSliderRow("Secondary: left column", attrs.flickLeftOffset, 0f..0.6f, 0.34f) { put(build(attrs.copy(flickLeftOffset = it))) }
+                OverrideSliderRow("Secondary: right column", attrs.flickRightOffset, 0f..0.6f, 0.34f) { put(build(attrs.copy(flickRightOffset = it))) }
             }
 
             HorizontalDivider(Modifier.padding(16.dp, 8.dp))

@@ -122,6 +122,14 @@ private fun attrsNode(a: KeyAttributes?): Y? {
     a.hintScale?.let { e.add("hintScale" to yFloat(it)) }
     a.backgroundColor?.let { e.add("backgroundColor" to yInt(it)) }
     a.borderColor?.let { e.add("borderColor" to yInt(it)) }
+    a.clusterLeftOffset?.let { e.add("clusterLeftOffset" to yFloat(it)) }
+    a.clusterRightOffset?.let { e.add("clusterRightOffset" to yFloat(it)) }
+    a.labelOffsetX?.let { e.add("labelOffsetX" to yFloat(it)) }
+    a.labelOffsetY?.let { e.add("labelOffsetY" to yFloat(it)) }
+    a.flickTopOffset?.let { e.add("flickTopOffset" to yFloat(it)) }
+    a.flickBottomOffset?.let { e.add("flickBottomOffset" to yFloat(it)) }
+    a.flickLeftOffset?.let { e.add("flickLeftOffset" to yFloat(it)) }
+    a.flickRightOffset?.let { e.add("flickRightOffset" to yFloat(it)) }
     return if (e.isEmpty()) null else YMap(e)
 }
 

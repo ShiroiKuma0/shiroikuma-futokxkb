@@ -121,4 +121,12 @@ data class ComputedKeyData(
     val hintScale: Float? = null,
     val backgroundColor: Int? = null,
     val borderColor: Int? = null,
+    val clusterLeftOffset: Float? = null,
+    val clusterRightOffset: Float? = null,
+    val labelOffsetX: Float? = null,
+    val labelOffsetY: Float? = null,
+    val flickTopOffset: Float? = null,
+    val flickBottomOffset: Float? = null,
+    val flickLeftOffset: Float? = null,
+    val flickRightOffset: Float? = null,
 )
