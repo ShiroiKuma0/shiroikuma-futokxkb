@@ -105,14 +105,17 @@ data class SwitcherShortcut(
     val defaultOn: Boolean
 )
 
+// Order matters: this column renders bottom-up (index 0 sits nearest the finger; the last entry sits
+// just under the "Keyboard UI" column header). So "All settings"/"Special keys" are first (low, easy
+// to reach) and "Keyboard editor" is last (directly under the Keyboard UI header). "Themes" removed.
 val LayoutSwitcherShortcutCatalog = listOf(
+    SwitcherShortcut("settings", "All settings", "!nav/home", true),
+    SwitcherShortcut("special_keys", "Special keys", "!nav/specialKeys", true),
     SwitcherShortcut("add_layout", "Add layout", "!nav/addLanguage", true),
     SwitcherShortcut("custom_layouts", "Custom layouts", "!nav/devlayouteditor", false),
-    SwitcherShortcut("themes", "Themes", "!nav/themes", true),
-    SwitcherShortcut("special_keys", "Special keys", "!nav/specialKeys", false),
     SwitcherShortcut("resize", "Resize keyboard", "!nav/resize", false),
     SwitcherShortcut("languages", "Languages", "!nav/languages", false),
-    SwitcherShortcut("settings", "All settings", "!nav/home", true)
+    SwitcherShortcut("keyboard_editor", "Keyboard editor", "!nav/keyboardeditor", true)
 )
 
 fun layoutSwitcherShortcutPrefKey(id: String) = "kxkb_switcher_shortcut_$id"
