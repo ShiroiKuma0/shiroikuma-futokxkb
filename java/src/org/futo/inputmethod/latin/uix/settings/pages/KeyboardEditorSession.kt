@@ -227,6 +227,21 @@ object KeyboardEditorSession {
         val t = rows[row]; rows[row] = rows[target]; rows[target] = t
     }
 
+    /** Insert a copy of the key at [col] in [row] of [page] right after it (keys are immutable). */
+    fun duplicateKey(page: Int, row: Int, col: Int) = mutateRowsFor(page) { rows ->
+        val r = rows.getOrNull(row) ?: return@mutateRowsFor
+        val ks = r.keys.toMutableList()
+        val k = ks.getOrNull(col) ?: return@mutateRowsFor
+        ks.add(col + 1, k)
+        rows[row] = r.withKeys(ks)
+    }
+
+    /** Insert a copy of [row] of [page] right after it. */
+    fun duplicateRow(page: Int, row: Int) = mutateRowsFor(page) { rows ->
+        val r = rows.getOrNull(row) ?: return@mutateRowsFor
+        rows.add(row + 1, r.copy())
+    }
+
     /** Replace the key at [path] (on its page), rebuilding the working model. */
     fun replaceKey(path: EditPath, newKey: AbstractKey) {
         val kb = working ?: return
