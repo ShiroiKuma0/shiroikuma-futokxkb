@@ -207,8 +207,12 @@ data class Keyboard(
      * The rows defined for the layout. Defining the number row, bottom row, or the functional
      * keys (shift/backspace) is optional here. If they are missing, defaults will automatically be
      * added to `effectiveRows`.
+     *
+     * kxkb: exposed (was `private`) so the layout editor / YAML emitter can read the AUTHORED rows
+     * (use [getEffectiveRows] for the runtime rows with the auto-added number/bottom rows). Read-only
+     * use only; callers must still go through [getEffectiveRows]/[build] for rendering.
      */
-    private val rows: List<Row>,
+    val rows: List<Row>,
 
     /**
      * List of languages this layout is intended for. It will be displayed as an option for the
