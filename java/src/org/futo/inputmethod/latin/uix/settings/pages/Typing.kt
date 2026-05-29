@@ -122,6 +122,7 @@ import org.futo.inputmethod.latin.uix.settings.BottomSpacer
 import org.futo.inputmethod.latin.uix.settings.DataStoreItem
 import org.futo.inputmethod.latin.uix.settings.DropDownPickerSettingItem
 import org.futo.inputmethod.latin.uix.settings.LocalSharedPrefsCache
+import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.PrimarySettingToggleDataStoreItem
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
@@ -541,6 +542,13 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
             ) {
                 Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
             }
+
+            // kxkb: entry to the visual keyboard-layout editor (lives here under Keyboard UI).
+            NavigationItem(
+                title = "Keyboard editor",
+                style = NavigationItemStyle.Misc,
+                navigate = { navController.navigate("keyboardeditor") }
+            )
 
             Text(
                 stringResource(R.string.kxkb_sizing_geometry_note),
