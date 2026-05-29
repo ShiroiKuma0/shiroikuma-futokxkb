@@ -494,6 +494,11 @@ public class KeyboardView extends View {
         final float centerX = keyWidth * 0.5f;
         final float centerY = keyHeight * 0.5f;
 
+        // kxkb: per-key main-glyph position offset (moves the label / icon / cluster band off centre;
+        // the hint and the at-rest flick labels keep their own positions).
+        final float charOffX = (key.getLabelOffsetX() != null ? key.getLabelOffsetX() : 0f) * keyWidth;
+        final float charOffY = (key.getLabelOffsetY() != null ? key.getLabelOffsetY() : 0f) * keyHeight;
+
         // kxkb 4D: when key sliding is on, a flick key shows its eight directional labels on its
         // face (drawn at the end of this method). The single corner hint and the "..." popup hint
         // are suppressed on those keys so they don't collide with the corner directionals.
@@ -566,7 +571,7 @@ public class KeyboardView extends View {
                 paint.clearShadowLayer();
             }
             blendAlpha(paint, params.mAnimAlpha);
-            canvas.drawText(label, 0, label.length(), labelX, labelBaseline, paint);
+            canvas.drawText(label, 0, label.length(), labelX + charOffX, labelBaseline + charOffY, paint);
             // Turn off drop shadow and reset x-scale.
             paint.clearShadowLayer();
             paint.setTextScaleX(1.0f);
@@ -655,7 +660,7 @@ public class KeyboardView extends View {
             final int iconX = (keyWidth - iconWidth) / 2; // Align horizontally center.
 
             icon.setTint(kdc.getTextColor());
-            drawIcon(canvas, icon, iconX, iconY, iconWidth, iconHeight);
+            drawIcon(canvas, icon, iconX + Math.round(charOffX), iconY + Math.round(charOffY), iconWidth, iconHeight);
         }
 
         if (key.getHasPopupHint() && !key.getMoreKeys().isEmpty() && !drawFlickFace) {
@@ -671,7 +676,7 @@ public class KeyboardView extends View {
         // not; sliding only governs the precise side-main / extra slides).
         if (isCluster) {
             drawClusterMains(key, clusterMains, canvas, paint, params, kdc, keyWidth, keyHeight,
-                    centerX, centerY);
+                    centerX + charOffX, centerY + charOffY);
         }
     }
 
@@ -756,6 +761,12 @@ public class KeyboardView extends View {
         final boolean isCluster = cMains != null && !cMains.isEmpty();
         final boolean isVerticalCluster = isCluster && cMains.get(0).getVertical();
 
+        // kxkb: per-key flick-label band offsets override the global per-geometry values.
+        final float topOff = key.getFlickTopOffset() != null ? key.getFlickTopOffset() : sFlickTopOff;
+        final float botOff = key.getFlickBottomOffset() != null ? key.getFlickBottomOffset() : sFlickBotOff;
+        final float leftOff = key.getFlickLeftOffset() != null ? key.getFlickLeftOffset() : sFlickLeftOff;
+        final float rightOff = key.getFlickRightOffset() != null ? key.getFlickRightOffset() : sFlickRightOff;
+
         for (final Map.Entry<Direction, Key> entry : flickKeys.entrySet()) {
             final Key target = entry.getValue();
             if (target == null) {
@@ -772,10 +783,10 @@ public class KeyboardView extends View {
             final Pair<Double, Double> vec = KeyDataKt.toVector(entry.getKey());
             final double sx = Math.signum(vec.getFirst());   // +1 = left column, -1 = right column
             final double sy = Math.signum(vec.getSecond());  // +1 = top row, -1 = bottom row
-            final float x = sx > 0 ? cx - sFlickLeftOff * keyWidth
-                    : (sx < 0 ? cx + sFlickRightOff * keyWidth : cx);
-            final float y = sy > 0 ? cy - sFlickTopOff * keyHeight
-                    : (sy < 0 ? cy + sFlickBotOff * keyHeight : cy);
+            final float x = sx > 0 ? cx - leftOff * keyWidth
+                    : (sx < 0 ? cx + rightOff * keyWidth : cx);
+            final float y = sy > 0 ? cy - topOff * keyHeight
+                    : (sy < 0 ? cy + botOff * keyHeight : cy);
 
             final String label = target.getPreviewLabel();
             if (label != null && !label.isEmpty()) {
@@ -851,14 +862,17 @@ public class KeyboardView extends View {
                 canvas.drawText(glyph, 0, glyph.length(), centerX, gc + vCharHeight / 2.0f, paint);
             }
         } else {
+            // kxkb: per-key cluster band spacing overrides the global per-geometry offsets.
+            final float leftOff = key.getClusterLeftOffsetOverride() != null ? key.getClusterLeftOffsetOverride() : sClusterLeftOff;
+            final float rightOff = key.getClusterRightOffsetOverride() != null ? key.getClusterRightOffsetOverride() : sClusterRightOff;
             for (int i = 0; i < n; i++) {
                 final float x;
                 if (i == centerIdx) {
                     x = centerX;
                 } else if (i < centerIdx) {
-                    x = centerX - sClusterLeftOff * keyWidth * (centerIdx - i);
+                    x = centerX - leftOff * keyWidth * (centerIdx - i);
                 } else {
-                    x = centerX + sClusterRightOff * keyWidth * (i - centerIdx);
+                    x = centerX + rightOff * keyWidth * (i - centerIdx);
                 }
                 final String glyph = new String(Character.toChars(mains.get(i).getCodePoint()));
                 canvas.drawText(glyph, 0, glyph.length(), x, baseline, paint);

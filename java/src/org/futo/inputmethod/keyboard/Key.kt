@@ -236,6 +236,18 @@ data class Key(
      *  building a matching GradientDrawable. */
     val backgroundColorOverride: Int? = null,
     val borderColorOverride: Int? = null,
+    /** kxkb: per-key cluster band spacing (fraction of key width per main; null = global). Used by
+     *  KeyboardView.drawClusterMains for horizontal cluster keys. */
+    val clusterLeftOffsetOverride: Float? = null,
+    val clusterRightOffsetOverride: Float? = null,
+    /** kxkb: per-key main-glyph position offset (fraction of key w/h; null = centred). */
+    val labelOffsetX: Float? = null,
+    val labelOffsetY: Float? = null,
+    /** kxkb: per-key at-rest flick-label band offsets (null = global per-geometry value). */
+    val flickTopOffset: Float? = null,
+    val flickBottomOffset: Float? = null,
+    val flickLeftOffset: Float? = null,
+    val flickRightOffset: Float? = null,
 ) {
     /** Validation */
     init {

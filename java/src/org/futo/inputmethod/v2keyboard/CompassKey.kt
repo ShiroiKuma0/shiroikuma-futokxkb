@@ -226,7 +226,13 @@ data class CompassKey(
             fontScale = attributes?.fontScale ?: primaryData.fontScale,
             hintScale = attributes?.hintScale ?: primaryData.hintScale,
             backgroundColor = attributes?.backgroundColor ?: primaryData.backgroundColor,
-            borderColor = attributes?.borderColor ?: primaryData.borderColor
+            borderColor = attributes?.borderColor ?: primaryData.borderColor,
+            labelOffsetX = attributes?.labelOffsetX ?: primaryData.labelOffsetX,
+            labelOffsetY = attributes?.labelOffsetY ?: primaryData.labelOffsetY,
+            flickTopOffset = attributes?.flickTopOffset ?: primaryData.flickTopOffset,
+            flickBottomOffset = attributes?.flickBottomOffset ?: primaryData.flickBottomOffset,
+            flickLeftOffset = attributes?.flickLeftOffset ?: primaryData.flickLeftOffset,
+            flickRightOffset = attributes?.flickRightOffset ?: primaryData.flickRightOffset
         )
     }
 }
@@ -274,6 +280,9 @@ data class MacroKey(
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
             color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
             backgroundColor = attrs.backgroundColor, borderColor = attrs.borderColor,
+            labelOffsetX = attrs.labelOffsetX, labelOffsetY = attrs.labelOffsetY,
+            flickTopOffset = attrs.flickTopOffset, flickBottomOffset = attrs.flickBottomOffset,
+            flickLeftOffset = attrs.flickLeftOffset, flickRightOffset = attrs.flickRightOffset,
         )
     }
 }
@@ -325,6 +334,9 @@ data class ChordKey(
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
             color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
             backgroundColor = attrs.backgroundColor, borderColor = attrs.borderColor,
+            labelOffsetX = attrs.labelOffsetX, labelOffsetY = attrs.labelOffsetY,
+            flickTopOffset = attrs.flickTopOffset, flickBottomOffset = attrs.flickBottomOffset,
+            flickLeftOffset = attrs.flickLeftOffset, flickRightOffset = attrs.flickRightOffset,
         )
     }
 }
@@ -399,6 +411,9 @@ data class CycleKey(
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
             color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
             backgroundColor = attrs.backgroundColor, borderColor = attrs.borderColor,
+            labelOffsetX = attrs.labelOffsetX, labelOffsetY = attrs.labelOffsetY,
+            flickTopOffset = attrs.flickTopOffset, flickBottomOffset = attrs.flickBottomOffset,
+            flickLeftOffset = attrs.flickLeftOffset, flickRightOffset = attrs.flickRightOffset,
         )
     }
 }

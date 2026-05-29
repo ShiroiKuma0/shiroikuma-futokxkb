@@ -240,7 +240,24 @@ data class KeyAttributes(
     val fontScale: Float? = null,
     val hintScale: Float? = null,
     val backgroundColor: Int? = null,
-    val borderColor: Int? = null
+    val borderColor: Int? = null,
+
+    /** kxkb: per-key cluster band spacing (fraction of key width per main, null = the global
+     *  per-geometry value). Only used by horizontal `cluster` keys. */
+    val clusterLeftOffset: Float? = null,
+    val clusterRightOffset: Float? = null,
+
+    /** kxkb: per-key main-glyph position offset within the key (fraction of key width/height from
+     *  centre; null = centred). Moves the label/icon/cluster-band, not the hint or flick labels. */
+    val labelOffsetX: Float? = null,
+    val labelOffsetY: Float? = null,
+
+    /** kxkb: per-key at-rest flick-label band offsets — top row / bottom row / left column / right
+     *  column (fraction of key dim from centre; null = the global per-geometry value). */
+    val flickTopOffset: Float? = null,
+    val flickBottomOffset: Float? = null,
+    val flickLeftOffset: Float? = null,
+    val flickRightOffset: Float? = null
 ) {
     fun getEffectiveAttributes(row: Row, keyboard: Keyboard, extraAttrs: List<KeyAttributes> = emptyList()): KeyAttributes {
         val attrs = if(row.isBottomRow) {
@@ -284,7 +301,15 @@ data class KeyAttributes(
             fontScale           = resolve(attrs) { it.fontScale          },
             hintScale           = resolve(attrs) { it.hintScale          },
             backgroundColor     = resolve(attrs) { it.backgroundColor    },
-            borderColor         = resolve(attrs) { it.borderColor        }
+            borderColor         = resolve(attrs) { it.borderColor        },
+            clusterLeftOffset   = resolve(attrs) { it.clusterLeftOffset  },
+            clusterRightOffset  = resolve(attrs) { it.clusterRightOffset },
+            labelOffsetX        = resolve(attrs) { it.labelOffsetX       },
+            labelOffsetY        = resolve(attrs) { it.labelOffsetY       },
+            flickTopOffset      = resolve(attrs) { it.flickTopOffset     },
+            flickBottomOffset   = resolve(attrs) { it.flickBottomOffset  },
+            flickLeftOffset     = resolve(attrs) { it.flickLeftOffset    },
+            flickRightOffset    = resolve(attrs) { it.flickRightOffset   }
         )
     }
 
@@ -308,7 +333,15 @@ data class KeyAttributes(
             fontScale           = resolve(attrs) { it.fontScale          },
             hintScale           = resolve(attrs) { it.hintScale          },
             backgroundColor     = resolve(attrs) { it.backgroundColor    },
-            borderColor         = resolve(attrs) { it.borderColor        }
+            borderColor         = resolve(attrs) { it.borderColor        },
+            clusterLeftOffset   = resolve(attrs) { it.clusterLeftOffset  },
+            clusterRightOffset  = resolve(attrs) { it.clusterRightOffset },
+            labelOffsetX        = resolve(attrs) { it.labelOffsetX       },
+            labelOffsetY        = resolve(attrs) { it.labelOffsetY       },
+            flickTopOffset      = resolve(attrs) { it.flickTopOffset     },
+            flickBottomOffset   = resolve(attrs) { it.flickBottomOffset  },
+            flickLeftOffset     = resolve(attrs) { it.flickLeftOffset    },
+            flickRightOffset    = resolve(attrs) { it.flickRightOffset   }
         )
     }
 }
@@ -510,7 +543,15 @@ data class BaseKey(
             fontScale = attributes.fontScale,
             hintScale = attributes.hintScale,
             backgroundColor = attributes.backgroundColor,
-            borderColor = attributes.borderColor
+            borderColor = attributes.borderColor,
+            clusterLeftOffset = attributes.clusterLeftOffset,
+            clusterRightOffset = attributes.clusterRightOffset,
+            labelOffsetX = attributes.labelOffsetX,
+            labelOffsetY = attributes.labelOffsetY,
+            flickTopOffset = attributes.flickTopOffset,
+            flickBottomOffset = attributes.flickBottomOffset,
+            flickLeftOffset = attributes.flickLeftOffset,
+            flickRightOffset = attributes.flickRightOffset
         )
     }
 

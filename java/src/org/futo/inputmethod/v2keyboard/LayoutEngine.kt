@@ -744,7 +744,15 @@ data class LayoutEngine(
             fontScaleOverride = data.fontScale,
             hintScaleOverride = data.hintScale,
             backgroundColorOverride = data.backgroundColor,
-            borderColorOverride = data.borderColor
+            borderColorOverride = data.borderColor,
+            clusterLeftOffsetOverride = data.clusterLeftOffset,
+            clusterRightOffsetOverride = data.clusterRightOffset,
+            labelOffsetX = data.labelOffsetX,
+            labelOffsetY = data.labelOffsetY,
+            flickTopOffset = data.flickTopOffset,
+            flickBottomOffset = data.flickBottomOffset,
+            flickLeftOffset = data.flickLeftOffset,
+            flickRightOffset = data.flickRightOffset
         )
     }
 
