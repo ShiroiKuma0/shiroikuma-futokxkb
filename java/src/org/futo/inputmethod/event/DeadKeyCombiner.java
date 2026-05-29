@@ -291,6 +291,15 @@ public class DeadKeyCombiner implements Combiner {
         }
     }
 
+    // kxkb: true if this code point is a dedicated diacritic accent display-form (´ U+00B4,
+    // ˇ U+02C7, ¨ U+00A8, ¯ ˚ ˙ ¸ ˛ ˘ ˜ ˝ …) that a software layout can use as a dead key — pressing
+    // it then a letter composes (ˇ + r -> ř) via this combiner. The accent table also holds ASCII
+    // approximations/legacy entries (` ^ ~ ' . -), which have literal uses, so we require >= U+0080
+    // to exclude them. Used by InputLogic to convert such a keypress into a FLAG_DEAD event.
+    public static boolean isDeadAccentCodePoint(final int codePoint) {
+        return codePoint >= 0x80 && Data.sAccentToCombining.indexOfKey(codePoint) >= 0;
+    }
+
     // TODO: make this a list of events instead
     final StringBuilder mDeadSequence = new StringBuilder();
 
