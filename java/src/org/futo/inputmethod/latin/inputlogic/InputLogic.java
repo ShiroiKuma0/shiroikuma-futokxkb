@@ -30,6 +30,7 @@ import org.futo.inputmethod.accessibility.AccessibilityUtils;
 import org.futo.inputmethod.compat.SuggestionSpanUtils;
 import org.futo.inputmethod.engine.IMEHelper;
 import org.futo.inputmethod.engine.general.GeneralIME;
+import org.futo.inputmethod.event.DeadKeyCombiner;
 import org.futo.inputmethod.event.Event;
 import org.futo.inputmethod.event.InputTransaction;
 import org.futo.inputmethod.keyboard.Keyboard;
@@ -573,6 +574,20 @@ public final class InputLogic {
                 return handleCtrlComboEvent(settingsValues, event, keyboardShiftMode);
             }
             setCtrlActive(false);
+        }
+
+        // kxkb: software dead keys. A diacritic accent key (´ ˇ ¨ … emitted by cluster/compass/etc.)
+        // should compose with the next letter (ˇ then r -> ř) instead of typing literally. The
+        // DeadKeyCombiner is already in the combiner chain but only fires on FLAG_DEAD events, which
+        // AOSP only ever set for hardware dead keys (see Event.createDeadEvent's TODO). So convert an
+        // accent-display keypress into a dead event and let the combiner do the (NFC) composition;
+        // ´/¨ followed by space (or pressed twice) still yields the literal accent. Dedicated accent
+        // code points only, so literal ASCII ` ^ ~ ' . - are untouched.
+        if (!event.isDead() && !event.isFunctionalKeyEvent()
+                && DeadKeyCombiner.isDeadAccentCodePoint(event.mCodePoint)) {
+            return onCodeInput(settingsValues,
+                    Event.createDeadEvent(event.mCodePoint, event.mKeyCode, null /* next */),
+                    keyboardShiftMode, currentKeyboardScriptId);
         }
 
         if(settingsValues.needsToLookupSuggestions()) {
