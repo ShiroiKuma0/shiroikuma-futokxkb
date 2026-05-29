@@ -33,7 +33,10 @@ import org.futo.inputmethod.latin.DictionaryFacilitatorImpl
 import org.futo.inputmethod.latin.DictionaryFacilitatorProvider
 import org.futo.inputmethod.latin.NgramContext
 import org.futo.inputmethod.latin.RichInputMethodManager
+import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.Subtypes.switchToNextLanguage
+import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
+import org.futo.inputmethod.v2keyboard.LayoutManager
 import org.futo.inputmethod.latin.SuggestedWords
 import org.futo.inputmethod.latin.SuggestedWords.SuggestedWordInfo
 import org.futo.inputmethod.latin.SuggestionBlacklist
@@ -250,6 +253,7 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             NonExpandableSuggestionBar
         }
 
+        topBarLayoutKey = null // recompute topBar this session (picks up setting/layout changes, date)
         resetDictionaryFacilitator()
         setNeutralSuggestionStrip()
         dictionaryFacilitator.onStartInput()
@@ -335,12 +339,18 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             }
 
             Event.EVENT_TYPE_SUGGESTION_PICKED -> {
-                inputLogic.onPickSuggestionManually(
-                    settings.current,
-                    event.mSuggestedWordInfo!!,
-                    helper.keyboardShiftMode,
-                    helper.currentKeyboardScriptId
-                )
+                // kxkb: a topBar (static) candidate inserts its own text/pair/paste/date; everything
+                // else is a normal predicted word.
+                if (handleTopBarPick(event.mSuggestedWordInfo!!)) {
+                    null
+                } else {
+                    inputLogic.onPickSuggestionManually(
+                        settings.current,
+                        event.mSuggestedWordInfo!!,
+                        helper.keyboardShiftMode,
+                        helper.currentKeyboardScriptId
+                    )
+                }
             }
 
             Event.EVENT_TYPE_DOWN_UP_KEYEVENT -> {
@@ -762,20 +772,96 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         )
     }
 
+    // kxkb: Multiling-style "topBar" — static candidates shown when nothing is composed. See TopBar.kt.
+    private var topBarEntries: List<TopBarEntry> = emptyList()
+    private var topBarWords: SuggestedWords? = null
+    private var topBarLayoutKey: String? = null // recompute when the active layout changes
+    private var topBarShown: Boolean = false     // is the bar currently showing topBar (not predictions)?
+
+    private fun ensureTopBar(): Boolean {
+        val ctx = helper.context
+        val layoutName = try {
+            SubtypeLocaleUtils.getKeyboardLayoutSetName(Subtypes.getActiveSubtype(ctx))
+        } catch (e: Exception) { "" }
+        if (layoutName != topBarLayoutKey) {
+            topBarLayoutKey = layoutName
+            val layoutTopBar = try { LayoutManager.getLayoutOrNull(ctx, layoutName)?.topBar } catch (e: Exception) { null }
+            topBarEntries = resolveTopBarEntries(layoutTopBar, ctx.getSetting(TopBarEntriesSetting))
+            topBarWords = if (topBarEntries.isEmpty()) null else buildTopBarWords(topBarEntries)
+        }
+        return topBarWords != null
+    }
+
+    private fun buildTopBarWords(entries: List<TopBarEntry>): SuggestedWords {
+        val infos = ArrayList<SuggestedWordInfo>(entries.size)
+        entries.forEachIndexed { i, e ->
+            infos.add(SuggestedWordInfo(e.label, "", 1_000_000 - i,
+                SuggestedWordInfo.KIND_CORRECTION, null,
+                SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE))
+        }
+        return SuggestedWords(infos, null, null, false, false, false,
+            SuggestedWords.INPUT_STYLE_NONE, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+    }
+
+    // Returns true if the picked suggestion was a topBar entry (and was handled here).
+    private fun handleTopBarPick(picked: SuggestedWordInfo): Boolean {
+        if (!topBarShown) return false
+        val idx = topBarWords?.indexOf(picked) ?: -1
+        if (idx < 0 || idx >= topBarEntries.size) return false
+        val e = topBarEntries[idx]
+        when (e.type) {
+            TopBarType.PASTE -> helper.getCurrentInputConnection()?.performContextMenuAction(android.R.id.paste)
+            TopBarType.DATE -> commitTopBarText(e.dateText(), 0)
+            else -> commitTopBarText(e.insert, e.cursorBack)
+        }
+        setNeutralSuggestionStrip() // re-show the topBar (still neutral)
+        return true
+    }
+
+    private fun commitTopBarText(text: String, cursorBack: Int) {
+        val ic = helper.getCurrentInputConnection() ?: return
+        ic.beginBatchEdit()
+        if (cursorBack in 1 until text.length) {
+            val cut = text.length - cursorBack
+            ic.commitText(text.substring(0, cut), 1)
+            ic.commitText(text.substring(cut), 0) // caret lands just before this part
+        } else {
+            ic.commitText(text, 1)
+        }
+        ic.endBatchEdit()
+    }
+
+    // kxkb: whenever the strip would be empty (no composing word / no predictions — incl. between
+    // words, after Enter, after picking), show the topBar static candidates instead of a blank bar.
+    // Centralised here because the empty state is reached via BOTH setNeutralSuggestionStrip() and
+    // showSuggestionStrip(emptyWords) (and async prediction updates) — handling only one left the bar
+    // inconsistently blank / flashing.
+    private fun showEmptyOrTopBar() {
+        if (ensureTopBar()) {
+            topBarShown = true
+            inputLogic.setSuggestedWords(topBarWords)
+            helper.showSuggestionStrip(topBarWords, expandableCfg)
+        } else {
+            topBarShown = false
+            inputLogic.setSuggestedWords(SuggestedWords.getEmptyInstance())
+            helper.setNeutralSuggestionStrip(expandableCfg)
+        }
+    }
+
     override fun setNeutralSuggestionStrip() {
-        inputLogic.setSuggestedWords(SuggestedWords.getEmptyInstance())
-        helper.setNeutralSuggestionStrip(expandableCfg)
+        showEmptyOrTopBar()
     }
 
     val blacklist = SuggestionBlacklist(Settings.getInstance(), helper.context, helper.lifecycleScope)
     override fun showSuggestionStrip(words: SuggestedWords?) {
-        inputLogic.setSuggestedWords(words)
-
-        if(settings.current.isSuggestionsEnabledPerUserSettings) {
-            helper.showSuggestionStrip(words, expandableCfg)
-        } else {
-            helper.setNeutralSuggestionStrip(expandableCfg)
+        if (words == null || words.size() == 0
+                || !settings.current.isSuggestionsEnabledPerUserSettings) {
+            showEmptyOrTopBar()
+            return
         }
+        topBarShown = false
+        inputLogic.setSuggestedWords(words)
+        helper.showSuggestionStrip(words, expandableCfg)
     }
 
     fun debugInfo(): List<String> = buildList {

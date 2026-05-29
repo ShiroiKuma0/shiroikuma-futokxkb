@@ -1431,6 +1431,13 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             subtitle = R.string.keyboard_settings_expandable_suggestions_subtitle,
             setting = UseExpandableSuggestionsForGeneralIME
         ),
+        userSettingNavigationItem(
+            title = R.string.keyboard_settings_topbar_editor,
+            subtitle = R.string.keyboard_settings_topbar_editor_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "topbarEditor",
+            icon = R.drawable.more_horizontal
+        ),
         userSettingToggleDataStore(
             title = R.string.keyboard_settings_inline_autofill,
             subtitle = R.string.keyboard_settings_inline_autofill_subtitle,
