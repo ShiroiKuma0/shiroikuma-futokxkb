@@ -1,0 +1,151 @@
+# kxkb ru 3+2 5r4c 1.1.7  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
+#
+# UPDATE 2026-05-26: cluster keys now SHOW their shifted (UPPERCASE) faces when Shift, caps-lock,
+# or auto-caps is active. Each letter cluster is a CaseSelector now ({ type: case, normal: <lower>,
+# shifted: <UPPER> } — `shifted` covers all three shift states). Previously only the committed
+# output was capitalised while the key face stayed lower-case. Width attrs are carried into both
+# variants; punctuation/digit/symbol clusters (?!@%, ;.,, the number row) are unchanged.
+#
+# SCOPE: main (+shifted folded in), sym→alt0, altGr→alt1. Ignored: num, symShifted, altGrShifted, topBar.
+#
+# WIDTHS:
+#   Letter rows 1–3 are four clusters each → Custom2 = 0.25 (4 × 0.25 = 1.0). Row 0 has 10 keys and the
+#   alt pages are 10 wide, so those fill at Regular (1/10) with no override.
+#   BOTTOM ROWS (self-contained, per the conversion skill — pin functionals so nothing crams):
+#     * Main bottom: Multiling []-extends every non-space key to 2 cells and each spacebar to 4
+#       (22 cells). Non-space keys pinned to Custom1 = 1/11 ≈ 0.0909; the two $space (Grow) bars fill
+#       to 0.1818 (= 4 cells) each. Sums to 1.0; clusters/compasses carry the width via their own
+#       attributes.
+#     * Alt bottom: 1-cell keys + one 2-cell space (10 cells) — i.e. Regular (0.1) + a Grow space
+#       filling to 0.2. The functional keys (return/shift/delete) are pinned to width: Regular so they
+#       don't balloon (there's no letter-row functional anchor), and one $space fills to 0.2.
+#   Delete keeps hold-to-repeat. TRADE-OFF (same as your other layouts): shift is a static icon now
+#   (no shifted-glyph swap). Say the word to switch back to dynamic $shift.
+#
+# FLAGGED CONVERSION CHOICES (please test):
+#  * Dropped (no FUTO equivalent): [WDEL] (row1 ж-cluster ↓) and the [Predict] slots (row2 ю-cluster ↑,
+#    row3 «ь»-cluster ↑). Only those individual slides are gone; the keys themselves stay.
+#  * Action slides kept as their action keys: [Undo]/[Redo]/[ALL]/[CUT]/[PASTE]/[COPY]/[HIDE] →
+#    action_undo / _redo / _select_all / _cut / _paste / _copy / _hide_keyboard; [TAB] → the Tab key.
+#  * [123:[Tab]] (bottom) → plain Tab; the slide-up-to-123/number-layer is dropped (num not converted).
+#  * SHIFT: letter-row cluster *centres* auto-capitalise (FUTO native). The cluster slide letters and
+#    the upper/lower-case-only differences in the shifted layer do NOT auto-swap — base/main version is
+#    authored. Caps-lock is shift double-tap (Multiling's [TOOL]→[LOCK]-on-shift isn't reproduced).
+#  * Cluster bands are reproduced verbatim; FUTO commits the band's CENTRE on tap, the others on
+#    left/right slide — matching Multiling's 3+2. (e.g. main "жмк" taps м, slides ж / к.)
+#  * Bottom Enter is a compass (tap = Enter, slide ↑ = altGr) and Ctrl a compass (tap = Ctrl, slide
+#    ↑ = sym), because Multiling put those slides on them ([ALTGR:[Enter]], [SYM:[Ctrl]]). The Enter
+#    renders as a plain enter — no Action accent / IME-adaptive icon.
+#  * moreKeyMode: OnlyExplicit set (per skill) — suppresses auto long-press popups (extras live on
+#    slides). [U+1F100] → 🄀 ; [MC:10] → macro typing "10" ; || → one | .
+#  * Double-space cluster [3+2: 9  [MC…]] read as main + empty-up + down-chord.
+
+name: "kxkb ru 3+2 5r4c 1.1.7"
+attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
+numberRowMode: AlwaysDisabled
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+overrideWidths: { Custom1: 0.0909091, Custom2: 0.25 }
+
+rows:
+  # row 0 — 7 digits + 3 clusters = 10 keys (widest → Regular = 1/10, fills on its own)
+  - letters:
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - { type: cluster, main: "8", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" }
+      - { type: cluster, main: "9", down: { chord: "C-s", label: "C-s" } }
+      - { type: cluster, main: "0", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }
+  # row 1 — 4 clusters ([WDEL] dropped)
+  - letters:
+      - { type: case, normal: { type: cluster, main: "чц»", up: "«", down: "!icon/action_redo|!code/action_redo" }, shifted: { type: cluster, main: "ЧЦ»", up: "«", down: "!icon/action_redo|!code/action_redo" } }
+      - { type: case, normal: { type: cluster, main: "жмк", up: "8" }, shifted: { type: cluster, main: "ЖМК", up: "8" } }
+      - { type: case, normal: { type: cluster, main: "фяр", up: "9", down: "!icon/action_select_all|!code/action_select_all" }, shifted: { type: cluster, main: "ФЯР", up: "9", down: "!icon/action_select_all|!code/action_select_all" } }
+      - { type: case, normal: { type: cluster, main: "элё", up: "0", down: "!icon/action_undo|!code/action_undo" }, shifted: { type: cluster, main: "ЭЛЁ", up: "0", down: "!icon/action_undo|!code/action_undo" } }
+    attributes: { width: Custom2 }
+  # row 2 — 4 clusters ([Predict] dropped on юио)
+  - letters:
+      - { type: case, normal: { type: cluster, main: "юио", down: "!icon/action_cut|!code/action_cut" }, shifted: { type: cluster, main: "ЮИО", down: "!icon/action_cut|!code/action_cut" } }
+      - { type: case, normal: { type: cluster, main: "аев", up: "ё", down: "!icon/action_paste|!code/action_paste" }, shifted: { type: cluster, main: "АЕВ", up: "Ё", down: "!icon/action_paste|!code/action_paste" } }
+      - { type: case, normal: { type: cluster, main: "бтн", up: "5", down: "!icon/action_copy|!code/action_copy" }, shifted: { type: cluster, main: "БТН", up: "5", down: "!icon/action_copy|!code/action_copy" } }
+      - { type: case, normal: { type: cluster, main: "схш", up: "щ", down: "!icon/tab_key|!code/key_tab" }, shifted: { type: cluster, main: "СХШ", up: "Щ", down: "!icon/tab_key|!code/key_tab" } }
+    attributes: { width: Custom2 }
+  # row 3 — 4 clusters ([Predict] dropped on «ь»)
+  - letters:
+      - { type: case, normal: { type: cluster, main: "«ь»", down: "ъ" }, shifted: { type: cluster, main: "«Ь»", down: "Ъ" } }
+      - { type: case, normal: { type: cluster, main: "пуз", up: "1", down: ";" }, shifted: { type: cluster, main: "ПУЗ", up: "1", down: ";" } }
+      - { type: case, normal: { type: cluster, main: "гды", up: "2", down: ":" }, shifted: { type: cluster, main: "ГДЫ", up: "2", down: ":" } }
+      - { type: case, normal: { type: cluster, main: "—й_", up: "-", down: "—" }, shifted: { type: cluster, main: "—Й_", up: "-", down: "—" } }
+    attributes: { width: Custom2 }
+  # row 4 — bottom. cells: shift2 space4 clu2 clu2 Tab2 Ctrl2 Enter2 space4 shift2 = 22; non-space = Custom1 (2/22)
+  - bottom:
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+      - $space
+      - { type: cluster, main: "?!@%", attributes: { width: Custom1 } }
+      - { type: cluster, main: ";.,", up: ":", down: "…", attributes: { width: Custom1 } }
+      - { type: base, spec: "!icon/tab_key|!code/key_tab", attributes: { width: Custom1 } }
+      - { type: compass, primary: "Ctrl|!code/key_ctrl", up: "sym|!code/key_to_alt_0_layout", attributes: { width: Custom1 } }
+      - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+      - $space
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+
+altPages:
+  # ---- alt0 (sym) ---- 6 letter rows of 10 + bottom; all letter rows fill at Regular = 1/10
+  - - letters: [ "1","2","3","4","5","6","7","8","9","0" ]
+    - letters:
+        - "_"
+        - "-"
+        - "<"
+        - ">"
+        - "&"
+        - "%"
+        - "@"
+        - "🄀"
+        - { type: macro, text: "10" }
+        - "〇"
+    - letters: [ "⒈","⒉","⒊","⒋","⒌","⒍","⒎","⒏","⒐","⒑" ]
+    - letters: [ "⒒","⒓","⒔","⒕","⒖","⒗","⒘","⒙","⒚","⒛" ]
+    - letters: [ "≅","≈","→","⇒","⇨","=","+","*","'","\"" ]
+    - letters:
+        - "|"
+        - "\\"
+        - "&"
+        - ":"
+        - ";"
+        - "?"
+        - "⅔"
+        - "!icon/action_voice_input|!code/action_voice_input"
+        - "#"
+        - "/"
+    # bottom: gear clu clu Tab space(2c) Enter return shift del = 10 cells; 1-cell = Regular, space = Grow→0.2
+    - bottom:
+        - "!icon/settings_key|!code/key_settings"
+        - { type: cluster, main: "?!@%" }
+        - { type: cluster, main: ";.,", up: ":", down: "…" }
+        - "!icon/tab_key|!code/key_tab"
+        - $space
+        - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Regular, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }
+  # ---- alt1 (altGr) ---- 6 letter rows of 10 + bottom
+  - - letters: [ "①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩" ]
+    - letters: [ "¹","²","³","₂","½","⅓","⅔","¼","¾","⓪" ]
+    - letters: [ "⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑳" ]
+    - letters: [ "㉑","㉒","㉓","㉔","㉕","㉖","㉗","㉘","㉙","㉚" ]
+    - letters: [ "㉛","㉜","㉝","㉞","㉟","㊱","㊲","㊳","㊴","㊵" ]
+    - letters: [ "㊶","㊷","㊸","㊹","㊺","㊻","㊼","㊽","㊾","㊿" ]
+    - bottom:
+        - "!icon/settings_key|!code/key_settings"
+        - { type: cluster, main: "?!@%" }
+        - { type: cluster, main: ";.,", up: ":", down: "…" }
+        - "!icon/tab_key|!code/key_tab"
+        - $space
+        - { type: compass, primary: "!icon/enter_key|!code/key_enter", up: "altGr|!code/key_to_alt_1_layout" }
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Regular, style: Functional, showPopup: false } }
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Regular } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Regular, repeatableEnabled: true } }

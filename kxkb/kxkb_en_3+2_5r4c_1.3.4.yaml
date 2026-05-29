@@ -1,0 +1,174 @@
+# kxkb en 3+2 5r4c 1.3.4  — Multiling O → FUTO v2, imported via Dev/Custom Layouts.
+#
+# UPDATE 2026-05-26: cluster keys now SHOW their shifted (UPPERCASE) faces when Shift, caps-lock,
+# or auto-caps is active. Each letter cluster is a CaseSelector now ({ type: case, normal: <lower>,
+# shifted: <UPPER> } — `shifted` covers all three shift states). Previously only the committed
+# output was capitalised while the key face stayed lower-case. Width attrs are carried into both
+# variants; punctuation/digit/symbol clusters (?!@%, ;.,, the number row) are unchanged.
+#
+# SCOPE: main (shifted handled as noted), sym→alt0, altGr→alt1. Ignored: num, symShifted,
+#        altGrShifted, topBar.
+#
+# WIDTHS:
+#   Custom2 = 0.25  → main letter rows 1–3 (four clusters each). Row 0 (11 keys) fills at Regular.
+#   Custom3 = 0.1   → sym letter rows 1–6 (10 keys each); sym row 0 has 14 keys so it sets the sym
+#                     page's Regular (1/14) and those 10-key rows would clump without this.
+#   altGr rows are all 10 keys → fill at Regular, no override.
+#   BOTTOM ROWS (self-contained, per the conversion skill): Multiling []-extends every non-space key
+#   to 2 cells and each spacebar to 4 (22 cells). Non-space keys pinned to Custom1 = 1/11 ≈ 0.0909;
+#   the two $space (Grow) bars fill to 0.1818 each. All three bottoms are identical except main starts
+#   with Shift, the alt pages start with the ← ABC return. Sums to 1.0; no cram.
+#   Delete keeps hold-to-repeat. TRADE-OFF (as on your other layouts): shift is a static icon; the
+#   bottom enter keeps its Action accent but loses the IME-adaptive Go/Search/Send icon.
+#
+# FLAGGED CONVERSION CHOICES (please test):
+#  * ROW 0 reproduces the UNSHIFTED layer only: digits commit on tap, the paired symbol sits on the
+#    up-slide (e.g. tap 1 / slide-up > ), plus the accent compass (' with +"=% and ´ˇ¨ on slides).
+#    The SHIFTED layer is NOT reproduced — FUTO shift can't (a) swap a key's primary with a slide, nor
+#    (b) turn the one accent key into four arrow keys. You lose nothing functionally: every symbol is
+#    already on a slide, and the arrows live on the sym page. (Say if you specifically want the
+#    digit↔symbol swap on shift for the number keys — doable with CaseSelectors; the arrows still can't.)
+#  * Dropped (no FUTO equivalent): [WDEL] (row1 mwk ↓) and the [Predict] slots (row3 !x? ↑). The keys
+#    stay; only those slides go.
+#  * Action slides kept: [UNDO]/[REDO]/[CUT]/[PASTE]/[COPY]/[HIDE] → action_*; [TAB] → Tab key.
+#  * sym row 0 arrows → compasses: primary = the arrow (action_left/up/down/right icon), with PgUp /
+#    Home / PgDn reproduced as modifier-less chords ({chord:"PGUP"} etc. → real Page-Up/Home/PgDn key
+#    events) and the C-s chord on Down ↓.
+#  * [123:[Tab]]/[123:[Enter]] (bottoms) → plain Tab / Enter; the slide-to-123/number-layer is dropped
+#    (num not converted). The bottom Tab keeps its altGr slide ([ALTGR:[Tab]] → tap Tab, slide ↑ altGr).
+#  * Cluster bands reproduced verbatim; FUTO commits the band CENTRE on tap, others on L/R slide
+#    (e.g. main "mwk" taps w; "(io" taps i; ";l:" taps l).
+#  * moreKeyMode: OnlyExplicit set (per skill) — suppresses auto popups (extras live on slides).
+#    [MC:1ˢᵗ] etc. → macros typing the ordinal; [MC:10] → macro "10"; [LB]/[RB] → literal [ / ] ;
+#    || → one | . Double-space cluster (none here) n/a.
+
+name: "kxkb en 3+2 5r4c 1.3.4"
+attributes: { useKeySpecShortcut: false, moreKeyMode: OnlyExplicit }
+numberRowMode: AlwaysDisabled
+minimumFunctionalKeyWidth: 0.0
+minimumBottomRowFunctionalKeyWidth: 0.0
+overrideWidths: { Custom1: 0.0909091, Custom2: 0.25, Custom3: 0.1 }
+
+rows:
+  # row 0 — 9 number clusters + accent compass + 0 = 11 keys (widest → Regular = 1/11, fills)
+  - letters:
+      - { type: cluster, main: "1", up: ">" }
+      - { type: cluster, main: "2", up: "@" }
+      - { type: cluster, main: "3", up: "(", down: "[" }
+      - { type: cluster, main: "4", up: "1" }
+      - { type: cluster, main: "5", up: "#" }
+      - { type: cluster, main: "6", up: "*" }
+      - { type: cluster, main: "7", up: ")", down: "]" }
+      - { type: cluster, main: "8", up: "$", down: "^" }
+      - { type: cluster, main: "9", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" }
+      - { type: compass, primary: "'", left: "+", up: "\"", right: "=", down: "%", upLeft: "´", upRight: "ˇ", downRight: "¨", downLeft: "'" }
+      - { type: cluster, main: "0", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }
+  # row 1  (-cmwkqfrl')  — 4 clusters ([WDEL] dropped)
+  - letters:
+      - { type: case, normal: { type: cluster, main: "“c”", up: "7", down: "…" }, shifted: { type: cluster, main: "“C”", up: "7", down: "…" } }
+      - { type: case, normal: { type: cluster, main: "mwk", up: "8" }, shifted: { type: cluster, main: "MWK", up: "8" } }
+      - { type: case, normal: { type: cluster, main: "qfr", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" }, shifted: { type: cluster, main: "QFR", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" } }
+      - { type: case, normal: { type: cluster, main: ";l:", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }, shifted: { type: cluster, main: ";L:", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" } }
+    attributes: { width: Custom2 }
+  # row 2  (ioaevbtnsh)  — 4 clusters
+  - letters:
+      - { type: case, normal: { type: cluster, main: "(io", up: "3", down: "!icon/action_cut|!code/action_cut" }, shifted: { type: cluster, main: "(IO", up: "3", down: "!icon/action_cut|!code/action_cut" } }
+      - { type: case, normal: { type: cluster, main: "aev", up: "4", down: "!icon/action_paste|!code/action_paste" }, shifted: { type: cluster, main: "AEV", up: "4", down: "!icon/action_paste|!code/action_paste" } }
+      - { type: case, normal: { type: cluster, main: "btn", up: "5", down: "!icon/action_copy|!code/action_copy" }, shifted: { type: cluster, main: "BTN", up: "5", down: "!icon/action_copy|!code/action_copy" } }
+      - { type: case, normal: { type: cluster, main: "sh)", up: "6", down: "!icon/tab_key|!code/key_tab" }, shifted: { type: cluster, main: "SH)", up: "6", down: "!icon/tab_key|!code/key_tab" } }
+    attributes: { width: Custom2 }
+  # row 3  (.xpuzgdyj/)  — 4 clusters ([Predict] dropped)
+  - letters:
+      - { type: case, normal: { type: cluster, main: "!x?", down: "…" }, shifted: { type: cluster, main: "!X?", down: "…" } }
+      - { type: case, normal: { type: cluster, main: "puz", up: "1", down: ";" }, shifted: { type: cluster, main: "PUZ", up: "1", down: ";" } }
+      - { type: case, normal: { type: cluster, main: "gdy", up: "2", down: ":" }, shifted: { type: cluster, main: "GDY", up: "2", down: ":" } }
+      - { type: case, normal: { type: cluster, main: "—j_", up: "-", down: "–" }, shifted: { type: cluster, main: "—J_", up: "-", down: "–" } }
+    attributes: { width: Custom2 }
+  # row 4 — bottom (22 cells; non-space = Custom1, spaces = Grow)
+  - bottom:
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+      - $space
+      - { type: cluster, main: ";.:", up: "…", attributes: { width: Custom1 } }
+      - { type: cluster, main: "?,!", up: "…", attributes: { width: Custom1 } }
+      - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+      - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Custom1, repeatableEnabled: true } }
+      - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { width: Custom1, style: Action } }
+      - $space
+      - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+
+altPages:
+  # ---- alt0 (sym) ---- 7 letter rows + bottom; row0 = 14 keys (Regular 1/14), rows 1-6 = Custom3 (1/10)
+  - - letters:
+        - "@"
+        - "&"
+        - "("
+        - "<"
+        - "#"
+        - "*"
+        - ">"
+        - ")"
+        - "$"
+        - "^"
+        - { type: compass, primary: "!icon/action_left|!code/action_left", up: "!icon/action_undo|!code/action_undo", down: "!icon/action_redo|!code/action_redo" }
+        - { type: compass, primary: "!icon/action_up|!code/action_up", up: { chord: "PGUP", label: "PgUp" }, down: { chord: "HOME", label: "Home" } }
+        - { type: compass, primary: "!icon/action_down|!code/action_down", up: { chord: "PGDN", label: "PgDn" }, down: { chord: "C-s", label: "C-s" } }
+        - { type: compass, primary: "!icon/action_right|!code/action_right", up: "〇", down: "!icon/action_hide_keyboard|!code/action_hide_keyboard" }
+    - letters:
+        - { type: macro, text: "ˢᵗ" }
+        - { type: macro, text: "ⁿᵈ" }
+        - { type: macro, text: "ʳᵈ" }
+        - { type: macro, text: "ᵗʰ" }
+        - "_"
+        - "&"
+        - "%"
+        - "@"
+        - { type: macro, text: "10" }
+        - "〇"
+      attributes: { width: Custom3 }
+    - letters: [ "<", ">", "≅", "≈", "=", "-", "+", "*", "'", "\"" ]
+      attributes: { width: Custom3 }
+    - letters: [ {type: macro, text: "1ˢᵗ"}, {type: macro, text: "2ⁿᵈ"}, {type: macro, text: "3ʳᵈ"}, {type: macro, text: "4ᵗʰ"}, {type: macro, text: "5ᵗʰ"}, {type: macro, text: "6ᵗʰ"}, {type: macro, text: "7ᵗʰ"}, {type: macro, text: "8ᵗʰ"}, {type: macro, text: "9ᵗʰ"}, {type: macro, text: "10ᵗʰ"} ]
+      attributes: { width: Custom3 }
+    - letters: [ {type: macro, text: "11ᵗʰ"}, {type: macro, text: "12ᵗʰ"}, {type: macro, text: "13ᵗʰ"}, {type: macro, text: "14ᵗʰ"}, {type: macro, text: "15ᵗʰ"}, {type: macro, text: "16ᵗʰ"}, {type: macro, text: "17ᵗʰ"}, {type: macro, text: "18ᵗʰ"}, {type: macro, text: "19ᵗʰ"}, {type: macro, text: "20ᵗʰ"} ]
+      attributes: { width: Custom3 }
+    - letters: [ {type: macro, text: "21ˢᵗ"}, {type: macro, text: "22ⁿᵈ"}, {type: macro, text: "23ʳᵈ"}, {type: macro, text: "24ᵗʰ"}, {type: macro, text: "25ᵗʰ"}, {type: macro, text: "26ᵗʰ"}, {type: macro, text: "27ᵗʰ"}, {type: macro, text: "28ᵗʰ"}, {type: macro, text: "29ᵗʰ"}, {type: macro, text: "30ᵗʰ"} ]
+      attributes: { width: Custom3 }
+    - letters:
+        - { type: macro, text: "31ˢᵗ" }
+        - "\\"
+        - ":"
+        - ";"
+        - "→"
+        - "⇒"
+        - "⇨"
+        - "!icon/action_voice_input|!code/action_voice_input"
+        - "#"
+        - "/"
+      attributes: { width: Custom3 }
+    - bottom:
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Custom1, style: Functional, showPopup: false } }
+        - $space
+        - { type: cluster, main: ";.:", up: "…", attributes: { width: Custom1 } }
+        - { type: cluster, main: "?,!", up: "…", attributes: { width: Custom1 } }
+        - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Custom1, repeatableEnabled: true } }
+        - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { width: Custom1, style: Action } }
+        - $space
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
+  # ---- alt1 (altGr) ---- 6 letter rows of 10 + bottom; all fill at Regular = 1/10
+  - - letters: [ "①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩" ]
+    - letters: [ "¹","²","³","₂","½","⅓","⅔","¼","¾","⓪" ]
+    - letters: [ "⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑳" ]
+    - letters: [ "㉑","㉒","㉓","㉔","㉕","㉖","㉗","㉘","㉙","㉚" ]
+    - letters: [ "㉛","㉜","㉝","㉞","㉟","㊱","㊲","㊳","㊴","㊵" ]
+    - letters: [ "㊶","㊷","㊸","㊹","㊺","㊻","㊼","㊽","㊾","㊿" ]
+    - bottom:
+        - { type: base, spec: "← ABC|!code/key_to_alpha_0_layout", attributes: { width: Custom1, style: Functional, showPopup: false } }
+        - $space
+        - { type: cluster, main: ";.:", up: "…", attributes: { width: Custom1 } }
+        - { type: cluster, main: "?,!", up: "…", attributes: { width: Custom1 } }
+        - { type: compass, primary: "!icon/tab_key|!code/key_tab", up: "altGr|!code/key_to_alt_1_layout", attributes: { width: Custom1 } }
+        - { type: base, spec: "!icon/delete_key|!code/key_delete", attributes: { width: Custom1, repeatableEnabled: true } }
+        - { type: base, spec: "!icon/enter_key|!code/key_enter", attributes: { width: Custom1, style: Action } }
+        - $space
+        - { type: base, spec: "!icon/shift_key|!code/key_shift", attributes: { width: Custom1 } }
