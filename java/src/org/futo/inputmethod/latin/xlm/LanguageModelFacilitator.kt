@@ -476,8 +476,12 @@ public class LanguageModelFacilitator(
         val clusterConfidentAutocorrect =
             clusterSets != null && clusterEnumerated.isNotEmpty() && clusterSets.size >= 4
 
+        // kxkb: keep a large candidate pool (was 14) so the expandable suggestions panel has many
+        // candidates to flip through — especially on cluster layouts, where the trie-walk finds far
+        // more valid in-set words than the 3-slot strip ever showed. The 3-slot strip still renders
+        // only 3; this only changes how many reach the (lazy, scrollable) expanded panel.
         val suggestionResults = SuggestionResults(
-            14, values.ngramContext.isBeginningOfSentenceContext, clusterConfidentAutocorrect)
+            128, values.ngramContext.isBeginningOfSentenceContext, clusterConfidentAutocorrect)
 
 
         val reweightedSuggestions = lmSuggestions.mapIndexedNotNull { i, it ->
@@ -637,7 +641,7 @@ public class LanguageModelFacilitator(
                     it != suggestedWordsDict.typedWordInfo && !filtered.contains(
                         it
                     )
-                }.take(10))
+                }.take(128)) // kxkb: was 10; feed the large pool so the expandable panel is rich
             }
         }
 

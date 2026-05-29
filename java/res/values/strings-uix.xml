@@ -529,6 +529,8 @@
     <string name="keyboard_settings_extra_layouts_subtitle">Configure additional layouts in the languages screen</string>
     <string name="keyboard_settings_show_suggestion_row">Show action/suggestions bar</string>
     <string name="keyboard_settings_show_suggestion_row_subtitle">Show the bar containing suggestions. Recommended to keep enabled</string>
+    <string name="keyboard_settings_expandable_suggestions">Expandable suggestions panel</string>
+    <string name="keyboard_settings_expandable_suggestions_subtitle">Scroll the suggestion bar for more candidates, or tap ▲ to expand all of them over the keyboard. Useful on cluster layouts when the word you want isn\'t in the first few.</string>
     <string name="keyboard_settings_inline_autofill">Inline autofill</string>
     <string name="keyboard_settings_inline_autofill_subtitle">Display password manager autofill and auto-reply suggestions (provided by app) in suggestion bar</string>
     <string name="keyboard_settings_period_key">Quick period key</string>
