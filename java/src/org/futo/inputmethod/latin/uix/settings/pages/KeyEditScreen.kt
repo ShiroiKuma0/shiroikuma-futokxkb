@@ -292,7 +292,8 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
             return@ScrollableList
         }
 
-        val breadcrumb = "row ${path.row}, col ${path.col}" + path.fields.joinToString("") { " › $it" }
+        val pageLabel = if (path.page < 0) "base" else "alt${path.page}"
+        val breadcrumb = "$pageLabel · row ${path.row}, col ${path.col}" + path.fields.joinToString("") { " › $it" }
         Text(breadcrumb, style = mono, modifier = Modifier.padding(16.dp, 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         PickerRow("Type", TYPE_OPTIONS, keyTypeName(key), { it }) { t ->
@@ -302,38 +303,38 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
 
         // Position in row (only for a top-level row key, not a nested case branch / slot).
         if (path.fields.isEmpty()) {
-            val rowKeyCount = working.rows.getOrNull(path.row)?.keys?.size ?: 0
+            val rowKeyCount = KeyboardEditorSession.pageRows(path.page).getOrNull(path.row)?.keys?.size ?: 0
             Text("Position in row", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
             Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
                 OutlinedButton(
-                    onClick = { KeyboardEditorSession.moveKey(path.row, path.col, -1); navController.popBackStack() },
+                    onClick = { KeyboardEditorSession.moveKey(path.page, path.row, path.col, -1); navController.popBackStack() },
                     modifier = Modifier.weight(1f)
                 ) { Text("◀ Move") }
                 Spacer(Modifier.size(8.dp))
                 OutlinedButton(
-                    onClick = { KeyboardEditorSession.moveKey(path.row, path.col, +1); navController.popBackStack() },
+                    onClick = { KeyboardEditorSession.moveKey(path.page, path.row, path.col, +1); navController.popBackStack() },
                     modifier = Modifier.weight(1f)
                 ) { Text("Move ▶") }
             }
             Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
                 OutlinedButton(
                     onClick = {
-                        KeyboardEditorSession.insertKey(path.row, path.col, BaseKey(spec = "a"))
-                        navController.navigate(Route.KeyEdit(EditPath(path.row, path.col).encode()))
+                        KeyboardEditorSession.insertKey(path.page, path.row, path.col, BaseKey(spec = "a"))
+                        navController.navigate(Route.KeyEdit(EditPath(path.row, path.col, page = path.page).encode()))
                     },
                     modifier = Modifier.weight(1f)
                 ) { Text("Insert ◀") }
                 Spacer(Modifier.size(8.dp))
                 OutlinedButton(
                     onClick = {
-                        KeyboardEditorSession.insertKey(path.row, path.col + 1, BaseKey(spec = "a"))
-                        navController.navigate(Route.KeyEdit(EditPath(path.row, path.col + 1).encode()))
+                        KeyboardEditorSession.insertKey(path.page, path.row, path.col + 1, BaseKey(spec = "a"))
+                        navController.navigate(Route.KeyEdit(EditPath(path.row, path.col + 1, page = path.page).encode()))
                     },
                     modifier = Modifier.weight(1f)
                 ) { Text("Insert ▶") }
             }
             OutlinedButton(
-                onClick = { KeyboardEditorSession.removeKey(path.row, path.col); navController.popBackStack() },
+                onClick = { KeyboardEditorSession.removeKey(path.page, path.row, path.col); navController.popBackStack() },
                 enabled = rowKeyCount > 1,
                 modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)

@@ -5,6 +5,7 @@ import android.view.ContextThemeWrapper
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
@@ -110,19 +113,33 @@ private fun applyLayout(context: Context, idx: Int) {
 @Composable
 fun KeyboardEditorScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
-    val customLayouts = remember { getCustomLayouts(context) }
+    var customLayouts by remember { mutableStateOf(getCustomLayouts(context)) }
     val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+    var showApplyAsNew by remember { mutableStateOf(false) }
+
+    // "Apply as a new layout": save the current working model under a new name/language as a NEW
+    // custom layout (same path as "Create new layout"), then open that copy in the editor.
+    fun applyAsNew(name: String, language: String) {
+        val kb = KeyboardEditorSession.working ?: return
+        val yaml = emitKeyboardYaml(kb.copy(name = name))
+        val newCl = CustomLayout(language = language, layoutYaml = yaml)
+        val list = getCustomLayouts(context) + newCl
+        updateCustomLayoutsAndSyncSubtypes(context, list)
+        customLayouts = list
+        KeyboardEditorSession.load(list.size - 1, newCl)
+    }
 
     // Subscribe to working-model changes (recompose + rebuild preview on every edit).
     val working = KeyboardEditorSession.working
     val dirty = KeyboardEditorSession.dirty
     val sourceIdx = KeyboardEditorSession.sourceIdx
+    val page = KeyboardEditorSession.page
 
     var preview by remember { mutableStateOf<Keyboard?>(null) }
     var previewWidthPx by remember { mutableStateOf(0) }
-    LaunchedEffect(working, previewWidthPx) {
+    LaunchedEffect(working, previewWidthPx, page) {
         preview = if (working != null && previewWidthPx > 0)
-            withContext(Dispatchers.Default) { KeyboardEditorSession.buildPreview(context, previewWidthPx) }
+            withContext(Dispatchers.Default) { KeyboardEditorSession.buildPreview(context, previewWidthPx, page) }
         else null
     }
 
@@ -163,6 +180,24 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
 
         if (working != null) {
             Spacer(Modifier.height(8.dp))
+
+            // Page selector: base + each alt page (alt0 = sym, alt1 = altGr). Editing applies to the
+            // selected page; the preview, Rows section and tap-to-edit all follow it.
+            val pages = listOf(-1) + (0 until KeyboardEditorSession.altPageCount())
+            if (pages.size > 1) {
+                Row(Modifier.fillMaxWidth().padding(14.dp, 4.dp)) {
+                    pages.forEach { p ->
+                        val label = when (p) { -1 -> "Base"; 0 -> "alt0 (sym)"; 1 -> "alt1 (altGr)"; else -> "alt$p" }
+                        Button(
+                            onClick = { KeyboardEditorSession.selectPage(p) },
+                            modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                            colors = if (p == page) ButtonDefaults.buttonColors()
+                                     else ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                        ) { Text(label, style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+            }
+
             Text(
                 "Tap a key to edit it" + if (dirty) "  •  unsaved changes" else "",
                 style = MaterialTheme.typography.labelLarge,
@@ -183,7 +218,7 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                 LaunchedEffect(wPx) { previewWidthPx = wPx }
                 preview?.let { kb ->
                     EditorPreview(kb) { tapped ->
-                        val path = KeyboardEditorSession.pathForRuntimeKey(tapped.row, tapped.column)
+                        val path = KeyboardEditorSession.pathForRuntimeKey(page, tapped.row, tapped.column)
                         if (path == null) {
                             Toast.makeText(context, "That key is auto-generated (not editable yet)", Toast.LENGTH_SHORT).show()
                         } else {
@@ -193,28 +228,76 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                 } ?: Text("(building preview…)", modifier = Modifier.padding(16.dp, 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            // Rows: reorder / delete / add rows, and append a key to a row. (Tap a key in the preview
-            // to move/insert/delete within a row, or to edit it.)
+            // Rows of the selected page: reorder / delete / add rows, and append a key to a row.
+            // (Tap a key in the preview to move/insert/delete within a row, or to edit it.)
+            val pageRowList = KeyboardEditorSession.pageRows(page)
             Spacer(Modifier.height(12.dp))
             Text("Rows", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
-            working.rows.forEachIndexed { i, r ->
+            pageRowList.forEachIndexed { i, r ->
                 val type = when { r.isNumberRow -> "number"; r.isBottomRow -> "bottom"; else -> "letters" }
                 Row(Modifier.fillMaxWidth().padding(16.dp, 1.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("[$i] $type ·${r.keys.size}", style = mono, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { KeyboardEditorSession.moveRow(i, -1) }) { Text("▲") }
-                    TextButton(onClick = { KeyboardEditorSession.moveRow(i, +1) }) { Text("▼") }
+                    TextButton(onClick = { KeyboardEditorSession.moveRow(page, i, -1) }) { Text("▲") }
+                    TextButton(onClick = { KeyboardEditorSession.moveRow(page, i, +1) }) { Text("▼") }
                     TextButton(onClick = {
-                        val n = (KeyboardEditorSession.working?.rows?.getOrNull(i)?.keys?.size) ?: 0
-                        KeyboardEditorSession.insertKey(i, n, org.futo.inputmethod.v2keyboard.BaseKey(spec = "a"))
-                        navController.navigate(Route.KeyEdit(EditPath(i, n).encode()))
+                        val n = KeyboardEditorSession.pageRows(page).getOrNull(i)?.keys?.size ?: 0
+                        KeyboardEditorSession.insertKey(page, i, n, org.futo.inputmethod.v2keyboard.BaseKey(spec = "a"))
+                        navController.navigate(Route.KeyEdit(EditPath(i, n, page = page).encode()))
                     }) { Text("+key") }
-                    TextButton(onClick = { KeyboardEditorSession.removeRow(i) }) { Text("✕") }
+                    TextButton(onClick = { KeyboardEditorSession.removeRow(page, i) }) { Text("✕") }
                 }
             }
             OutlinedButton(
-                onClick = { KeyboardEditorSession.addRow(working.rows.indexOfLast { it.isLetterRow }) },
+                onClick = { KeyboardEditorSession.addRow(page, pageRowList.indexOfLast { it.isLetterRow }) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp)
             ) { Text("Add row") }
+
+            // Alt pages: reorder (◀/▶) and delete whole pages, plus append a page copied from another
+            // layout. Max 3 (alt0/alt1/alt2 — the engine's switchable alt layouts).
+            val altCount = KeyboardEditorSession.altPageCount()
+            val atCap = altCount >= KeyboardEditorSession.MAX_ALT_PAGES
+            Spacer(Modifier.height(12.dp))
+            Text("Alt pages (max ${KeyboardEditorSession.MAX_ALT_PAGES})", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
+            for (p in 0 until altCount) {
+                Row(Modifier.fillMaxWidth().padding(16.dp, 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("alt$p ·${KeyboardEditorSession.pageRows(p).size} rows", style = mono, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { KeyboardEditorSession.moveAltPage(p, -1) }) { Text("◀") }
+                    TextButton(onClick = { KeyboardEditorSession.moveAltPage(p, +1) }) { Text("▶") }
+                    TextButton(onClick = { KeyboardEditorSession.deleteAltPage(p) }) { Text("✕") }
+                }
+            }
+            if (altCount == 0) Text("(none)", style = mono, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 1.dp))
+
+            // Append a single alt page copied from another layout — one row per (layout, alt page),
+            // with Preview (renders that page) and Append.
+            val otherLayouts = remember(customLayouts, sourceIdx) {
+                customLayouts.withIndex().filter { it.index != sourceIdx }
+                    .map { (idx, cl) -> Triple(idx, cl, KeyboardEditorSession.altPageCountOf(cl)) }
+            }
+            if (otherLayouts.isNotEmpty()) {
+                Text(
+                    "Append a page from another layout" + if (atCap) " — at max, delete one first" else "",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (atCap) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(16.dp, 8.dp, 16.dp, 2.dp)
+                )
+                otherLayouts.forEach { (idx, cl, n) ->
+                    if (n == 0) {
+                        Text("${cl.name} — (no alt pages)", style = mono, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(16.dp, 1.dp))
+                    } else {
+                        for (sp in 0 until n) {
+                            Row(Modifier.fillMaxWidth().padding(16.dp, 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${cl.name} · alt$sp", style = mono, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                TextButton(onClick = { navController.navigate(Route.AltPreview(idx, sp)) }) { Text("Preview") }
+                                TextButton(enabled = !atCap, onClick = {
+                                    val ok = KeyboardEditorSession.appendAltPageFrom(cl, sp)
+                                    Toast.makeText(context, if (ok) "Appended alt$sp from ${cl.name}" else "Couldn't append", Toast.LENGTH_SHORT).show()
+                                }) { Text("Append") }
+                            }
+                        }
+                    }
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth().padding(16.dp, 4.dp)) {
@@ -229,12 +312,44 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                     modifier = Modifier.weight(1f)
                 ) { Text("Export YAML") }
             }
-            OutlinedButton(
-                onClick = { customLayouts.getOrNull(sourceIdx)?.let { KeyboardEditorSession.load(sourceIdx, it) } },
-                enabled = dirty,
-                modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) { Text("Revert changes") }
+            Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
+                OutlinedButton(
+                    onClick = { showApplyAsNew = true },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Apply as a new layout") }
+                Spacer(Modifier.size(12.dp))
+                OutlinedButton(
+                    onClick = { customLayouts.getOrNull(sourceIdx)?.let { KeyboardEditorSession.load(sourceIdx, it) } },
+                    enabled = dirty,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Revert changes") }
+            }
+
+            if (showApplyAsNew) {
+                var nm by remember { mutableStateOf(KeyboardEditorSession.working?.name ?: "") }
+                var lg by remember { mutableStateOf(KeyboardEditorSession.sourceLanguage) }
+                AlertDialog(
+                    onDismissRequest = { showApplyAsNew = false },
+                    title = { Text("Apply as a new layout") },
+                    text = {
+                        Column {
+                            Text("Language", style = MaterialTheme.typography.labelMedium)
+                            OutlinedTextField(value = lg, onValueChange = { lg = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(8.dp))
+                            Text("Layout name", style = MaterialTheme.typography.labelMedium)
+                            OutlinedTextField(value = nm, onValueChange = { nm = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            applyAsNew(nm.ifBlank { "Layout" }, lg.ifBlank { "en_US" })
+                            showApplyAsNew = false
+                        }) { Text("Create & edit") }
+                    },
+                    dismissButton = { TextButton(onClick = { showApplyAsNew = false }) { Text("Cancel") } }
+                )
+            }
 
             // Custom key widths: define what the Custom1–4 width tokens mean for this layout (as a %
             // of the keyboard width). A key's width picker then shows these resolved percentages.

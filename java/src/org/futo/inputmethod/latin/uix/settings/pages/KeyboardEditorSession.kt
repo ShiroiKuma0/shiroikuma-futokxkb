@@ -44,12 +44,14 @@ import org.futo.inputmethod.v2keyboard.Keyboard as V2Keyboard
 // exit unless Applied. See [[keyboard-editor-plan]].
 
 /**
- * Address of an editable key within the working model's BASE rows (altPages are Phase 2).
- * [row]/[col] index `working.rows[row].keys[col]`; [fields] then descends into composite keys
- * (a CaseSelector branch, a Compass/Flick `primary`, or a direction slot that is a KeySlot).
+ * Address of an editable key. [page] selects which page's rows: -1 = the base rows, 0..N = the
+ * `altPages[page]` rows (alt0 = sym, alt1 = altGr). [row]/[col] index that page's `rows[row].keys[col]`;
+ * [fields] then descends into composite keys (a CaseSelector branch, a Compass/Flick `primary`, or a
+ * direction slot that is a KeySlot). `page` is last with a default so older `EditPath(row, col)` calls
+ * still mean the base page.
  */
 @Serializable
-data class EditPath(val row: Int, val col: Int, val fields: List<String> = emptyList()) {
+data class EditPath(val row: Int, val col: Int, val fields: List<String> = emptyList(), val page: Int = -1) {
     fun child(field: String) = copy(fields = fields + field)
     fun encode(): String = Json.Default.encodeToString(serializer(), this)
     companion object {
@@ -69,12 +71,28 @@ object KeyboardEditorSession {
     var loadError by mutableStateOf<String?>(null)
         private set
 
+    /** Which page is being edited/previewed: -1 = base rows, 0..N = altPages[page]. */
+    var page by mutableStateOf(-1)
+        private set
+
+    fun selectPage(p: Int) { page = p }
+
+    /** The rows of the given page (-1 = base, else altPages[p]); empty if the page doesn't exist. */
+    fun pageRows(p: Int): List<Row> {
+        val kb = working ?: return emptyList()
+        return if (p < 0) kb.rows else kb.altPages.getOrNull(p) ?: emptyList()
+    }
+
+    /** Number of alt pages in the working model. */
+    fun altPageCount(): Int = working?.altPages?.size ?: 0
+
     /** Load a custom layout into the session for editing. */
     fun load(idx: Int, layout: CustomLayout) {
         sourceIdx = idx
         sourceLanguage = layout.language
         dirty = false
         loadError = null
+        page = -1
         working = try {
             parseKeyboardYamlString(layout.layoutYaml)
         } catch (e: Exception) {
@@ -84,11 +102,58 @@ object KeyboardEditorSession {
     }
 
     fun clear() {
-        sourceIdx = -1; working = null; dirty = false; loadError = null
+        sourceIdx = -1; working = null; dirty = false; loadError = null; page = -1
     }
 
     /** Mark the working model as saved (called after a successful Apply). */
     fun markApplied() { dirty = false }
+
+    // The engine reaches alt pages via key_to_alt_0/1/2_layout (KeyboardLayoutKind Alphabet1/2/3), so
+    // at most 3 alt pages (alt0 / alt1 / alt2) are switchable.
+    const val MAX_ALT_PAGES = 3
+
+    /** Number of alt pages [src] (another layout) has — for offering its pages to copy. 0 on error. */
+    fun altPageCountOf(src: CustomLayout): Int =
+        try { parseKeyboardYamlString(src.layoutYaml).altPages.size } catch (e: Exception) { 0 }
+
+    /**
+     * Append alt page [srcPage] from another layout [src] onto THIS layout's alt pages (so with alt0
+     * and alt1 present it becomes alt2). No-op (returns false) if already at [MAX_ALT_PAGES], or [src]
+     * doesn't parse / has no such page.
+     */
+    fun appendAltPageFrom(src: CustomLayout, srcPage: Int): Boolean {
+        val kb = working ?: return false
+        if (kb.altPages.size >= MAX_ALT_PAGES) return false
+        val srcKb = try { parseKeyboardYamlString(src.layoutYaml) } catch (e: Exception) { return false }
+        val srcRows = srcKb.altPages.getOrNull(srcPage) ?: return false
+        working = kb.copy(altPages = kb.altPages + listOf(srcRows))
+        dirty = true
+        return true
+    }
+
+    /** Swap alt page [p] with its neighbour [delta] away (±1): alt2 ◀ becomes alt1, etc. */
+    fun moveAltPage(p: Int, delta: Int) {
+        val kb = working ?: return
+        val alts = kb.altPages.toMutableList()
+        val target = p + delta
+        if (p !in alts.indices || target !in alts.indices) return
+        val t = alts[p]; alts[p] = alts[target]; alts[target] = t
+        working = kb.copy(altPages = alts)
+        dirty = true
+        // keep the selected page on the page the user was looking at, following the swap
+        if (page == p) page = target else if (page == target) page = p
+    }
+
+    /** Delete whole alt page [p], shifting later pages down (alt2 → alt1). */
+    fun deleteAltPage(p: Int) {
+        val kb = working ?: return
+        val alts = kb.altPages.toMutableList()
+        if (p !in alts.indices) return
+        alts.removeAt(p)
+        working = kb.copy(altPages = alts)
+        dirty = true
+        if (page >= alts.size) page = if (alts.isEmpty()) -1 else alts.size - 1
+    }
 
     /** Set/clear a Custom key-width fraction (0..1) at the keyboard level (overrideWidths). */
     fun setOverrideWidth(width: KeyWidth, fraction: Float?) {
@@ -99,39 +164,43 @@ object KeyboardEditorSession {
         dirty = true
     }
 
-    // ---- Phase 2: structural editing (base rows) ----
+    // ---- Phase 2: structural editing (page-aware: base rows or an alt page) ----
 
-    private inline fun mutateRows(block: (MutableList<Row>) -> Unit) {
+    private fun V2Keyboard.withRowsForPage(p: Int, newRows: List<Row>): V2Keyboard =
+        if (p < 0) copy(rows = newRows)
+        else copy(altPages = altPages.toMutableList().also { if (p in it.indices) it[p] = newRows })
+
+    private inline fun mutateRowsFor(page: Int, block: (MutableList<Row>) -> Unit) {
         val kb = working ?: return
-        val rows = kb.rows.toMutableList()
+        val rows = pageRows(page).toMutableList()
         block(rows)
-        working = kb.copy(rows = rows)
+        working = kb.withRowsForPage(page, rows)
         dirty = true
     }
 
-    /** Insert [key] at [col] in [row] (col is clamped; col == size appends). */
-    fun insertKey(row: Int, col: Int, key: AbstractKey) = mutateRows { rows ->
-        val r = rows.getOrNull(row) ?: return@mutateRows
+    /** Insert [key] at [col] in [row] of [page] (col is clamped; col == size appends). */
+    fun insertKey(page: Int, row: Int, col: Int, key: AbstractKey) = mutateRowsFor(page) { rows ->
+        val r = rows.getOrNull(row) ?: return@mutateRowsFor
         val ks = r.keys.toMutableList()
         ks.add(col.coerceIn(0, ks.size), key)
         rows[row] = r.withKeys(ks)
     }
 
-    /** Remove the key at [col] in [row]. No-op if it is the row's only key (delete the row instead). */
-    fun removeKey(row: Int, col: Int) = mutateRows { rows ->
-        val r = rows.getOrNull(row) ?: return@mutateRows
+    /** Remove the key at [col] in [row] of [page]. No-op if it is the row's only key. */
+    fun removeKey(page: Int, row: Int, col: Int) = mutateRowsFor(page) { rows ->
+        val r = rows.getOrNull(row) ?: return@mutateRowsFor
         val ks = r.keys.toMutableList()
-        if (col !in ks.indices || ks.size <= 1) return@mutateRows
+        if (col !in ks.indices || ks.size <= 1) return@mutateRowsFor
         ks.removeAt(col)
         rows[row] = r.withKeys(ks)
     }
 
     /** Swap the key at [col] with its neighbour [delta] away (±1). Returns the key's new column. */
-    fun moveKey(row: Int, col: Int, delta: Int): Int {
-        val r = working?.rows?.getOrNull(row) ?: return col
+    fun moveKey(page: Int, row: Int, col: Int, delta: Int): Int {
+        val r = pageRows(page).getOrNull(row) ?: return col
         val target = col + delta
         if (col !in r.keys.indices || target !in r.keys.indices) return col
-        mutateRows { rows ->
+        mutateRowsFor(page) { rows ->
             val ks = rows[row].keys.toMutableList()
             val t = ks[col]; ks[col] = ks[target]; ks[target] = t
             rows[row] = rows[row].withKeys(ks)
@@ -139,56 +208,57 @@ object KeyboardEditorSession {
         return target
     }
 
-    /** Insert a new single-key letters row after [afterRow]. */
-    fun addRow(afterRow: Int) = mutateRows { rows ->
+    /** Insert a new single-key letters row after [afterRow] in [page]. */
+    fun addRow(page: Int, afterRow: Int) = mutateRowsFor(page) { rows ->
         rows.add((afterRow + 1).coerceIn(0, rows.size), Row(letters = listOf(BaseKey("a"))))
     }
 
-    /** Remove [row]. No-op if it is the only row, or the only letters row. */
-    fun removeRow(row: Int) = mutateRows { rows ->
-        if (row !in rows.indices || rows.size <= 1) return@mutateRows
-        if (rows[row].isLetterRow && rows.count { it.isLetterRow } <= 1) return@mutateRows
+    /** Remove [row] from [page]. No-op if it is the only row, or the only letters row. */
+    fun removeRow(page: Int, row: Int) = mutateRowsFor(page) { rows ->
+        if (row !in rows.indices || rows.size <= 1) return@mutateRowsFor
+        if (rows[row].isLetterRow && rows.count { it.isLetterRow } <= 1) return@mutateRowsFor
         rows.removeAt(row)
     }
 
-    /** Swap [row] with its neighbour [delta] away (±1). */
-    fun moveRow(row: Int, delta: Int) = mutateRows { rows ->
+    /** Swap [row] with its neighbour [delta] away (±1) within [page]. */
+    fun moveRow(page: Int, row: Int, delta: Int) = mutateRowsFor(page) { rows ->
         val target = row + delta
-        if (row !in rows.indices || target !in rows.indices) return@mutateRows
+        if (row !in rows.indices || target !in rows.indices) return@mutateRowsFor
         val t = rows[row]; rows[row] = rows[target]; rows[target] = t
     }
 
-    /** Replace the key at [path], rebuilding the working model. */
+    /** Replace the key at [path] (on its page), rebuilding the working model. */
     fun replaceKey(path: EditPath, newKey: AbstractKey) {
         val kb = working ?: return
-        val rows = kb.rows.toMutableList()
+        val rows = pageRows(path.page).toMutableList()
         val row = rows.getOrNull(path.row) ?: return
         val topKey = row.keys.getOrNull(path.col) ?: return
         val updatedTop = replaceDescend(topKey, path.fields, 0, newKey)
         rows[path.row] = row.withKeyAt(path.col, updatedTop)
-        working = kb.copy(rows = rows)
+        working = kb.withRowsForPage(path.page, rows)
         dirty = true
     }
 
     /** The key currently at [path], or null if the path no longer resolves. */
     fun keyAt(path: EditPath): AbstractKey? {
-        val kb = working ?: return null
-        var key = kb.rows.getOrNull(path.row)?.keys?.getOrNull(path.col) ?: return null
+        var key = pageRows(path.page).getOrNull(path.row)?.keys?.getOrNull(path.col) ?: return null
         for (f in path.fields) key = childKey(key, f) ?: return null
         return key
     }
 
     // ---- build a runtime keyboard from the working model (for the preview) ----
     // Built at the EXACT [widthPx] we render at, so the preview draws 1:1 (scale = 1) and a tap maps
-    // to a key by identity — no scale offset.
+    // to a key by identity — no scale offset. [page] -1 previews the base; for an alt page we build a
+    // STANDALONE keyboard whose base rows ARE that alt page's rows (altPages dropped), so it renders
+    // and tap-maps exactly like the base — the page's switch / "← ABC" keys just render as plain keys.
+    // Render any [kb] as a base-page keyboard at [widthPx] via the ForceCustomLayoutYamlB64 seam.
     @OptIn(ExperimentalEncodingApi::class)
-    fun buildPreview(context: Context, widthPx: Int): RuntimeKeyboard? {
-        val kb = working ?: return null
+    private fun buildPreviewFor(context: Context, widthPx: Int, kb: V2Keyboard, language: String): RuntimeKeyboard? {
         if (widthPx <= 0) return null
         val emitted = try { emitKeyboardYaml(kb) } catch (e: Exception) { return null }
-        val loc = Locale.forLanguageTag(sourceLanguage.replace("_", "-"))
+        val loc = Locale.forLanguageTag(language.replace("_", "-"))
         val density = context.resources.displayMetrics.density
-        val cl = CustomLayout(language = sourceLanguage, layoutYaml = emitted)
+        val cl = CustomLayout(language = language, layoutYaml = emitted)
         val editorInfo = EditorInfo().apply {
             privateImeOptions = "org.futo.inputmethod.latin.ForceCustomLayoutYamlB64=" +
                 Base64.encode(Json.Default.encodeToString(CustomLayout.serializer(), cl).toByteArray())
@@ -220,6 +290,20 @@ object KeyboardEditorSession {
         }
     }
 
+    fun buildPreview(context: Context, widthPx: Int, page: Int): RuntimeKeyboard? {
+        val base = working ?: return null
+        val kb = if (page < 0) base
+                 else base.copy(rows = base.altPages.getOrNull(page) ?: return null, altPages = emptyList())
+        return buildPreviewFor(context, widthPx, kb, sourceLanguage)
+    }
+
+    /** Preview alt page [srcPage] of another layout [src] (for deciding which page to append). */
+    fun buildAltPagePreview(context: Context, widthPx: Int, src: CustomLayout, srcPage: Int): RuntimeKeyboard? {
+        val srcKb = try { parseKeyboardYamlString(src.layoutYaml) } catch (e: Exception) { return null }
+        val rows = srcKb.altPages.getOrNull(srcPage) ?: return null
+        return buildPreviewFor(context, widthPx, srcKb.copy(rows = rows, altPages = emptyList()), src.language)
+    }
+
     /**
      * Map a tapped runtime key (its `row`/`column`) back to a base-page [EditPath].
      *
@@ -231,11 +315,10 @@ object KeyboardEditorSession {
      * A row/col beyond the authored rows (e.g. an auto-added bottom row, or auto shift/delete keys
      * appended to a row) has no authored counterpart → null (not editable yet).
      */
-    fun pathForRuntimeKey(runtimeRow: Int, runtimeCol: Int): EditPath? {
-        val kb = working ?: return null
-        val row = kb.rows.getOrNull(runtimeRow) ?: return null
+    fun pathForRuntimeKey(page: Int, runtimeRow: Int, runtimeCol: Int): EditPath? {
+        val row = pageRows(page).getOrNull(runtimeRow) ?: return null
         if (row.keys.getOrNull(runtimeCol) == null) return null
-        return EditPath(runtimeRow, runtimeCol)
+        return EditPath(runtimeRow, runtimeCol, page = page)
     }
 }
 
