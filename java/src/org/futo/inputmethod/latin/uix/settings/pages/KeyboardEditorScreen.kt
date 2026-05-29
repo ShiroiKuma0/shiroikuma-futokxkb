@@ -239,6 +239,7 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                     Text("[$i] $type ·${r.keys.size}", style = mono, modifier = Modifier.weight(1f))
                     TextButton(onClick = { KeyboardEditorSession.moveRow(page, i, -1) }) { Text("▲") }
                     TextButton(onClick = { KeyboardEditorSession.moveRow(page, i, +1) }) { Text("▼") }
+                    TextButton(onClick = { KeyboardEditorSession.duplicateRow(page, i) }) { Text("dup") }
                     TextButton(onClick = {
                         val n = KeyboardEditorSession.pageRows(page).getOrNull(i)?.keys?.size ?: 0
                         KeyboardEditorSession.insertKey(page, i, n, org.futo.inputmethod.v2keyboard.BaseKey(spec = "a"))

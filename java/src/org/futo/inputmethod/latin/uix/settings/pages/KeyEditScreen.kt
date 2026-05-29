@@ -334,6 +334,13 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
                 ) { Text("Insert ▶") }
             }
             OutlinedButton(
+                onClick = {
+                    KeyboardEditorSession.duplicateKey(path.page, path.row, path.col)
+                    navController.navigate(Route.KeyEdit(EditPath(path.row, path.col + 1, page = path.page).encode()))
+                },
+                modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp)
+            ) { Text("Duplicate key") }
+            OutlinedButton(
                 onClick = { KeyboardEditorSession.removeKey(path.page, path.row, path.col); navController.popBackStack() },
                 enabled = rowKeyCount > 1,
                 modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp),
