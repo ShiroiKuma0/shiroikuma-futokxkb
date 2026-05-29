@@ -232,6 +232,10 @@ data class Key(
     val colorOverride: Int? = null,
     val fontScaleOverride: Float? = null,
     val hintScaleOverride: Float? = null,
+    /** kxkb: per-key background / border colour overrides (null = theme); applied in onDrawKey by
+     *  building a matching GradientDrawable. */
+    val backgroundColorOverride: Int? = null,
+    val borderColorOverride: Int? = null,
 ) {
     /** Validation */
     init {

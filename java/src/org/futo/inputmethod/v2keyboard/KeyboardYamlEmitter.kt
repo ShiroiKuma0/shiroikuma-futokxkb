@@ -120,6 +120,8 @@ private fun attrsNode(a: KeyAttributes?): Y? {
     a.color?.let { e.add("color" to yInt(it)) }
     a.fontScale?.let { e.add("fontScale" to yFloat(it)) }
     a.hintScale?.let { e.add("hintScale" to yFloat(it)) }
+    a.backgroundColor?.let { e.add("backgroundColor" to yInt(it)) }
+    a.borderColor?.let { e.add("borderColor" to yInt(it)) }
     return if (e.isEmpty()) null else YMap(e)
 }
 

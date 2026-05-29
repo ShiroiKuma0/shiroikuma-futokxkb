@@ -119,4 +119,6 @@ data class ComputedKeyData(
     val color: Int? = null,
     val fontScale: Float? = null,
     val hintScale: Float? = null,
+    val backgroundColor: Int? = null,
+    val borderColor: Int? = null,
 )

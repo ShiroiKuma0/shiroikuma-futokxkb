@@ -224,7 +224,9 @@ data class CompassKey(
             // the per-key visual overrides here.
             color = attributes?.color ?: primaryData.color,
             fontScale = attributes?.fontScale ?: primaryData.fontScale,
-            hintScale = attributes?.hintScale ?: primaryData.hintScale
+            hintScale = attributes?.hintScale ?: primaryData.hintScale,
+            backgroundColor = attributes?.backgroundColor ?: primaryData.backgroundColor,
+            borderColor = attributes?.borderColor ?: primaryData.borderColor
         )
     }
 }
@@ -271,6 +273,7 @@ data class MacroKey(
             hint = "",
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
             color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
+            backgroundColor = attrs.backgroundColor, borderColor = attrs.borderColor,
         )
     }
 }
@@ -321,6 +324,7 @@ data class ChordKey(
             hint = "",
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
             color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
+            backgroundColor = attrs.backgroundColor, borderColor = attrs.borderColor,
         )
     }
 }
@@ -394,6 +398,7 @@ data class CycleKey(
             hint = "",
             labelFlags = attrs.labelFlags?.getValue() ?: 0,
             color = attrs.color, fontScale = attrs.fontScale, hintScale = attrs.hintScale,
+            backgroundColor = attrs.backgroundColor, borderColor = attrs.borderColor,
         )
     }
 }
