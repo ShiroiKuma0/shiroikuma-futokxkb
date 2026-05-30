@@ -2,7 +2,7 @@
 
 Fork of [FUTO Keyboard](https://github.com/futo-org/futo-keyboard-android) — package `shiroikuma.futokxkb`, label "白い熊 FUTO kxkb", installable side-by-side with the official FUTO Keyboard from F-Droid.
 
-The `custom` branch carries ~95 customisation commits (the two base commits plus the `kxkb:`-prefixed feature commits) over the FUTO `0.1.28` release tag, rebased onto each new upstream release.
+The `custom` branch carries ~95 customisation commits (the two base commits plus the feature commits) over the FUTO `0.1.28` release tag, rebased onto each new upstream release.
 
 ## Skills
 
@@ -25,12 +25,12 @@ The skills were originally written for claude.ai chat where Claude can't touch t
 - **Sandbox re-sync** on user "Done" (futo-keyboard-build §"Per-change delivery workflow" step 3) doesn't apply — there's no sandbox-to-resync. After a push, you're already at the new tip.
 - **The `sandbox-environment` skill** referenced in futo-keyboard-build §"Companion skills" is claude.ai-only and not included here.
 - **`skill-export`** referenced in user preferences is a zip-naming convention for sharing skills back to claude.ai; not used inside Claude Code (you edit `.claude/skills/` directly).
-- **Skill edits take effect immediately** for subsequent invocations. Commit skill edits as their own `kxkb: ` commit, or bundle into a feature commit when the skill change documents that feature (which is the usual case — see how the cluster-prediction commit and its skill bullet were paired).
+- **Skill edits take effect immediately** for subsequent invocations. Commit skill edits as their own commit, or bundle into a feature commit when the skill change documents that feature (which is the usual case — see how the cluster-prediction commit and its skill bullet were paired).
 
 ## Quick reference
 
 - Branch: `custom`, rebased onto each upstream release tag
-- Commit subject prefix: `kxkb:`
+- Commit subjects: plain descriptive summary, **no prefix** (the old `kxkb:` prefix is retired; pre-existing commits keep theirs, new ones don't add it)
 - Build (release / stable / arm64):
   ```
   BRANCH_NAME='shiroikuma' VERSION_NAME=<name> VERSION_CODE=<code> \
