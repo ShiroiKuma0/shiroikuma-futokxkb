@@ -129,7 +129,12 @@ Build directly with Bash (Claude Code — no copy-paste shell-block formatting, 
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-export PATH="$JAVA_HOME/bin:$PATH"
+# Claude Code's non-interactive shell does NOT inherit the user's profile, so ANDROID_HOME is unset
+# and gradle fails at configuration with "SDK location not found". Export it explicitly (the SDK is
+# at ~/android-sdk). Verified needed during the 0.1.29-rc1 sync.
+export ANDROID_HOME="$HOME/android-sdk"
+export ANDROID_SDK_ROOT="$HOME/android-sdk"
+export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 cd ~/git/shiroikuma-futokxkb
 
 target_tag="$latest_tag"   # the new tag we just rebased onto (may be an -rcN)
