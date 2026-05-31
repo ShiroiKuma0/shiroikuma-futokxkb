@@ -123,6 +123,12 @@ git submodule update --init --recursive
 
 (The `java/assets/layouts` / `java/assets/themes` submodules live on gitlab.futo.org and may be unreachable, but builds work as long as they were initialised once. `libs/` is required.)
 
+## Step 4.5 — Cluster-prediction static audit (pre-build)
+
+**Before building, audit the prediction pipeline.** A clean rebase replays our cluster-prediction commits intact, but upstream actively reworks the suggestion flow our hooks plug into (their swipe/prediction push), and a *semantic* shift can silently bypass the whole cluster pipeline so every cluster layout collapses to the raw dict tap-decoder. Not hypothetical: the **0.1.29-rc1 sync rebased cleanly yet broke cluster prediction outright** — upstream's new non-QWERTY transformer gate in `makePredictionInputValues` returned null for cluster layouts.
+
+Run **Layer A** of the **`cluster-prediction-testing`** skill (diff `$base_tag`..`$latest_tag` across the prediction pipeline; check its seven integration points). If it flags drift in `makePredictionInputValues` / `GeneralIME.updateSuggestionsDictionaryInternal` / `getValidNextCodePoints` / `processAndMergeSuggestions` / `Key.clusterMains`, **plan a patch before building** (keep the hook working against upstream's new code). Then build.
+
 ## Step 5 — Build the new APK (apply the futo-keyboard-build pipeline)
 
 Build directly with Bash (Claude Code — no copy-paste shell-block formatting, no `r()`/echo/pause-gate wrappers; those are obsolete here per CLAUDE.md). The version counter **resets to N=1** automatically because the base tag changed → versionName `<new-tag>+1`. This mirrors futo-keyboard-build's "Build + sign + deploy pipeline"; consult it if anything below needs detail.
@@ -196,6 +202,8 @@ Never `adb install` / `adb uninstall` — the user sideloads from the device fil
 ## Step 6 — User tests on-device
 
 Hand the build over and **wait**. The user installs the new APK over the previous fork build (same signing key → in-place update) and verifies the customisations still work on the new base. They may report regressions from the upstream bump; iterate locally (more edits, rebuild) — still no push.
+
+**Verify cluster prediction (Layer B).** Even when Step 4.5 was green, run the on-device verification from **`cluster-prediction-testing`** before declaring the sync done: enable the **Cluster prediction debug** tracer (Settings → Developer), have the user type the test corpus on English/Czech/Russian cluster layouts, then `adb pull` the trace and confirm the pipeline fired (`path`, `clusterSets`, in-set `FINAL`, no QWERTY-gate refusals). If degraded, the trace pinpoints the broken integration point → patch → rebuild → re-verify. This is the step that would have caught the 0.1.29-rc1 regression on the spot.
 
 ## Step 7 — Only when the user says "Push"
 
