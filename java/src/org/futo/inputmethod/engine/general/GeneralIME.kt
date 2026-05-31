@@ -52,6 +52,7 @@ import org.futo.inputmethod.latin.uix.actions.throwIfDebug
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.isDirectBootUnlocked
 import org.futo.inputmethod.latin.utils.AsyncResultHolder
+import org.futo.inputmethod.latin.xlm.ClusterPredictionDebug
 import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2
 import java.util.concurrent.atomic.AtomicInteger
@@ -489,6 +490,20 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             ) { suggestedWords -> dictResult = suggestedWords }
         }
 
+        // kxkb: cluster-prediction path trace (default-off dev toggle; see ClusterPredictionDebug).
+        ClusterPredictionDebug.trace(context) {
+            val isCluster = helper.keyboardSwitcher.keyboard?.sortedKeys
+                ?.any { !it.clusterMains.isNullOrEmpty() } == true
+            val path = when {
+                !lmResult.isNullOrEmpty() && dictResult != null && predictionInputValues != null -> "transformer-merge"
+                dictResult != null -> "legacy(+maybeCluster)"
+                else -> "neutral(empty)"
+            }
+            "update style=$inputStyle clusterLayout=$isCluster path=$path " +
+            "predValues=${if(predictionInputValues != null) "yes" else "NULL"} " +
+            "lm=${lmResult?.size ?: 0} dict=${dictResult?.size() ?: 0}"
+        }
+
         when {
             !lmResult.isNullOrEmpty() && dictResult != null && predictionInputValues != null -> {
                 val processed = languageModelFacilitator.processAndMergeSuggestions(
@@ -830,6 +845,14 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     // pure correction candidates so the defaults don't pollute the 3-slot correction strip.) Routing
     // every empty/neutral path through here also keeps the bar from flashing blank between words.
     private fun showPredictionsWithTopBar(predWords: SuggestedWords?) {
+        // kxkb: when isolating for cluster-prediction testing, blank the idle/next-word bar entirely
+        // (no next-word predictions, no topBar defaults) so only the WHILE-COMPOSING correction
+        // candidates -- the cluster prediction -- ever appear on screen. (See ClusterPredictionDebug.)
+        if (ClusterPredictionDebug.isIsolateEnabled(context)) {
+            inputLogic.setSuggestedWords(SuggestedWords.getEmptyInstance())
+            helper.setNeutralSuggestionStrip(expandableCfg)
+            return
+        }
         val hasTopBar = ensureTopBar()
         val preds = predWords?.mSuggestedWordInfoList
             ?.filter { !it.isKindOf(SuggestedWordInfo.KIND_TYPED) } ?: emptyList()

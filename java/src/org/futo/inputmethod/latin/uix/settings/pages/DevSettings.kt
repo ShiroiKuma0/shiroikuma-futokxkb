@@ -55,6 +55,7 @@ import org.futo.inputmethod.latin.uix.settings.SettingToggleRaw
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.xlm.AllowTransformerOnNonQWERTYLayouts
+import org.futo.inputmethod.latin.xlm.ClusterPredictionDebug
 import org.futo.inputmethod.updates.DISABLE_UPDATE_REMINDER
 import org.futo.inputmethod.updates.dismissedMigrateUpdateNotice
 import kotlin.system.exitProcess
@@ -165,6 +166,26 @@ fun DeveloperScreen(navController: NavHostController = rememberNavController()) 
         SettingToggleDataStore(
             title = "Allow transformer models on non QWERTY layouts",
             setting = AllowTransformerOnNonQWERTYLayouts
+        )
+
+        // kxkb: cluster-prediction testing harness (default off). See the cluster-prediction-testing
+        // skill: flip "Trace" on, type the language corpus, then pull
+        //   adb pull /sdcard/Android/data/shiroikuma.futokxkb/files/cluster_pred_debug.log
+        ScreenTitle("Cluster prediction debug")
+        SettingToggleDataStore(
+            title = "Trace cluster prediction to file",
+            subtitle = "Writes staged candidates to cluster_pred_debug.log (in app external files)",
+            setting = ClusterPredictionDebug.ClusterPredDebugTrace
+        )
+        SettingToggleDataStore(
+            title = "Isolate prediction (hide next-word + topBar)",
+            subtitle = "Idle bar shows nothing; only while-composing cluster candidates appear",
+            setting = ClusterPredictionDebug.ClusterPredDebugIsolate
+        )
+        NavigationItem(
+            title = "Clear cluster debug log",
+            style = NavigationItemStyle.Misc,
+            navigate = { ClusterPredictionDebug.clear(context) }
         )
 
 
