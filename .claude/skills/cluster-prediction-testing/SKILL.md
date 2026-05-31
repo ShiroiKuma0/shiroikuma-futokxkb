@@ -33,12 +33,30 @@ Memorise these — the audit checks each, and a trace tells you which one broke.
 
 ## Layer A — pre-build static audit
 
-Run after the rebase, **before building**. `$base_tag` = the tag custom was previously on, `$latest_tag` = the new one (both set by upstream-new-version Step 1). The point is to read what upstream changed in the prediction pipeline and confirm none of the seven points above drifted.
+Run after the rebase, **before building**. `$base_tag` = the tag custom was previously on, `$latest_tag` = the new one (both set by upstream-new-version Step 1).
+
+### The tripwire: `audit.sh`
+
+A script in this skill dir does the whole audit as one PASS/REVIEW/FAIL command — run it instead of assembling greps from memory:
+
+```bash
+bash .claude/skills/cluster-prediction-testing/audit.sh "$base_tag" "$latest_tag"
+# new_tag is auto-detected from the current base if you omit the 2nd arg.
+```
+
+It (1) confirms our hooks survived the rebase in the current tree and (2) flags when upstream changed the suggestion-DECISION logic. **Exit codes:**
+- **0 CLEAN** — hooks intact, no decision-logic drift → build, then Layer B.
+- **1 REVIEW** — upstream touched the decision logic (it prints the exact added lines, e.g. a new gate in `makePredictionInputValues` or changed GeneralIME branching) → read them, confirm cluster layouts (`clusterMains`) still reach `processAndMergeSuggestions`, patch if needed, then build.
+- **2 HARD FAIL** — a hook is missing (rebase mangled our code) or `getValidNextCodePoints` changed → patch before building.
+
+It's a **tripwire, not a proof** — a clean exit still REQUIRES Layer B (the on-device tracer), because a semantic shift can pass a textual audit. (Run against `0.1.28 0.1.29-rc1` it correctly exits 1, surfacing the exact non-QWERTY gate that caused the original regression.)
+
+### What it checks (run any of these by hand for deeper inspection)
 
 ```bash
 cd ~/git/shiroikuma-futokxkb
 
-# 1. What upstream changed in the whole prediction pipeline between the two bases:
+# What upstream changed across the whole pipeline between the two bases:
 git diff --stat "$base_tag" "$latest_tag" -- \
   java/src/org/futo/inputmethod/engine/general/GeneralIME.kt \
   java/src/org/futo/inputmethod/latin/xlm/LanguageModelFacilitator.kt \
@@ -49,28 +67,26 @@ git diff --stat "$base_tag" "$latest_tag" -- \
   native/jni/src/suggest/core/dictionary/dictionary.cpp \
   native/jni/src/suggest/core/dictionary/dictionary.h
 
-# 2. RED FLAG: new early-returns / layout gates in makePredictionInputValues (point 1/2).
-#    Read the upstream diff of this method end-to-end — this is where 0.1.29-rc1's gate appeared.
+# RED FLAG: new early-returns / layout gates in makePredictionInputValues (point 1/2) —
+# read the upstream diff of this method end-to-end; this is where 0.1.29-rc1's gate appeared:
 git diff "$base_tag" "$latest_tag" -- java/src/org/futo/inputmethod/latin/xlm/LanguageModelFacilitator.kt \
-  | grep -nE '^\+' | grep -nE 'return null|mKeyboardLayoutSetName|qwerty|getSetting|isComposingWord|INPUT_STYLE_'
+  | grep -E '^\+' | grep -E 'return null|mKeyboardLayoutSetName|qwerty|getSetting|isComposingWord|INPUT_STYLE_'
 
-# 3. getValidNextCodePoints signature must be unchanged (point 5):
+# getValidNextCodePoints must be unchanged (point 5):
 git diff "$base_tag" "$latest_tag" -- \
   java/src/org/futo/inputmethod/latin/DictionaryFacilitator.java \
   java/src/org/futo/inputmethod/latin/DictionaryFacilitatorImpl.java \
-  | grep -nE 'getValidNextCodePoints|getNextValidCodePoints'
-git diff "$base_tag" "$latest_tag" -- native/jni/src/suggest/core/dictionary/dictionary.cpp \
-  | grep -nE 'getNextValidCodePoints|NextValidCodePoints'
+  native/jni/src/suggest/core/dictionary/dictionary.cpp | grep -E 'getValidNextCodePoints|NextValidCodePoints'
 
-# 4. Confirm OUR hooks survived the rebase intact (must all print a hit):
+# OUR hooks must still be present (each must print a hit):
 grep -n 'clusterMains.isNullOrEmpty'  java/src/org/futo/inputmethod/latin/xlm/LanguageModelFacilitator.kt   # point 2
-grep -n 'maybeApplyClusterConstraint' java/src/org/futo/inputmethod/engine/general/GeneralIME.kt            # point 3 (wiring)
+grep -n 'maybeApplyClusterConstraint' java/src/org/futo/inputmethod/engine/general/GeneralIME.kt            # point 3
 grep -n 'fun processAndMergeSuggestions\|fun clusterTrieWalk\|fun clusterAllowedSets' \
         java/src/org/futo/inputmethod/latin/xlm/LanguageModelFacilitator.kt                                 # point 4
 grep -n 'val clusterMains' java/src/org/futo/inputmethod/keyboard/Key.kt                                    # point 6
 ```
 
-**Interpretation.** A change to GeneralIME's `updateSuggestionsDictionaryInternal` branching, a new gate/early-return in `makePredictionInputValues`, a `getValidNextCodePoints` signature change, or a rename of any point above = **plan a patch before building** (mirror the 0.1.29-rc1 fix: keep our hook working against the new code). If the diffs only touch swipe/gesture/batch paths (`INPUT_STYLE_TAIL_BATCH`/`UPDATE_BATCH`, `SwipeDecoderDictionary`, the native `ITrie`) and none of the seven points moved, the audit is **green** — but still run Layer B, because a semantic shift can pass a textual audit.
+**Interpretation.** A change to GeneralIME's `updateSuggestionsDictionaryInternal` branching, a new gate/early-return in `makePredictionInputValues`, a `getValidNextCodePoints` signature change, or a rename of any point above = **plan a patch before building** (mirror the 0.1.29-rc1 fix: keep our hook working against the new code). If the diffs only touch swipe/gesture/batch paths (`INPUT_STYLE_TAIL_BATCH`/`UPDATE_BATCH`, `SwipeDecoderDictionary`, the native `ITrie`) and none of the seven points moved, the audit is **green** — but still run Layer B, because a semantic shift can pass a textual audit. **Keep `audit.sh`'s checks in sync** with this skill's integration-point table if you add or move a hook.
 
 ---
 
@@ -87,15 +103,21 @@ A permanent, **default-off** dev toggle ships in every build, so any build is a 
 
 ### The cycle per upstream sync
 
-1. Build the APK (fix included if the audit flagged one), install, open any **cluster** layout (English, then Czech, then Russian).
-2. Dev settings → **Clear cluster debug log**, then **Trace** on (and **Isolate** on for clean manual reading).
-3. Type the **test corpus** below — tap the words as you normally would on the cluster layout.
-4. Pull and read the trace:
+**AGENT ACTION — right after the APK is on the device (immediately after the `adb push`), post the reminder block below to the user and WAIT for their "done".** The user can't be expected to remember the toggle/corpus steps; the on-device typing is the one part only they can do, so you must prompt for it explicitly every time rather than silently waiting. Then pull the log yourself.
+
+> **📲 Cluster-prediction test — please do this on the phone, then tell me "done":**
+> 1. Install the pushed APK (file manager → `/sdcard/tmp/<apk>`), open it over your current build.
+> 2. **Settings → Developer → "Cluster prediction debug"** → tap **Clear cluster debug log**, turn **Trace cluster prediction to file** ON, and **Isolate prediction** ON.
+> 3. On an **English** cluster layout type a few words (e.g. `simple`, `people`, `keyboard`); switch to **Czech** and type `těžko`, `daleko`, `jednoduché`; switch to **Russian** and type a few words.
+> 4. Reply **"done"** — I'll pull and read the trace and confirm the quality, then tell you to switch the toggles back off.
+
+Then:
+1. Pull and read the trace:
    ```bash
    adb pull /sdcard/Android/data/shiroikuma.futokxkb/files/cluster_pred_debug.log /tmp/cluster_pred_debug.log
    ```
-5. Verify quality (below). If degraded, the trace pinpoints the broken stage → patch the integration point → rebuild → re-verify.
-6. When quality is confirmed, turn **Trace**/**Isolate** off. Build the clean release.
+2. Verify quality (below). If degraded, the trace pinpoints the broken stage → patch the integration point → rebuild → re-verify (post the reminder again).
+3. When quality is confirmed, tell the user to turn **Trace**/**Isolate** back off. (No rebuild needed — they're default-off; the clean release behaves normally with them off.)
 
 ### Reading the trace
 
