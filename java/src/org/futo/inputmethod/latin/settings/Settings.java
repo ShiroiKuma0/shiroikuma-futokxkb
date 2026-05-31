@@ -130,6 +130,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final int SPACEBAR_MODE_SWIPE_CURSOR_LEGACY = 0; // Long-Press switches language, swipe moves cursor
     public static final int SPACEBAR_MODE_SWIPE_LANGUAGE_LEGACY = 1; // Swipe switches language, long-press+drag moves cursor
     public static final int SPACEBAR_MODE_SWIPE_CURSOR_ONLY_LEGACY = 2; // Swipe and long-press+drag moves cursor
+    public static final int SPACEBAR_MODE_SWIPE_LAYOUT_MENU_LEGACY = 3; // kxkb: our old value on the legacy single-mode pref — migrated to the new LAYOUT_MENU swipe mode
 
     public static final String PREF_SPACEBAR_HOLD_MODE = "pref_spacebar_hold_mode";
     public static final String PREF_SPACEBAR_SWIPE_MODE = "pref_spacebar_swipe_mode";
