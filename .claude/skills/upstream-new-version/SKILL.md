@@ -127,7 +127,13 @@ git submodule update --init --recursive
 
 **Before building, audit the prediction pipeline.** A clean rebase replays our cluster-prediction commits intact, but upstream actively reworks the suggestion flow our hooks plug into (their swipe/prediction push), and a *semantic* shift can silently bypass the whole cluster pipeline so every cluster layout collapses to the raw dict tap-decoder. Not hypothetical: the **0.1.29-rc1 sync rebased cleanly yet broke cluster prediction outright** — upstream's new non-QWERTY transformer gate in `makePredictionInputValues` returned null for cluster layouts.
 
-Run **Layer A** of the **`cluster-prediction-testing`** skill (diff `$base_tag`..`$latest_tag` across the prediction pipeline; check its seven integration points). If it flags drift in `makePredictionInputValues` / `GeneralIME.updateSuggestionsDictionaryInternal` / `getValidNextCodePoints` / `processAndMergeSuggestions` / `Key.clusterMains`, **plan a patch before building** (keep the hook working against upstream's new code). Then build.
+Run **Layer A** of the **`cluster-prediction-testing`** skill — its one-command tripwire:
+
+```bash
+bash .claude/skills/cluster-prediction-testing/audit.sh "$base_tag" "$latest_tag"
+```
+
+Exit **0** = clean (build, then verify on-device); **1** = REVIEW (upstream touched the decision logic — it prints the exact lines; read them, confirm cluster layouts still reach `processAndMergeSuggestions`, patch if needed); **2** = HARD FAIL (a hook is missing or `getValidNextCodePoints` changed — patch before building). On 1 or 2, **plan a patch before building** (mirror the 0.1.29-rc1 gate fix: keep the hook working against upstream's new code). See the skill for what each integration point means.
 
 ## Step 5 — Build the new APK (apply the futo-keyboard-build pipeline)
 
@@ -198,6 +204,8 @@ adb push "$built" /sdcard/tmp/"$apk_name"   # user installs via the on-device fi
 ```
 
 Never `adb install` / `adb uninstall` — the user sideloads from the device file manager. If the cable's absent, the `~/tmp/` copy is the fallback (KDE Connect / Bluetooth).
+
+**Immediately after the push, post the cluster-prediction test reminder** (the ready-to-use block in `cluster-prediction-testing` → Layer B → "The cycle per upstream sync") so the user enables the tracer toggles and types the corpus — then wait for their "done" and pull the log. The user won't remember the toggle/corpus steps unprompted; prompting is part of the flow, not optional.
 
 ## Step 6 — User tests on-device
 
