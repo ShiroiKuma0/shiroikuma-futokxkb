@@ -675,6 +675,17 @@ public class LanguageModelFacilitator(
             )
         }
 
+        // kxkb: staged cluster-prediction trace (default-off dev toggle; see ClusterPredictionDebug).
+        ClusterPredictionDebug.trace(context) {
+            "processAndMerge composing=\"${wordComposer.typedWord}\" " +
+            "clusterSets=${ClusterPredictionDebug.fmtSets(clusterSets)} " +
+            "lm=${lmSuggestions.size} confAuto=$clusterConfidentAutocorrect\n" +
+            "    dict.raw      = ${ClusterPredictionDebug.fmtWords(suggestedWordsDict)}\n" +
+            "    lm(filtered)  = ${ClusterPredictionDebug.fmtInfos(lmSuggestions)}\n" +
+            "    enum.trieWalk = ${ClusterPredictionDebug.fmtPairs(enumRawList)}\n" +
+            "    enum.selected = ${ClusterPredictionDebug.fmtPairs(clusterEnumerated)}\n" +
+            "    FINAL (shown) = ${ClusterPredictionDebug.fmtWords(suggestedWords)}"
+        }
 
         return suggestedWords
     }
@@ -734,8 +745,20 @@ public class LanguageModelFacilitator(
     // null when it is not a cluster layout, so the caller keeps the untouched legacy dict result and
     // every ordinary (non-cluster) legacy language is completely unaffected.
     fun maybeApplyClusterConstraint(inputStyle: Int, dictResult: SuggestedWords): SuggestedWords? {
-        val values = makePredictionInputValues(inputStyle, ignorePassthrough = true) ?: return null
-        if (clusterAllowedSets(values.composedData) == null) return null
+        val values = makePredictionInputValues(inputStyle, ignorePassthrough = true)
+        if (values == null) {
+            ClusterPredictionDebug.trace(context) {
+                "maybeApplyClusterConstraint: makePredictionInputValues=null -> raw dict kept = " +
+                ClusterPredictionDebug.fmtWords(dictResult)
+            }
+            return null
+        }
+        if (clusterAllowedSets(values.composedData) == null) {
+            ClusterPredictionDebug.trace(context) {
+                "maybeApplyClusterConstraint: not a cluster context -> raw dict kept"
+            }
+            return null
+        }
         return processAndMergeSuggestions(values, dictResult, arrayListOf<SuggestedWordInfo>())
     }
 
@@ -770,10 +793,24 @@ public class LanguageModelFacilitator(
             ) {
                 // Check we are on a supported layout
                 if(prevAcceptedLayout != keyboardSwitcher.keyboard) {
-                    if(keyboardSwitcher.keyboard?.mId?.mKeyboardLayoutSetName == "qwerty") {
+                    prevAcceptedLayout = keyboardSwitcher.keyboard
+                    val kb = keyboardSwitcher.keyboard
+                    // kxkb: a cluster layout (any key carrying clusterMains) is intentionally
+                    // non-QWERTY. Its prediction quality comes from OUR cluster constraint + trie
+                    // enumeration in processAndMergeSuggestions, NOT the transformer's QWERTY-proximity
+                    // beam, so it must bypass upstream's QWERTY-only gate. Without this, makePredictionInputValues
+                    // returns null for every cluster layout, which (a) skips the transformer path for languages
+                    // that have a model (English) AND (b) makes maybeApplyClusterConstraint's
+                    // makePredictionInputValues(ignorePassthrough=true) call return null on the no-transformer
+                    // legacy path (Czech/Russian) -- so the whole cluster pipeline never runs and cluster
+                    // layouts collapse to the raw dict tap-decoder. This reuses the same clusterMains signal
+                    // clusterAllowedSets already keys on. (0.1.29-rc1 introduced this gate.)
+                    if(kb?.sortedKeys?.any { !it.clusterMains.isNullOrEmpty() } == true) {
+                        prevAcceptedLayoutResult = true
+                    } else if(kb?.mId?.mKeyboardLayoutSetName == "qwerty") {
                         prevAcceptedLayoutResult = true
                     } else {
-                        val letters = keyboardSwitcher.keyboard?.sortedKeys?.filter {
+                        val letters = kb?.sortedKeys?.filter {
                             settingsValues.isWordCodePoint(it.code) && it.code != '\''.code
                         }?.sortedBy {
                             it.x + 10000 * it.y
@@ -783,8 +820,17 @@ public class LanguageModelFacilitator(
                     }
                 }
 
-                if(prevAcceptedLayoutResult == false)
+                if(prevAcceptedLayoutResult == false) {
+                    // kxkb: if this fires for a cluster layout, the QWERTY gate has regressed our fix.
+                    ClusterPredictionDebug.trace(context) {
+                        val isCluster = keyboardSwitcher.keyboard?.sortedKeys
+                            ?.any { !it.clusterMains.isNullOrEmpty() } == true
+                        "makePredictionInputValues REFUSED by QWERTY gate " +
+                        "(composing=\"${wordComposer.typedWord}\" clusterLayout=$isCluster " +
+                        "ignorePassthrough=$ignorePassthrough)"
+                    }
                     return null
+                }
             }
 
             val values = PredictionInputValues(
