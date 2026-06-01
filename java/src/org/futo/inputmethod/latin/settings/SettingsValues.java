@@ -299,6 +299,13 @@ public class SettingsValues {
     }
 
     public boolean needsToLookupSuggestions() {
+        // kxkb: GNU layouts (locale "zxx" = ISO 639 "no linguistic content") are for code input, so
+        // never compose words / look up suggestions / next-word there. Returning false makes the word
+        // composer stay idle (InputLogic only composes when this is true), which also fixes the
+        // no-spaces double-space (the first space was committing a pending composing word instead of
+        // typing a space) AND keeps next-word off (GeneralIME then shows only the static topBar
+        // defaults via the neutral strip). zxx and zxx_* both report language "zxx".
+        if (mLocale != null && "zxx".equals(mLocale.getLanguage())) return false;
         return mInputAttributes.mShouldShowSuggestions
                 && (mAutoCorrectionEnabledPerUserSettings || isSuggestionsEnabledPerUserSettings());
     }
