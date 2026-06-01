@@ -754,6 +754,7 @@ Default is %1$s</string>
     <string name="kxkb_sizing_vertical_gap">Vertical gap</string>
     <string name="kxkb_sizing_keyboard_height">Keyboard height</string>
     <string name="kxkb_sizing_keyboard_width">Keyboard width</string>
+    <string name="kxkb_sizing_bottom_padding">Bottom padding (lift)</string>
     <string name="kxkb_sizing_top_row_height">Top row</string>
     <string name="kxkb_sizing_bottom_row_height">Bottom row</string>
     <string name="kxkb_sizing_suggestion_bar_height">Suggestion bar height</string>
@@ -766,7 +767,7 @@ Default is %1$s</string>
     <string name="kxkb_sizing_cluster_left">Cluster: left character distance</string>
     <string name="kxkb_sizing_cluster_right">Cluster: right character distance</string>
     <string name="kxkb_sizing_key_roundness">Key roundness</string>
-    <string name="kxkb_sizing_split_width">Split width (landscape / unfolded)</string>
+    <string name="kxkb_sizing_split_width">Split width</string>
     <string name="kxkb_sizing_reset">Reset live sizing</string>
     <string name="kxkb_sizing_reset_subtitle">Reset sizes, gaps, row heights, fonts, roundness, suggestion bar and colours for this geometry</string>
 

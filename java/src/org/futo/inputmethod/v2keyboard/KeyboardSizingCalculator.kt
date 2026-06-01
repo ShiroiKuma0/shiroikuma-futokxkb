@@ -47,7 +47,16 @@ sealed class ComputedKeyboardSize(
     val width: Int,
     val height: Int,
     val padding: Rect,
-    val singleRowHeight: Int = height / 4
+    val singleRowHeight: Int = height / 4,
+    // kxkb: px the keyboard is LIFTED off the bottom edge (0 = docked at the bottom). The lift is a
+    // transparent gap below the keyboard (app/wallpaper shows through, like a floating keyboard).
+    // Applies to all non-floating modes; rendered via OffsetPositioner's bottom spacer, and
+    // onComputeInsets switches to floating-style insets when it is > 0 so the gap is see-through.
+    val bottomOffset: Int = 0,
+    // kxkb: x offset (px) to centre a narrowed keyboard within the full available width (0 = full /
+    // not narrowed). Set by Regular AND Split when the "Keyboard width" slider narrows the keyboard;
+    // consumed by UixManager's OffsetPositioner to centre the shrunk surface.
+    val sideOffset: Int = 0
 ) {
     override fun toString(): String {
         return "${this.javaClass.simpleName}(width=$width height=$height padding=$padding singleRowHeight=$singleRowHeight)"
@@ -56,14 +65,16 @@ sealed class ComputedKeyboardSize(
 
 class RegularKeyboardSize(
     width: Int, height: Int, padding: Rect, singleRowHeight: Int = height / 4,
-    // kxkb: x offset (px) to centre a narrowed keyboard within the full keyboard width (0 = full width).
-    val sideOffset: Int = 0
-) : ComputedKeyboardSize(width, height, padding, singleRowHeight)
+    sideOffset: Int = 0,
+    bottomOffset: Int = 0
+) : ComputedKeyboardSize(width, height, padding, singleRowHeight, bottomOffset, sideOffset)
 
 class SplitKeyboardSize(
     width: Int, height: Int, padding: Rect, singleRowHeight: Int = height / 4,
-    val splitLayoutWidth: Int
-) : ComputedKeyboardSize(width, height, padding, singleRowHeight)
+    val splitLayoutWidth: Int,
+    bottomOffset: Int = 0,
+    sideOffset: Int = 0
+) : ComputedKeyboardSize(width, height, padding, singleRowHeight, bottomOffset, sideOffset)
 
 enum class OneHandedDirection {
     Left,
@@ -78,8 +89,9 @@ val OneHandedDirection.opposite: OneHandedDirection
 
 class OneHandedKeyboardSize(
     width: Int, height: Int, padding: Rect, singleRowHeight: Int = height / 4,
-    val layoutWidth: Int, val direction: OneHandedDirection
-) : ComputedKeyboardSize(width, height, padding, singleRowHeight)
+    val layoutWidth: Int, val direction: OneHandedDirection,
+    bottomOffset: Int = 0
+) : ComputedKeyboardSize(width, height, padding, singleRowHeight, bottomOffset)
 
 class FloatingKeyboardSize(
     width: Int, height: Int, padding: Rect, singleRowHeight: Int = height / 4,
@@ -99,9 +111,9 @@ fun ComputedKeyboardSize.dimensionsSameAs(other: ComputedKeyboardSize?): Boolean
 
     return when(this) {
         is FloatingKeyboardSize -> other is FloatingKeyboardSize && other.height == height && other.width == width && other.padding == padding && other.singleRowHeight == singleRowHeight && other.bottomOrigin == bottomOrigin
-        is OneHandedKeyboardSize -> other is OneHandedKeyboardSize && other.layoutWidth == layoutWidth && other.width == width && other.padding == padding && other.direction == direction && other.singleRowHeight == singleRowHeight
-        is RegularKeyboardSize -> other is RegularKeyboardSize && other.width == width && other.padding == padding && other.height == height && other.singleRowHeight == singleRowHeight && other.sideOffset == sideOffset
-        is SplitKeyboardSize -> other is SplitKeyboardSize && other.height == height && other.padding == padding && other.singleRowHeight == singleRowHeight && other.splitLayoutWidth == splitLayoutWidth && other.width == width
+        is OneHandedKeyboardSize -> other is OneHandedKeyboardSize && other.layoutWidth == layoutWidth && other.width == width && other.padding == padding && other.direction == direction && other.singleRowHeight == singleRowHeight && other.bottomOffset == bottomOffset
+        is RegularKeyboardSize -> other is RegularKeyboardSize && other.width == width && other.padding == padding && other.height == height && other.singleRowHeight == singleRowHeight && other.sideOffset == sideOffset && other.bottomOffset == bottomOffset
+        is SplitKeyboardSize -> other is SplitKeyboardSize && other.height == height && other.padding == padding && other.singleRowHeight == singleRowHeight && other.splitLayoutWidth == splitLayoutWidth && other.width == width && other.bottomOffset == bottomOffset && other.sideOffset == sideOffset
     }
 }
 
@@ -168,6 +180,12 @@ data class SavedKeyboardSizingSettings(
     // whole keyboard symmetrically (extra side padding, so the key grid stays centred). Default 1.0 =
     // no change. Only affects KeyboardMode.Regular (Split has splitWidthFraction; OneHanded its rect).
     val widthFraction: Float = 1.0f,
+
+    // kxkb: regular-mode bottom padding in dp — LIFTS the whole keyboard off the bottom edge by this
+    // many dp. Default 0 = docked at the bottom. The lifted-out area is see-through (transparent, like
+    // the side margins left by widthFraction), so the app/wallpaper shows beneath the keyboard.
+    // Only affects KeyboardMode.Regular. Carried into RegularKeyboardSize.bottomOffset as px.
+    val bottomLiftDp: Float = 0.0f,
 
     // Split
     val splitWidthFraction: Float,
@@ -583,6 +601,13 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
 
         val recommendedHeight = numRows * singularRowHeight + padding.bottom
 
+        // kxkb: bottom-padding "lift" in px (Multiling-style). Applies to every docked (non-floating)
+        // mode. NOT clamped against displayHeight - recommendedHeight: on some devices (notably
+        // foldables in landscape) displayMetrics under-reports the usable height, and that clamp then
+        // collapsed the lift to ~0 even though there was visible room above the keyboard. The slider's
+        // own max bounds the value and the renderer/insets tolerate overshoot.
+        val bottomLiftPx = dp(savedSettings.bottomLiftDp.guardNaN(0f)).coerceAtLeast(0)
+
         val foldState = foldStateProvider.foldState.feature
 
         val window = (context as LatinIME).window.window
@@ -606,31 +631,53 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                         (displayMetrics.density * 44.0f).roundToInt(),
                         (displayMetrics.density * 12.0f).roundToInt(),
                     ),
-                    splitLayoutWidth = displayWidth * 3 / 5
+                    splitLayoutWidth = displayWidth * 3 / 5,
+                    bottomOffset = bottomLiftPx
                 )
             }
 
-            savedSettings.currentMode == KeyboardMode.Split && !layout.supportsSplit ->
+            savedSettings.currentMode == KeyboardMode.Split && !layout.supportsSplit -> {
+                // kxkb: a non-splittable layout (e.g. GNU) in a Split geometry (landscape / inner
+                // display) renders as a regular keyboard — so honour the "Keyboard width" slider here
+                // too (narrow + centre), exactly like the Regular branch below. Without this the width
+                // slider silently did nothing for non-split layouts in landscape.
+                val fullWidth = width.coerceInLoosely(dp(48), displayWidth)
+                val frac = savedSettings.widthFraction.guardNaN(1.0f).coerceIn(0.3f, 1.0f)
+                val narrowedWidth = (fullWidth * frac).roundToInt().coerceIn(dp(48), fullWidth)
                 RegularKeyboardSize(
-                    width = width,
-                    height = recommendedHeight.roundToInt(),
-                    singleRowHeight = singularRowHeight.roundToInt(),
-                    padding = padding
-                )
-
-            savedSettings.currentMode == KeyboardMode.Split ->
-                SplitKeyboardSize(
-                    width = width,
+                    width = narrowedWidth,
                     height = recommendedHeight.roundToInt(),
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,
-                    splitLayoutWidth = (displayWidth * savedSettings.splitWidthFraction).toInt()
-                        // Upper bound is the full display width: at that point the two halves (each
-                        // carrying the duplicated middle column on an odd layout) overlap by exactly
-                        // that column, so the keyboard reads as continuous; just below it the halves
-                        // touch with the doubled column visible. The old 9/10 cap left a permanent gap.
-                        .coerceInLoosely(dp(48), displayWidth)
+                    sideOffset = (fullWidth - narrowedWidth) / 2,
+                    bottomOffset = bottomLiftPx
                 )
+            }
+
+            savedSettings.currentMode == KeyboardMode.Split -> {
+                // kxkb: the "Keyboard width" slider narrows + centres the WHOLE split keyboard (both
+                // halves and the bottom row), independently of the "Split width" slider (which controls
+                // the halves' spread / centre gap). Narrowing `width` shrinks mId.mWidth -> key sizes;
+                // we scale the split layout width by the same fraction so the split proportions hold,
+                // and hand a centring sideOffset to the window. frac == 1.0 reproduces the old result.
+                val frac = savedSettings.widthFraction.guardNaN(1.0f).coerceIn(0.3f, 1.0f)
+                val fullWidth = width.coerceInLoosely(dp(48), displayWidth)
+                val narrowedWidth = (fullWidth * frac).roundToInt().coerceIn(dp(48), fullWidth)
+                SplitKeyboardSize(
+                    width = narrowedWidth,
+                    height = recommendedHeight.roundToInt(),
+                    singleRowHeight = singularRowHeight.roundToInt(),
+                    padding = padding,
+                    splitLayoutWidth = (displayWidth * frac * savedSettings.splitWidthFraction).toInt()
+                        // Upper bound is the (narrowed) keyboard width: at that point the two halves
+                        // (each carrying the duplicated middle column on an odd layout) overlap by
+                        // exactly that column, so the keyboard reads as continuous; just below it the
+                        // halves touch with the doubled column visible.
+                        .coerceInLoosely(dp(48), narrowedWidth),
+                    sideOffset = (fullWidth - narrowedWidth) / 2,
+                    bottomOffset = bottomLiftPx
+                )
+            }
 
             savedSettings.currentMode == KeyboardMode.OneHanded ->
                 OneHandedKeyboardSize(
@@ -640,7 +687,8 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     padding = padding,
                     layoutWidth = dp(savedSettings.oneHandedRectDp.width)
                         .coerceInLoosely(dp(48), displayWidth * 9 / 10),
-                    direction = savedSettings.oneHandedDirection
+                    direction = savedSettings.oneHandedDirection,
+                    bottomOffset = bottomLiftPx
                 )
 
             savedSettings.currentMode == KeyboardMode.Floating -> {
@@ -673,7 +721,9 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     height = recommendedHeight.roundToInt(),
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,
-                    sideOffset = (fullWidth - narrowedWidth) / 2
+                    sideOffset = (fullWidth - narrowedWidth) / 2,
+                    // kxkb: lift the keyboard off the bottom edge; the gap below stays see-through.
+                    bottomOffset = bottomLiftPx
                 )
             }
         }

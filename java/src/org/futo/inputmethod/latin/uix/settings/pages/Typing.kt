@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -149,6 +150,7 @@ import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleSharedPrefs
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
+import org.futo.inputmethod.v2keyboard.KeyboardMode
 import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
 import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
 import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings
@@ -508,6 +510,21 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
         comboItem.setValue(set(currentSettings()).toJsonString())
     }
 
+    // kxkb: set the keyboard mode for the current geometry (so e.g. Split can be chosen in portrait,
+    // not just where it's the default). Mirrors KeyboardSizingActions: Split sets prefersSplit, Regular
+    // clears it, the others leave it. The live keyboard reloads off the blob write like any other knob.
+    fun writeMode(mode: KeyboardMode) {
+        val cur = currentSettings()
+        comboItem.setValue(cur.copy(
+            currentMode = mode,
+            prefersSplit = when (mode) {
+                KeyboardMode.Split -> true
+                KeyboardMode.Regular -> false
+                else -> cur.prefersSplit
+            }
+        ).toJsonString())
+    }
+
     // Active theme scheme — supplies each colour's inherited (default) value, shown in the swatch
     // and used to seed the channel sliders until the user sets an explicit override.
     val scheme = LocalKeyboardScheme.current
@@ -589,6 +606,34 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
             key(kind, activeSub) {
                 KxkbSection("Size")
 
+                // kxkb: per-geometry keyboard MODE picker, so split (and one-handed/floating) can be
+                // chosen in ANY orientation — portrait included — not only where it happens to be the
+                // default. Without this the settings screen had no mode switch, so the "Split width"
+                // slider looked landscape-only (it only does anything while the keyboard is in split).
+                KxkbSubgroup("Keyboard mode") {
+                    @Composable
+                    fun ModeButton(mode: KeyboardMode, label: String, modifier: Modifier) {
+                        if (parsed.currentMode == mode) {
+                            Button(onClick = { writeMode(mode) }, modifier = modifier,
+                                contentPadding = PaddingValues(2.dp)) { Text(label, maxLines = 1) }
+                        } else {
+                            OutlinedButton(onClick = { writeMode(mode) }, modifier = modifier,
+                                contentPadding = PaddingValues(2.dp)) { Text(label, maxLines = 1) }
+                        }
+                    }
+                    // English literals on purpose: the upstream action_keyboard_modes_* strings are
+                    // translated (Kanji etc. under a CJK UI locale), whereas the rest of this kxkb screen
+                    // is English-only — so hardcode the labels to stay consistent and readable.
+                    Row(Modifier.fillMaxWidth().padding(end = 16.dp)) {
+                        ModeButton(KeyboardMode.Regular, "Standard", Modifier.weight(1f).padding(2.dp))
+                        ModeButton(KeyboardMode.Split, "Split", Modifier.weight(1f).padding(2.dp))
+                    }
+                    Row(Modifier.fillMaxWidth().padding(end = 16.dp)) {
+                        ModeButton(KeyboardMode.OneHanded, "One-handed", Modifier.weight(1f).padding(2.dp))
+                        ModeButton(KeyboardMode.Floating, "Floating", Modifier.weight(1f).padding(2.dp))
+                    }
+                }
+
                 KxkbSubgroup("Height") {
                     SettingSliderForDataStoreItem(
                         title = stringResource(R.string.kxkb_sizing_keyboard_height),
@@ -604,6 +649,13 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                         title = stringResource(R.string.kxkb_sizing_bottom_row_height),
                         item = floatItem({ it.bottomRowHeightFactor }, { s, v -> s.copy(bottomRowHeightFactor = v) }),
                         default = 1f, range = 0.2f..2.0f, transform = { it }, indicator = { "%.2fx".format(it) }
+                    )
+                    // kxkb: lift the whole keyboard off the bottom edge (all docked modes). The freed
+                    // gap below is see-through (the app shows through it, like a floating keyboard).
+                    SettingSliderForDataStoreItem(
+                        title = stringResource(R.string.kxkb_sizing_bottom_padding),
+                        item = floatItem({ it.bottomLiftDp }, { s, v -> s.copy(bottomLiftDp = v) }),
+                        default = 0f, range = 0f..640f, transform = { it }, indicator = { "%.0f dp".format(it) }
                     )
                 }
 
@@ -632,9 +684,9 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                 }
 
                 KxkbSubgroup("Split mode") {
-                    // Split-mode half width as a fraction of the display width (only affects split mode,
-                    // i.e. landscape / inner display). Higher = wider halves and a smaller centre gap;
-                    // the size calc hard-caps the effective value at 90%, so the halves never fully meet.
+                    // Split-mode half width as a fraction of the display width. Applies whenever the
+                    // keyboard is in split mode (choose it above) — any orientation, portrait included,
+                    // not just where split is the default. Higher = wider halves and a smaller centre gap.
                     SettingSliderForDataStoreItem(
                         title = stringResource(R.string.kxkb_sizing_split_width),
                         item = floatItem({ it.splitWidthFraction }, { s, v -> s.copy(splitWidthFraction = v) }),

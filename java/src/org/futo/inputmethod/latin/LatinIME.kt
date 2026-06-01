@@ -103,6 +103,7 @@ import org.futo.inputmethod.v2keyboard.LastUsedSizeStateSetting
 import org.futo.inputmethod.v2keyboard.KeyboardSizeSettingKind
 import org.futo.inputmethod.v2keyboard.KeyboardSizeStateProvider
 import org.futo.inputmethod.v2keyboard.KeyboardSizingCalculator
+import org.futo.inputmethod.v2keyboard.SplitKeyboardSize
 import org.futo.inputmethod.v2keyboard.LayoutManager
 import org.futo.inputmethod.v2keyboard.dimensionsSameAs
 import org.futo.inputmethod.v2keyboard.getPrimaryLayoutOverride
@@ -926,19 +927,45 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                     visibleTopInsets = viewHeight - bottomInset
                 }
                 else -> {
-                    touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
-
+                    // kxkb: a keyboard with empty margins — narrowed (sideOffset > 0), lifted
+                    // (bottomOffset > 0), or SPLIT (always has a centre gap) — should show the app
+                    // THROUGH those margins instead of leaving an opaque black void. For any of those,
+                    // borrow the floating keyboard's inset treatment: don't push the app up (it draws
+                    // behind the whole window) and mark only the keyboard's own rect as touchable, so
+                    // taps in the margins fall through. A plain full-width docked keyboard keeps the
+                    // original behaviour (app reserves the keyboard height and scrolls content above it).
+                    val bottomLift = size.bottomOffset
+                    val sideOff = size.sideOffset
                     val touchableHeight = uixManager.touchableHeight
-                    val topInset = if(touchableHeight < 1 || touchableHeight >= viewHeight - 1) {
-                        val actionBarHeight = sizingCalculator.calculateTotalActionBarHeightPx()
+                    val seeThrough = bottomLift > 0 || sideOff > 0 || size is SplitKeyboardSize
 
-                        viewHeight - size.height - actionBarHeight
+                    if(seeThrough && touchableHeight in 1 until viewHeight) {
+                        val bottom = (viewHeight - bottomLift).coerceIn(1, viewHeight)
+                        val top = (bottom - touchableHeight - uixManager.extraTopTouchHeight)
+                            .coerceAtLeast(0)
+                        val left = sideOff.coerceIn(0, composeView!!.width)
+                        val right = (left + size.width).coerceIn(left + 1, composeView!!.width)
+
+                        touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+                        touchableRegion.set(left, top, right, bottom)
+
+                        val navBottom = getNavigationBarBottomInset(composeView!!)
+                        contentTopInsets = viewHeight - navBottom
+                        visibleTopInsets = viewHeight - navBottom
                     } else {
-                        viewHeight - touchableHeight
-                    }
+                        touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
 
-                    contentTopInsets = topInset
-                    visibleTopInsets = topInset - uixManager.extraTopTouchHeight
+                        val topInset = if(touchableHeight < 1 || touchableHeight >= viewHeight - 1) {
+                            val actionBarHeight = sizingCalculator.calculateTotalActionBarHeightPx()
+
+                            viewHeight - size.height - actionBarHeight
+                        } else {
+                            viewHeight - touchableHeight
+                        }
+
+                        contentTopInsets = topInset
+                        visibleTopInsets = topInset - uixManager.extraTopTouchHeight
+                    }
                 }
             }
 
