@@ -56,6 +56,42 @@ val KeySlidingToggleAction = Action(
     activeStateProvider = { !keySlidingEnabledState() },
 )
 
+// Reactive read of PREF_TERMINAL_PREDICTION for the action bar (same pattern as keySlidingEnabledState).
+@Composable
+private fun terminalPredictionEnabledState(): Boolean {
+    val context = LocalContext.current
+    val prefs = remember(context) { PreferenceUtils.getDefaultSharedPreferences(context) }
+    var enabled by remember { mutableStateOf(prefs.getBoolean(Settings.PREF_TERMINAL_PREDICTION, false)) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            if (key == null || key == Settings.PREF_TERMINAL_PREDICTION) {
+                enabled = p.getBoolean(Settings.PREF_TERMINAL_PREDICTION, false)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    return enabled
+}
+
+// kxkb: toggle "terminal prediction" on/off from the action bar. Raw-input fields (TYPE_NULL terminals
+// like Termux) normally disable composing/suggestions and send raw key events; turning this on forces
+// composing + prediction + commit there, so candidates work and a space-committed word is sent to the
+// remote over SSH. Off by default. Writing PREF_TERMINAL_PREDICTION triggers the IME's settings reload
+// (Settings rebuilds SettingsValues, where needsToLookupSuggestions()/shouldInsertSpacesAutomatically()
+// honour the flag), so it applies live. Highlighted (filled) while on, like the swipe icon.
+val TerminalPredictionToggleAction = Action(
+    icon = R.drawable.text_prediction,
+    name = R.string.action_terminal_prediction_toggle,
+    simplePressImpl = { manager, _ ->
+        val prefs = PreferenceUtils.getDefaultSharedPreferences(manager.getContext())
+        val current = prefs.getBoolean(Settings.PREF_TERMINAL_PREDICTION, false)
+        prefs.edit { putBoolean(Settings.PREF_TERMINAL_PREDICTION, !current) }
+    },
+    windowImpl = null,
+    activeStateProvider = { terminalPredictionEnabledState() },
+)
+
 // Open the kxkb "Live sizing" settings page (per-geometry sizes, gaps, colours) directly, deep-linked
 // via the SettingsActivity "navDest" extra to the existing "kxkbSizing" route.
 val LiveResizeAction = Action(

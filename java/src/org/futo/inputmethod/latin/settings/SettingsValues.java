@@ -85,6 +85,8 @@ public class SettingsValues {
     public final boolean mTransformerPredictionEnabled;
     public final boolean mGestureInputEnabled;
     public final boolean mKeySlidingEnabled;
+    // kxkb: force composing + prediction in raw-input (terminal) fields. Off by default; top-bar toggle.
+    public final boolean mTerminalPredictionEnabled;
     public final int mMultitapTimeout;
     public final boolean mGestureTrailEnabled;
     public final boolean mGestureFloatingPreviewTextEnabled;
@@ -233,6 +235,7 @@ public class SettingsValues {
                 autoCorrectionThresholdRawValue);
         mPlausibilityThreshold = Settings.readPlausibilityThreshold(res);
         mKeySlidingEnabled = Settings.readKeySlidingEnabled(prefs);
+        mTerminalPredictionEnabled = Settings.readTerminalPredictionEnabled(prefs);
         mMultitapTimeout = Settings.readMultitapTimeout(prefs);
         // Key sliding and swipe/gesture typing both claim a slide off a key, so they are mutually
         // exclusive: when key sliding is on, glide is forced off here (PointerTracker still consumes
@@ -306,6 +309,11 @@ public class SettingsValues {
         // typing a space) AND keeps next-word off (GeneralIME then shows only the static topBar
         // defaults via the neutral strip). zxx and zxx_* both report language "zxx".
         if (mLocale != null && "zxx".equals(mLocale.getLanguage())) return false;
+        // kxkb: terminal-prediction toggle — force composing/suggestions in raw-input (terminal) fields
+        // (e.g. Termux) that normally report send-key-events mode and no suggestions, so prediction +
+        // space-commit work over SSH. Off by default; toggled by the top-bar action. (Checked AFTER the
+        // GNU guard so GNU stays prediction-free even in a terminal.)
+        if (isTerminalPredictionField()) return true;
         return mInputAttributes.mShouldShowSuggestions
                 && (mAutoCorrectionEnabledPerUserSettings || isSuggestionsEnabledPerUserSettings());
     }
@@ -369,7 +377,16 @@ public class SettingsValues {
     }
 
     public boolean shouldInsertSpacesAutomatically() {
+        // kxkb: in terminal-prediction mode, auto-space like a normal text field so a space follows a
+        // committed/picked word (raw terminal fields report false). See needsToLookupSuggestions().
+        if (mTerminalPredictionEnabled && mInputAttributes.mSendKeyEventsMode) return true;
         return mInputAttributes.mShouldInsertSpacesAutomatically;
+    }
+
+    // kxkb: a raw-input (terminal) field — TYPE_NULL etc. — reports send-key-events mode. The
+    // terminal-prediction toggle turns these into composing fields so prediction + space-commit work.
+    public boolean isTerminalPredictionField() {
+        return mTerminalPredictionEnabled && mInputAttributes.mSendKeyEventsMode;
     }
 
     public boolean isSameInputType(final EditorInfo editorInfo) {
