@@ -469,12 +469,15 @@ public class LanguageModelFacilitator(
             }
         } else emptyList()
         // kxkb: on a cluster layout the "typed word" is just the centre-letter commit (e.g. "teuwi"),
-        // never what the user wants, so AOSP's normalized-score-vs-typed-word autocorrect test always
-        // fails. When we have a confident in-cluster exact-length word AND the input is long enough to
-        // be unambiguous (>= 4 taps; shorter inputs stay suggest-only to avoid mis-correcting), force
-        // the confidence flag so the top in-cluster word becomes the autocorrection.
+        // never what the user wants, so the top in-cluster predicted word should be committed on SPACE
+        // (autocorrect) rather than the meaningless literal. When we have a confident in-cluster
+        // exact-length word (>= 2 taps; a single tap stays literal so a deliberate one-letter token is
+        // not changed) force the confidence flag so the top in-cluster word becomes the autocorrection.
+        // We ALSO force isCorrectionEnabled below for cluster, so this works even with the global
+        // Auto-correction setting off. clusterEnumerated.isNotEmpty() guards it: a non-dict word (name,
+        // abbreviation) produces no enumeration, so its literal is still kept.
         val clusterConfidentAutocorrect =
-            clusterSets != null && clusterEnumerated.isNotEmpty() && clusterSets.size >= 4
+            clusterSets != null && clusterEnumerated.isNotEmpty() && clusterSets.size >= 2
 
         // kxkb: keep a large candidate pool (was 14) so the expandable suggestions panel has many
         // candidates to flip through — especially on cluster layouts, where the trie-walk finds far
@@ -652,7 +655,11 @@ public class LanguageModelFacilitator(
         val suggestedWords = Suggest.obtainNonBatchedInputSuggestedWords(
             wordComposer,
             values.inputStyle,
-            settingsValues.mAutoCorrectionEnabledPerUserSettings,
+            // kxkb: force autocorrect-enabled on cluster layouts so SPACE commits the top in-cluster
+            // candidate even when the global Auto-correction setting is off — the cluster "typed word"
+            // is the meaningless centre-letter literal, so the predicted word is what the user wants.
+            // Non-cluster (clusterSets == null) keeps the user's setting, so QWERTY etc. are unaffected.
+            (clusterSets != null) || settingsValues.mAutoCorrectionEnabledPerUserSettings,
             -1,
             locale,
             suggestionResults,

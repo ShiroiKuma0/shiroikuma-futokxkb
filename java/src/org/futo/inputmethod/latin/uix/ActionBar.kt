@@ -1340,9 +1340,18 @@ fun BoxScope.ActionBarWithExpandableCandidates(
     expandableSuggestionCfg: ExpandableSuggestionBarConfiguration,
 ) {
     val wordList = remember(words) {
-        words?.mSuggestedWordInfoList?.toList()?.filter {
-            !it.isKindOf(KIND_TYPED)
-        } ?: emptyList()
+        val infos = words?.mSuggestedWordInfoList?.toList() ?: emptyList()
+        val nonTyped = infos.filterNot { it.isKindOf(KIND_TYPED) }.toMutableList()
+        // kxkb: re-insert the literal typed word as the 2nd candidate (after the top prediction) so it
+        // stays selectable in the expandable bar. Essential on cluster layouts, where SPACE autocorrects
+        // to the top prediction but the literal may be the out-of-dictionary word the user actually
+        // wants; harmless elsewhere (only added when it differs from the top prediction). Candidate taps
+        // pick by identity (CandidateItem -> pickSuggestionManually(it)), so position never mis-targets.
+        val typed = infos.firstOrNull { it.isKindOf(KIND_TYPED) }
+        if (typed != null && !typed.mWord.isNullOrEmpty() && nonTyped.getOrNull(0)?.mWord != typed.mWord) {
+            nonTyped.add(minOf(1, nonTyped.size), typed)
+        }
+        nonTyped
     }
 
     val suggestionsExpansion = remember { mutableFloatStateOf(0.0f) }
