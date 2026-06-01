@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  kxkb spacing-and-punctuations override for locale "zxx" ("no linguistic content"),
+  which this fork surfaces as the "GNU" programming layouts (see java/assets-custom/
+  layouts/mapping-custom.yaml). GNU layouts are used for code input, where the engine's
+  automatic-spacing magic only gets in the way.
+
+  SpacingAndPunctuations resolves config by locale with fallback ("zxx" -> "default"),
+  and any key defined here WINS over default.xml while everything unspecified is
+  inherited (SpacingAndPunctuations.kt buildCandidateList + ParsedData.plus). build.gradle
+  already merges java/assets-custom into the APK assets, so this rides alongside the
+  upstream java/assets/spacing-and-punctuations without forking it.
+
+  "current_language_has_spaces=false" is the master gate on every automatic-spacing path
+  in InputLogic (canInsertAutoSpace, insertAutomaticSpaceIfOptionsAndTextAllow, the
+  weak-space swap, double-space->". ", auto-space-before/after a symbol). Setting it false
+  turns ALL of that off for GNU layouts. The literal spacebar (CODE_SPACE) is unaffected,
+  so spaces you actually type still go through. We additionally empty the
+  followed-by-space symbol lists so the intent is explicit and survives any future code
+  path that reads them without the has-spaces gate.
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Master gate: disables all automatic spacing for GNU/code layouts. -->
+    <bool name="current_language_has_spaces">false</bool>
+
+    <!-- No auto-space after .,;:!?)]} (the period/comma/colon/?/! spaces complained about). -->
+    <string name="symbols_followed_by_space"></string>
+
+    <!-- No auto-space after -& either. -->
+    <string name="symbols_followed_by_space_iff_preceded_by_space"></string>
+</resources>
