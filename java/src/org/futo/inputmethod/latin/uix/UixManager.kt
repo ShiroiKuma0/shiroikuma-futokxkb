@@ -70,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -89,6 +90,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.coerceAtLeast
@@ -150,6 +152,7 @@ import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSizingCalculator
 import org.futo.inputmethod.v2keyboard.OneHandedDirection
 import org.futo.inputmethod.v2keyboard.OneHandedKeyboardSize
+import org.futo.inputmethod.keyboard.Keyboard
 import org.futo.inputmethod.v2keyboard.RegularKeyboardSize
 import org.futo.inputmethod.v2keyboard.SplitKeyboardSize
 import org.futo.inputmethod.v2keyboard.opposite
@@ -205,11 +208,41 @@ fun Modifier.keyboardBottomPadding(size: ComputedKeyboardSize): Modifier = with(
     this@keyboardBottomPadding.absolutePadding(bottom = size.padding.bottom.toDp())
 }
 
+// kxkb: the see-through centre channel of a split keyboard, in KeyboardSurface px (origin = surface
+// top-left). Returns the key-free central band spanning the letter rows down to the top of the
+// full-width bottom bar; null when not split, merged (no central gap), or no keyboard yet. The
+// vertical extent stops at the bottom bar so the (opaque, full-width) action row covers its part and
+// only the letter-row gap reads as see-through.
+private fun computeSplitChannel(kbd: Keyboard?, size: ComputedKeyboardSize, actionBarPx: Int): IntRect? {
+    if (size !is SplitKeyboardSize || kbd == null) return null
+    val keys = kbd.sortedKeys ?: return null
+    val w = kbd.mOccupiedWidth
+    if (keys.isEmpty() || w <= 0) return null
+    val center = w / 2
+    // Keys that straddle the centre line (the full-width bottom bar, or any un-split row) bound the
+    // channel from below — it can only pass through rows that have a central gap.
+    val bottomBarTop = keys.filter { it.x < center && it.x + it.width > center }
+        .minOfOrNull { it.y } ?: Int.MAX_VALUE
+    val above = keys.filter { it.y < bottomBarTop }
+    if (above.isEmpty()) return null
+    val leftEdge = above.filter { it.x + it.width <= center }.maxOfOrNull { it.x + it.width } ?: return null
+    val rightEdge = above.filter { it.x >= center }.minOfOrNull { it.x } ?: return null
+    if (rightEdge <= leftEdge) return null
+    val top = above.minOf { it.y }
+    val bottom = if (bottomBarTop == Int.MAX_VALUE) above.maxOf { it.y + it.height } else bottomBarTop
+    val padLeft = size.padding.left
+    return IntRect(leftEdge + padLeft, top + actionBarPx, rightEdge + padLeft, bottom + actionBarPx)
+}
+
 @Composable
 fun BoxScope.KeyboardBackground(
     colorScheme: KeyboardColorScheme,
     computedSize: ComputedKeyboardSize? = null,
     useThumbnail: Boolean = false,
+    // kxkb: a see-through vertical channel (the split keyboard's centre gap) to punch out of the
+    // solid/gradient background, in this Box's own px. null = fill normally. Only the solid/gradient
+    // path honours it (image/shader themes keep a filled channel).
+    channelPx: IntRect? = null,
 ) {
     val backgroundBrush = colorScheme.keyboardBackgroundGradient ?: SolidColor(colorScheme.keyboardSurface)
     val advanced = colorScheme.extended.advancedThemeOptions
@@ -260,6 +293,20 @@ fun BoxScope.KeyboardBackground(
             Box(Modifier
                 .matchParentSize()
                 .background(backgroundBrush))
+        }
+        channelPx != null && channelPx.right > channelPx.left -> {
+            // kxkb: paint the brush in the four bands AROUND the channel rect, leaving
+            // [left,right] x [top,bottom] transparent so the app shows through the split centre gap.
+            Canvas(Modifier.matchParentSize()) {
+                val cl = channelPx.left.toFloat().coerceIn(0f, size.width)
+                val cr = channelPx.right.toFloat().coerceIn(cl, size.width)
+                val ct = channelPx.top.toFloat().coerceIn(0f, size.height)
+                val cb = channelPx.bottom.toFloat().coerceIn(ct, size.height)
+                if (ct > 0f) drawRect(backgroundBrush, Offset(0f, 0f), Size(size.width, ct))
+                if (cb < size.height) drawRect(backgroundBrush, Offset(0f, cb), Size(size.width, size.height - cb))
+                if (cl > 0f) drawRect(backgroundBrush, Offset(0f, ct), Size(cl, cb - ct))
+                if (cr < size.width) drawRect(backgroundBrush, Offset(cr, ct), Size(size.width - cr, cb - ct))
+            }
         }
         else -> Box(Modifier
             .background(backgroundBrush)
@@ -1018,6 +1065,7 @@ class UixManager(private val latinIME: LatinIME) {
         modifier: Modifier = Modifier,
         shape: Shape = RectangleShape,
         padding: Rect = Rect(),
+        channelPx: IntRect? = null,
         content: @Composable BoxScope.() -> Unit
     ) = with(LocalDensity.current) {
 
@@ -1033,7 +1081,7 @@ class UixManager(private val latinIME: LatinIME) {
             // Blocks any input to inputDarkener within the keyboard
             .pointerInput(Unit) {}
         ) {
-            KeyboardBackground(LocalKeyboardScheme.current, latinIME.size.value)
+            KeyboardBackground(LocalKeyboardScheme.current, latinIME.size.value, channelPx = channelPx)
 
             CompositionLocalProvider(LocalKeyboardPadding provides KeyboardPadding(
                     left = padding.left.toDp().coerceAtLeast(0.dp),
@@ -1199,14 +1247,29 @@ class UixManager(private val latinIME: LatinIME) {
         size: ComputedKeyboardSize,
         content: @Composable BoxScope.(actionBarGap: Dp) -> Unit
     ) = with(LocalDensity.current) {
-        // kxkb: a narrowed Regular keyboard carries a centring x-offset so the shrunk surface sits
-        // centred (app visible at both edges). Other modes position via their own width/padding.
-        val xOffset = (size as? RegularKeyboardSize)?.sideOffset?.toFloat() ?: 0f
-        OffsetPositioner(Offset(xOffset, 0f)) {
+        // kxkb: a narrowed Regular OR Split keyboard carries a centring x-offset so the shrunk surface
+        // sits centred (app visible at both edges).
+        val xOffset = size.sideOffset.toFloat()
+        // kxkb: any lifted docked keyboard (Regular/Split/OneHanded) carries a bottom y-offset;
+        // OffsetPositioner renders it as a transparent bottom spacer, so the keyboard floats up off
+        // the bottom edge and the app shows beneath it (see-through gap).
+        val yOffset = size.bottomOffset.toFloat()
+
+        // kxkb: for a split keyboard, compute the see-through centre channel (the key-free band through
+        // the letter rows, down to the top of the full-width bottom bar) so KeyboardSurface can punch
+        // it out of the background. Non-split / merged keyboards get null (no channel).
+        val splitKbd = latinIME.latinIMELegacy.mKeyboardSwitcher.keyboard
+        val actionBarPx = latinIME.sizingCalculator.calculateTotalActionBarHeightPx()
+        val channel = remember(size, splitKbd, actionBarPx) {
+            computeSplitChannel(splitKbd, size, actionBarPx)
+        }
+
+        OffsetPositioner(Offset(xOffset, yOffset)) {
             KeyboardSurface(
                 requiredWidthPx = size.width,
                 backgroundColor = latinIME.keyboardColor,
-                padding = size.padding
+                padding = size.padding,
+                channelPx = channel
             ) {
                 val paddingOverride = when(size) {
                     is OneHandedKeyboardSize -> {
