@@ -159,6 +159,28 @@ val SpecialKeysAction = Action(
     windowImpl = null,
 )
 
+// kxkb: open the Personal Dictionary editor directly from the action bar. This is the "Edit Personal
+// Dictionary" page (Settings → Predictive Text), where you add custom words — including Japanese kanji
+// entered with their hiragana reading + part-of-speech, which Mozc then offers as a conversion
+// candidate. Deep-linked via the SettingsActivity "navDest" extra to the "pdict" route; same flags as
+// the other launchers so a reused SettingsActivity still navigates there (handled by onNewIntent).
+val PersonalDictionaryAction = Action(
+    icon = R.drawable.icon_spellcheck,
+    name = R.string.action_personal_dictionary,
+    simplePressImpl = { manager, _ ->
+        val intent = Intent()
+        intent.setClass(manager.getContext(), SettingsActivity::class.java)
+        intent.putExtra("navDest", "pdict")
+        intent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK
+                    or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        manager.getContext().startActivity(intent)
+    },
+    windowImpl = null,
+)
+
 // Open the Developer-settings "Custom layouts" editor directly, deep-linked via the SettingsActivity
 // "navDest" extra to the "devlayouteditor" route. Same flags as the other launchers so a reused
 // SettingsActivity still navigates there (handled by SettingsActivity.onNewIntent).

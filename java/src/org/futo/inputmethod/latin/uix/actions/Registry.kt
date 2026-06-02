@@ -51,6 +51,7 @@ val AllActionsMap = mapOf(
     "hide_keyboard" to HideKeyboardAction,
     "next_language_layout" to NextLanguageLayoutAction,
     "terminal_prediction" to TerminalPredictionToggleAction,
+    "personal_dictionary" to PersonalDictionaryAction,
 )
 
 val ActionToId = AllActionsMap.entries.associate { it.value to it.key }
