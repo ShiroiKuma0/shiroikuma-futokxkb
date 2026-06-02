@@ -20,6 +20,7 @@ import org.acra.config.CoreConfigurationBuilder
 import org.acra.data.CrashReportDataFactory
 import org.futo.inputmethod.latin.settings.Settings
 import org.futo.inputmethod.latin.uix.isDirectBootUnlocked
+import org.futo.inputmethod.latin.uix.settings.pages.restoreAppLocale
 import org.futo.inputmethod.latin.uix.settings.LocalDataStoreCache
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
@@ -29,6 +30,14 @@ import kotlin.collections.plus
 class CrashLoggingApplication : Application() /*, Configuration.Provider*/ {
     //override val workManagerConfiguration: Configuration
     //    get() = Configuration.Builder().build()
+
+    override fun onCreate() {
+        super.onCreate()
+        // kxkb: re-apply the user's chosen app-UI language on cold start (see restoreAppLocale). On
+        // API < 33 nothing else repopulates it for our plain-ComponentActivity Settings UI, so without
+        // this the selection silently reverts to the system language on the next launch.
+        restoreAppLocale(this)
+    }
 
     override fun attachBaseContext(base: Context?) {
         super.attachBaseContext(base)
