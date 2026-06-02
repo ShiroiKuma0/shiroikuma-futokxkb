@@ -498,6 +498,7 @@
     <string name="action_special_keys">Special keys</string>
     <string name="action_custom_layouts">Custom layouts</string>
     <string name="action_next_language_layout_title">Next layout (same language)</string>
+    <string name="action_personal_dictionary">Personal dictionary</string>
     <string name="special_keys_title">Special keys</string>
     <string name="special_keys_subtitle">Esc, Ctrl, 4D keys — what they do and how to add them</string>
     <string name="typing_settings_suggest_emojis">Emoji Suggestions</string>
