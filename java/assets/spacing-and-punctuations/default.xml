@@ -27,7 +27,11 @@
     <!-- Symbols that are normally followed by a space (used to add an auto-space after these) -->
     <string name="symbols_followed_by_space">.,;:!?)]}</string>
     <!-- Symbols that may be preceded by a space and should have different auto-spacing rules, necessary for emoticons ;) :) -->
-    <string name="symbols_optionally_preceded_by_space">;:</string>
+    <!-- kxkb: emptied (was ";:") so colon and semicolon behave exactly like a period — the preceding
+         auto-space is swapped away and a space is always added after. This set's ONLY consumers are the
+         two ":/;" special-cases in InputLogic (the no-swap guard + the conditional trailing space); with
+         it empty, ":" and ";" follow the ordinary followed-by-space path like "." "," "?" "!". -->
+    <string name="symbols_optionally_preceded_by_space"></string>
     <!-- Symbols that are normally followed by a space only if preceded by a space -->
     <string name="symbols_followed_by_space_iff_preceded_by_space">-&amp;</string>
     <!-- Symbols that behave like a single punctuation when typed next to each other -->
