@@ -364,6 +364,7 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
         // Position in row (only for a top-level row key, not a nested case branch / slot).
         if (path.fields.isEmpty()) {
             val rowKeyCount = KeyboardEditorSession.pageRows(path.page).getOrNull(path.row)?.keys?.size ?: 0
+            val rowCount = KeyboardEditorSession.pageRows(path.page).size
             Text("Position in row", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
             Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
                 OutlinedButton(
@@ -375,6 +376,21 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
                     onClick = { KeyboardEditorSession.moveKey(path.page, path.row, path.col, +1); navController.popBackStack() },
                     modifier = Modifier.weight(1f)
                 ) { Text("Move ▶") }
+            }
+            // Swap the key with the one directly above / below it (same column, clamped to the
+            // adjacent row's key count). Disabled when there is no row in that direction.
+            Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
+                OutlinedButton(
+                    onClick = { KeyboardEditorSession.swapKeyVertical(path.page, path.row, path.col, -1); navController.popBackStack() },
+                    enabled = path.row > 0,
+                    modifier = Modifier.weight(1f)
+                ) { Text("▲ Move up") }
+                Spacer(Modifier.size(8.dp))
+                OutlinedButton(
+                    onClick = { KeyboardEditorSession.swapKeyVertical(path.page, path.row, path.col, +1); navController.popBackStack() },
+                    enabled = path.row < rowCount - 1,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Move down ▼") }
             }
             Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
                 OutlinedButton(

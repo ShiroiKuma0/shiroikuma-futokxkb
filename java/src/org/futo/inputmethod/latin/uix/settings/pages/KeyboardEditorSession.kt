@@ -211,6 +211,32 @@ object KeyboardEditorSession {
         return target
     }
 
+    /**
+     * Swap the key at [col] in [row] with the key directly above/below it in the adjacent row
+     * ([delta] = -1 = the row above, +1 = the row below) of [page]. The target column is the same
+     * index, clamped to the adjacent row's key count, so both rows keep their key counts — a pure
+     * exchange, the vertical analogue of [moveKey]. Returns the moved key's new [EditPath] in the
+     * adjacent row, or null if there is no such row / nothing to swap.
+     */
+    fun swapKeyVertical(page: Int, row: Int, col: Int, delta: Int): EditPath? {
+        val rowsNow = pageRows(page)
+        val target = row + delta
+        val src = rowsNow.getOrNull(row) ?: return null
+        val dst = rowsNow.getOrNull(target) ?: return null
+        if (col !in src.keys.indices || dst.keys.isEmpty()) return null
+        val tcol = col.coerceIn(0, dst.keys.size - 1)
+        mutateRowsFor(page) { rows ->
+            val srcKeys = rows[row].keys.toMutableList()
+            val dstKeys = rows[target].keys.toMutableList()
+            val moved = srcKeys[col]
+            srcKeys[col] = dstKeys[tcol]
+            dstKeys[tcol] = moved
+            rows[row] = rows[row].withKeys(srcKeys)
+            rows[target] = rows[target].withKeys(dstKeys)
+        }
+        return EditPath(target, tcol, page = page)
+    }
+
     /** Insert a new single-key letters row after [afterRow] in [page]. */
     fun addRow(page: Int, afterRow: Int) = mutateRowsFor(page) { rows ->
         rows.add((afterRow + 1).coerceIn(0, rows.size), Row(letters = listOf(BaseKey("a"))))
