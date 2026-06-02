@@ -32,7 +32,7 @@ The fork model is identical to the user's other Android forks (AppManager, Jami,
 | NDK / CMake | NDK `28.2.13676358` (AGP auto-downloads if absent); CMake via SDK |
 | AGP / Gradle | 8.10.1 / 8.14.3 |
 | Git submodules | `libs` (mozc/rime AARs, gitlab.futo.org), `voiceinput-shared/src/main/ml`, `java/assets/layouts`, `translations`, `java/assets/themes`, `java/res-large` — clone `--recurse-submodules`, re-init after each checkout/rebase |
-| APK filename | `shiroikuma-futokxkb_<versionName>_arm64-v8a.apk` where versionName carries the `+N` tail, e.g. `shiroikuma-futokxkb_0.1.29-rc1+1_arm64-v8a.apk` (no datetime) |
+| APK filename | `shiroikuma-futokxkb_<versionName>_arm64-v8a.apk` — the name MUST end with the versionName followed by `_arm64-v8a.apk`; **never shorten it** (do not drop the `_arm64-v8a` suffix, and use `_` not `-` before the version). versionName carries the `+N` tail, e.g. `shiroikuma-futokxkb_0.1.29-rc1+1_arm64-v8a.apk` (no datetime). Same name for the `~/tmp` archive copy and the on-device `/sdcard/tmp/` push — **including when gradle is run directly in Claude Code** (mirror the build block's `apk_name`, don't improvise a shorter name like `shiroikuma-futokxkb-<version>.apk`). |
 
 Single-module Android Gradle project, **Groovy** DSL (`build.gradle` at repo root; the app *is* the root project, `settings.gradle` only adds `:voiceinput-shared`).
 
