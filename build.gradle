@@ -485,6 +485,10 @@ def generateAppLocales = tasks.register('generateAppLocales') {
                 if (t) tags.add(t)
             }
         }
+        // The base `values/` (no qualifier) holds the English source strings, which isn't a `values-*`
+        // dir so the scan above never emits it — add it explicitly so "English (US)" is selectable.
+        // Picking it resolves through values-en-rUS → values-en (neither exist) → the base `values/`.
+        tags.add('en-US')
         def valuesDir = new File(outDir, 'values'); valuesDir.mkdirs()
         new File(valuesDir, 'kxkb_app_locales.xml').text =
                 "<resources>\n  <string-array name=\"kxkb_app_locales\" translatable=\"false\">\n" +
