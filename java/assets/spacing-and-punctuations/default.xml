@@ -25,7 +25,10 @@
     <!-- Symbols that are normally preceded by a space (used to add an auto-space before these) -->
     <string name="symbols_preceded_by_space"></string>
     <!-- Symbols that are normally followed by a space (used to add an auto-space after these) -->
-    <string name="symbols_followed_by_space">.,;:!?)]}</string>
+    <!-- kxkb: added the ellipsis "…" (U+2026) so it behaves like "." — the preceding auto-space is
+         swapped away ("hello …" → "hello… ") and a space is added after. The three-dot "..." already
+         swapped (each "." is in this set); only the single ellipsis character was missing. -->
+    <string name="symbols_followed_by_space">.,;:!?)]}…</string>
     <!-- Symbols that may be preceded by a space and should have different auto-spacing rules, necessary for emoticons ;) :) -->
     <!-- kxkb: emptied (was ";:") so colon and semicolon behave exactly like a period — the preceding
          auto-space is swapped away and a space is always added after. This set's ONLY consumers are the
