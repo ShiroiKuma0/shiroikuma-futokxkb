@@ -92,6 +92,43 @@ val TerminalPredictionToggleAction = Action(
     activeStateProvider = { terminalPredictionEnabledState() },
 )
 
+// Reactive read of PREF_FORCE_AUTO_CAPS for the action bar (same pattern as keySlidingEnabledState).
+@Composable
+private fun forceAutoCapsEnabledState(): Boolean {
+    val context = LocalContext.current
+    val prefs = remember(context) { PreferenceUtils.getDefaultSharedPreferences(context) }
+    var enabled by remember { mutableStateOf(prefs.getBoolean(Settings.PREF_FORCE_AUTO_CAPS, false)) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            if (key == null || key == Settings.PREF_FORCE_AUTO_CAPS) {
+                enabled = p.getBoolean(Settings.PREF_FORCE_AUTO_CAPS, false)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    return enabled
+}
+
+// kxkb: toggle "force auto-capitalization" on/off from the action bar. Some fields report a text
+// inputType that omits TYPE_TEXT_FLAG_CAP_SENTENCES (notably the Emacs Android port's buffers), so the
+// keyboard correctly never auto-shifts after . ? ! / newline there. Turning this on makes
+// InputLogic.getCurrentAutoCapsState OR in the sentence-caps bit so auto-shift works regardless of what
+// the field requested. Off by default; still gated by the global Auto-capitalization setting. Writing
+// PREF_FORCE_AUTO_CAPS triggers the IME's settings reload (SettingsValues.mForceAutoCaps), so it applies
+// live. Highlighted (filled) while on, like the swipe/terminal icons.
+val ForceAutoCapsToggleAction = Action(
+    icon = R.drawable.shift,
+    name = R.string.action_force_auto_caps_toggle,
+    simplePressImpl = { manager, _ ->
+        val prefs = PreferenceUtils.getDefaultSharedPreferences(manager.getContext())
+        val current = prefs.getBoolean(Settings.PREF_FORCE_AUTO_CAPS, false)
+        prefs.edit { putBoolean(Settings.PREF_FORCE_AUTO_CAPS, !current) }
+    },
+    windowImpl = null,
+    activeStateProvider = { forceAutoCapsEnabledState() },
+)
+
 // Open the kxkb "Live sizing" settings page (per-geometry sizes, gaps, colours) directly, deep-linked
 // via the SettingsActivity "navDest" extra to the existing "kxkbSizing" route.
 val LiveResizeAction = Action(

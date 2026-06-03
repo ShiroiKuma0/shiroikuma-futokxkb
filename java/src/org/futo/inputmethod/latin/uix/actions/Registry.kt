@@ -52,6 +52,7 @@ val AllActionsMap = mapOf(
     "next_language_layout" to NextLanguageLayoutAction,
     "terminal_prediction" to TerminalPredictionToggleAction,
     "personal_dictionary" to PersonalDictionaryAction,
+    "force_auto_caps" to ForceAutoCapsToggleAction,
 )
 
 val ActionToId = AllActionsMap.entries.associate { it.value to it.key }
