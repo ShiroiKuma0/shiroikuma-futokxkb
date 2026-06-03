@@ -2718,6 +2718,19 @@ public final class InputLogic {
             }
         }
 
+        // kxkb: send Tab as a real KEYCODE_TAB key event rather than committing a literal "\t".
+        // commitText("\t") inserts a literal tab character into the buffer; a key event instead lets
+        // the field act on Tab — e.g. Emacs minibuffer completion / indent-for-tab-command — which is
+        // what other soft keyboards do. Flush pending edits first so a just-committed word precedes
+        // the key event (same reasoning as the digit path above). Falls back to commitText below if
+        // the connection can't take a key event.
+        if (Constants.CODE_TAB == codePoint) {
+            mConnection.send();
+            if (sendDownUpKeyEvent(KeyEvent.KEYCODE_TAB, 0)) {
+                return;
+            }
+        }
+
         // TODO: we should do this also when the editor has TYPE_NULL
         if (Constants.CODE_ENTER == codePoint && settingsValues.isBeforeJellyBean()) {
             // Backward compatibility mode. Before Jelly bean, the keyboard would simulate
