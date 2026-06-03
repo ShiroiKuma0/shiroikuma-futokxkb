@@ -87,6 +87,9 @@ public class SettingsValues {
     public final boolean mKeySlidingEnabled;
     // kxkb: force composing + prediction in raw-input (terminal) fields. Off by default; top-bar toggle.
     public final boolean mTerminalPredictionEnabled;
+    // kxkb: force sentence auto-capitalization regardless of the field's caps mode. Off by default;
+    // top-bar toggle. Consumed in InputLogic.getCurrentAutoCapsState.
+    public final boolean mForceAutoCaps;
     public final int mMultitapTimeout;
     public final boolean mGestureTrailEnabled;
     public final boolean mGestureFloatingPreviewTextEnabled;
@@ -236,6 +239,7 @@ public class SettingsValues {
         mPlausibilityThreshold = Settings.readPlausibilityThreshold(res);
         mKeySlidingEnabled = Settings.readKeySlidingEnabled(prefs);
         mTerminalPredictionEnabled = Settings.readTerminalPredictionEnabled(prefs);
+        mForceAutoCaps = Settings.readForceAutoCaps(prefs);
         mMultitapTimeout = Settings.readMultitapTimeout(prefs);
         // Key sliding and swipe/gesture typing both claim a slide off a key, so they are mutually
         // exclusive: when key sliding is on, glide is forced off here (PointerTracker still consumes

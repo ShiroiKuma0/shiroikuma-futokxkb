@@ -92,6 +92,10 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     // kxkb: force composing + prediction in raw-input (terminal, e.g. Termux) fields that report
     // send-key-events mode and no suggestions. Off by default; toggled by a top-bar action.
     public static final String PREF_TERMINAL_PREDICTION = "terminal_prediction";
+    // kxkb: force sentence auto-capitalization even when the field's inputType doesn't request
+    // TYPE_TEXT_FLAG_CAP_SENTENCES (e.g. the Emacs Android port's buffers). Off by default; toggled
+    // by a top-bar action.
+    public static final String PREF_FORCE_AUTO_CAPS = "force_auto_caps";
     public static final String PREF_MULTITAP_TIMEOUT = "kxkb_multitap_timeout";
     public static final String PREF_VIBRATION_DURATION_SETTINGS =
             "pref_vibration_duration_settings";
@@ -317,6 +321,12 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     // kxkb: whether to force composing + prediction in raw-input (terminal) fields. Off by default.
     public static boolean readTerminalPredictionEnabled(final SharedPreferences prefs) {
         return prefs.getBoolean(PREF_TERMINAL_PREDICTION, false);
+    }
+
+    // kxkb: whether to force sentence auto-capitalization regardless of the field's requested caps
+    // mode. Off by default.
+    public static boolean readForceAutoCaps(final SharedPreferences prefs) {
+        return prefs.getBoolean(PREF_FORCE_AUTO_CAPS, false);
     }
 
     // kxkb: multitap window (ms) for `cycle` keys. Default ~classic phone multitap.

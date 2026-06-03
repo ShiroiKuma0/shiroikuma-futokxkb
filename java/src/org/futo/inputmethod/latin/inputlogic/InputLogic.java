@@ -90,6 +90,10 @@ public final class InputLogic {
     // TODO : make all these fields private as soon as possible.
     // Current space state of the input method. This can be any of the above constants.
     private int mSpaceState;
+    // kxkb: the last non-functional code point we input (a typed character or CODE_ENTER), set in
+    // handleNonFunctionalEvent. Used by force-auto-caps to capitalize after a newline even when the
+    // editor hides the line break from the text it reports to us (see getCurrentAutoCapsState).
+    private int mLastInputCodePoint = Constants.NOT_A_CODE;
     // Never null
     public SuggestedWords mSuggestedWords = SuggestedWords.getEmptyInstance();
     public final Suggest mSuggest;
@@ -1135,6 +1139,11 @@ public final class InputLogic {
     private void handleNonFunctionalEvent(final Event event,
             final InputTransaction inputTransaction) {
         inputTransaction.setDidAffectContents();
+        // kxkb: remember the last real code point we input (char or Enter). Both Enter and ordinary
+        // characters route through here, so this is overwritten by the next typed character — which
+        // is exactly what force-auto-caps wants: it forces a capital only while the most recent input
+        // was a newline, then the next letter clears it.
+        mLastInputCodePoint = event.mCodePoint;
         switch (event.mCodePoint) {
             case Constants.CODE_ENTER:
                 final EditorInfo editorInfo = getCurrentInputEditorInfo();
@@ -2451,12 +2460,30 @@ public final class InputLogic {
         if (ei == null) {
             return Constants.TextUtils.CAP_MODE_OFF;
         }
-        final int inputType = ei.inputType;
+        int inputType = ei.inputType;
+        // kxkb: when "force auto-capitalization" is on, OR in the sentence-caps request bit so the
+        // caps lookup auto-shifts after . ? ! / newline even in fields that don't ask for it (e.g.
+        // the Emacs Android port's buffers, which report a text inputType without CAP_SENTENCES).
+        // getCursorCapsMode masks its result with this inputType, so without the bit it returns OFF.
+        if (settingsValues.mForceAutoCaps) {
+            inputType |= android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
+        }
         // Warning: this depends on mSpaceState, which may not be the most current value. If
         // mSpaceState gets updated later, whoever called this may need to be told about it.
         try {
-            return mConnection.getCursorCapsMode(inputType, settingsValues.mSpacingAndPunctuations,
-                    SpaceState.PHANTOM == mSpaceState);
+            final int mode = mConnection.getCursorCapsMode(inputType,
+                    settingsValues.mSpacingAndPunctuations, SpaceState.PHANTOM == mSpaceState);
+            // kxkb: force-auto-caps — a newline must start a capital too, not just . ? !. Some
+            // editors hide the line break from the text they report to the IME (the Emacs Android
+            // port does this: neither our committed-text cache nor a fresh getTextBeforeCursor comes
+            // back with the trailing newline, so the cache lookup can't see the fresh line start and
+            // returns OFF). The reliable, editor-independent signal is that the last thing WE input
+            // was Enter — in that case capitalize regardless of what the editor reports.
+            if (mode == Constants.TextUtils.CAP_MODE_OFF && settingsValues.mForceAutoCaps
+                    && mLastInputCodePoint == Constants.CODE_ENTER) {
+                return TextUtils.CAP_MODE_SENTENCES & inputType;
+            }
+            return mode;
         } catch(StringIndexOutOfBoundsException ex) {
             BugViewerKt.throwIfDebug(ex);
             return Constants.TextUtils.CAP_MODE_OFF;
