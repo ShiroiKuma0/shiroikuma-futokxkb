@@ -167,6 +167,19 @@ object KeyboardEditorSession {
         dirty = true
     }
 
+    /**
+     * Set this layout's own topBar — the per-layout default-prediction / suggestion-bar candidate
+     * list shown when nothing is typed. A non-empty list OVERRIDES the global "Suggestion bar
+     * candidates"; an EMPTY list falls back to the global one at resolve time (resolveTopBarEntries
+     * keys on isNullOrEmpty), so clearing the editor box restores the global list. Pass already-
+     * trimmed entries (blank lines dropped) so an all-blank box becomes [] rather than [""].
+     */
+    fun setTopBar(entries: List<String>) {
+        val kb = working ?: return
+        working = kb.copy(topBar = entries)
+        dirty = true
+    }
+
     // ---- Phase 2: structural editing (page-aware: base rows or an alt page) ----
 
     private fun V2Keyboard.withRowsForPage(p: Int, newRows: List<Row>): V2Keyboard =

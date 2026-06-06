@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -57,6 +58,8 @@ import org.futo.inputmethod.latin.uix.settings.Route
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.findActivity
+import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
+import org.futo.inputmethod.engine.general.TopBarEntriesSetting
 import org.futo.inputmethod.v2keyboard.KeyWidth
 import org.futo.inputmethod.v2keyboard.emitKeyboardYaml
 
@@ -165,6 +168,9 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
     var customLayouts by remember { mutableStateOf(getCustomLayouts(context)) }
     val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
     var showApplyAsNew by remember { mutableStateOf(false) }
+    // The global "Suggestion bar candidates" list — used to pre-fill the per-layout box for in-place
+    // editing when this layout hasn't customized its own topBar (see the topBar section below).
+    val globalTopBarRaw = useDataStoreValue(TopBarEntriesSetting)
 
     // "Apply as a new layout": save the current working model under a new name/language as a NEW
     // custom layout (same path as "Create new layout"), then open that copy in the editor.
@@ -423,6 +429,46 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                     )
                 }
             }
+
+            // kxkb: per-layout "Suggestion bar candidates" — this layout's own topBar list, the
+            // static default-prediction candidates shown when nothing is typed. A non-empty list
+            // OVERRIDES the global list (Settings → Typing → "Suggestion bar candidates"); an empty
+            // list tracks the global list. Same entry syntax as the global editor (TopBarEditor).
+            //
+            // To edit in place, the box is PRE-FILLED with the effective list: this layout's own
+            // entries if it has them, otherwise the global list. Pre-filling is display-only — the
+            // model's topBar is written (forking from global) ONLY when the user actually edits the
+            // box (onValueChange), so an untouched layout keeps tracking the global list. Clearing
+            // the box stores [] and tracks the global list again.
+            val customizesTopBar = working.topBar.isNotEmpty()
+            Spacer(Modifier.height(12.dp))
+            Text("Suggestion bar candidates (this layout)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 4.dp))
+            Text(
+                (if (customizesTopBar) "Customized for this layout (overrides the global list).\n"
+                 else "Pre-filled from the global list — edit to customize just this layout.\n") +
+                "Shown when nothing is typed — one entry per line:\n" +
+                "•  plain text / emoji — inserted as-is\n" +
+                "•  A…B (contains …) — inserts \"AB\" with the caret between\n" +
+                "•  [Paste] — pastes the clipboard\n" +
+                "•  {{<pattern> — current date/time  ({{yyyy-MM-dd → today)\n\n" +
+                "Clear the box to track the global list again.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp, 2.dp)
+            )
+            var topBarText by remember(sourceIdx) {
+                mutableStateOf(if (working.topBar.isNotEmpty()) working.topBar.joinToString("\n") else globalTopBarRaw)
+            }
+            OutlinedTextField(
+                value = topBarText,
+                onValueChange = {
+                    topBarText = it
+                    // Drop blank lines so an all-blank box stores [] (→ global fallback), not [""].
+                    KeyboardEditorSession.setTopBar(it.split("\n").filter { line -> line.isNotBlank() })
+                },
+                label = { Text("One entry per line — clear to track the global list") },
+                modifier = Modifier.fillMaxWidth().padding(16.dp, 4.dp).heightIn(min = 160.dp)
+            )
 
             Spacer(Modifier.height(32.dp))
         }
