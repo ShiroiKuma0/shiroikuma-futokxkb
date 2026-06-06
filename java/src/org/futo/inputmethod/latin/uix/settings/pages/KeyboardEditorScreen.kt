@@ -470,6 +470,16 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
                 modifier = Modifier.fillMaxWidth().padding(16.dp, 4.dp).heightIn(min = 160.dp)
             )
 
+            // kxkb: a third "Close Keyboard editor" button at the very bottom, reachable once you've
+            // scrolled all the way down past the candidates editor (mirrors the top + above-preview
+            // ones).
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { context.findActivity()?.finish() },
+                modifier = Modifier.fillMaxWidth().padding(16.dp, 4.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+            ) { Text("Close Keyboard editor") }
+
             Spacer(Modifier.height(32.dp))
         }
     }
