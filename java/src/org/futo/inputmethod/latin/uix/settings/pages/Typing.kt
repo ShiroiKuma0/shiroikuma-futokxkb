@@ -567,6 +567,14 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                 navigate = { navController.navigate("keyboardeditor") }
             )
 
+            // kxkb: font (family / size / weight / colour) of the layout-name labels shown in the
+            // Keyboard editor.
+            NavigationItem(
+                title = "Keyboard editor font",
+                style = NavigationItemStyle.Misc,
+                navigate = { navController.navigate("keyboardeditorfont") }
+            )
+
             Text(
                 stringResource(R.string.kxkb_sizing_geometry_note),
                 style = Typography.SmallMl,

@@ -34,7 +34,7 @@ import org.futo.inputmethod.latin.uix.settings.ScrollableList
 fun AltPagePreviewScreen(navController: NavHostController = rememberNavController(), srcIdx: Int, page: Int) {
     val context = LocalContext.current
     val cl = remember(srcIdx) { getCustomLayouts(context).getOrNull(srcIdx) }
-    val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+    val mono = editorLabelStyle()
 
     var preview by remember { mutableStateOf<Keyboard?>(null) }
     var widthPx by remember { mutableStateOf(0) }

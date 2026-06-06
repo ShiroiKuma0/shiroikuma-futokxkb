@@ -40,6 +40,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.DevThemeImportScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DeveloperScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KeyboardEditorScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KeyboardEditorExportScreen
+import org.futo.inputmethod.latin.uix.settings.pages.KeyboardEditorFontScreen
 import org.futo.inputmethod.latin.uix.settings.pages.KeyEditScreen
 import org.futo.inputmethod.latin.uix.settings.pages.AltPagePreviewScreen
 import org.futo.inputmethod.latin.uix.settings.pages.HelpMenu
@@ -193,6 +194,7 @@ fun SettingsNavigator(
             composable("devlayouteditor") { DevLayoutEditor(navController) }
             composable("keyboardeditor") { KeyboardEditorScreen(navController) }
             composable("keyboardeditorexport") { KeyboardEditorExportScreen(navController) }
+            composable("keyboardeditorfont") { KeyboardEditorFontScreen(navController) }
             composable("devtheme") { DevThemeImportScreen(navController) }
             composable("devkeyboard") { DevKeyboardScreen(navController) }
             composable("blacklist") { BlacklistScreen(navController) }
