@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,7 @@ import org.futo.inputmethod.keyboard.Keyboard
 import org.futo.inputmethod.keyboard.KeyboardView
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.Subtypes
+import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
@@ -171,6 +173,23 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
     // The global "Suggestion bar candidates" list — used to pre-fill the per-layout box for in-place
     // editing when this layout hasn't customized its own topBar (see the topBar section below).
     val globalTopBarRaw = useDataStoreValue(TopBarEntriesSetting)
+
+    // kxkb: on a FRESH entry into the editor (a new nav back-stack entry — NOT a pop-back from a
+    // key-edit / export sub-screen, where rememberSaveable restores the flag as true), preselect the
+    // layout currently ACTIVE in the keyboard (the one we entered from), instead of whatever was last
+    // edited. Only switches when the active layout is a custom layout that exists and isn't already
+    // selected, so it never clobbers an in-progress edit (pop-back, or same layout already loaded).
+    var didPreselect by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!didPreselect) {
+            didPreselect = true
+            val activeName = SubtypeLocaleUtils.getKeyboardLayoutSetName(Subtypes.getActiveSubtype(context))
+            val activeIdx = if (activeName.startsWith("custom")) activeName.removePrefix("custom").toIntOrNull() else null
+            if (activeIdx != null && activeIdx in customLayouts.indices && activeIdx != KeyboardEditorSession.sourceIdx) {
+                KeyboardEditorSession.load(activeIdx, customLayouts[activeIdx])
+            }
+        }
+    }
 
     // "Apply as a new layout": save the current working model under a new name/language as a NEW
     // custom layout (same path as "Create new layout"), then open that copy in the editor.
