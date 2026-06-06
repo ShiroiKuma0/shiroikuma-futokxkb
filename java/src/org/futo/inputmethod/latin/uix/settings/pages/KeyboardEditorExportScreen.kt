@@ -38,7 +38,7 @@ fun KeyboardEditorExportScreen(navController: NavHostController = rememberNavCon
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val working = KeyboardEditorSession.working
-    val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+    val mono = editorLabelStyle()
 
     val yaml = remember(working) { if (working != null) emitKeyboardYaml(working) else "" }
     val suggestedName = remember(working) {

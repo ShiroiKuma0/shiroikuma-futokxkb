@@ -65,8 +65,7 @@ import kotlin.math.roundToInt
 // kxkb: visual layout editor — per-key edit sub-screen. Reads the key at an EditPath from
 // KeyboardEditorSession, edits its fields/attributes/type, and writes back. Nested keys (case
 // branches, compass primary, KeySlot directions) navigate to deeper KeyEdit screens. Phase 1.
-
-private val mono = TextStyle(fontFamily = FontFamily.Monospace)
+// kxkb: label text uses the configurable editor label style (editorLabelStyle, EditorLabelFont.kt).
 
 // ---- small form widgets ----
 
@@ -79,7 +78,7 @@ private fun EditTextRow(label: String, initial: String, seedKey: String, singleL
             value = v,
             onValueChange = { v = it; onChange(it) },
             modifier = Modifier.fillMaxWidth(),
-            textStyle = mono,
+            textStyle = editorLabelStyle(),
             singleLine = singleLine
         )
     }
@@ -92,11 +91,11 @@ private fun <T> PickerRow(label: String, options: List<T>, selected: T, render: 
         Text(label, style = MaterialTheme.typography.labelMedium)
         Box {
             OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(render(selected), style = mono)
+                Text(render(selected), style = editorLabelStyle())
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 options.forEach { opt ->
-                    DropdownMenuItem(text = { Text(render(opt), style = mono) }, onClick = { onSelect(opt); expanded = false })
+                    DropdownMenuItem(text = { Text(render(opt), style = editorLabelStyle()) }, onClick = { onSelect(opt); expanded = false })
                 }
             }
         }
@@ -276,7 +275,7 @@ private fun ChildKeyRow(label: String, child: AbstractKey?, onEdit: () -> Unit, 
     Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(keySummary(child), style = mono, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(keySummary(child), style = editorLabelStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (child != null) {
             OutlinedButton(onClick = onEdit) { Text("Edit") }
@@ -298,7 +297,7 @@ private fun DirectionRow(
     Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
         Column(Modifier.weight(1f)) {
             Text(dir, style = MaterialTheme.typography.labelMedium)
-            Text(slotSummary(slot), style = mono, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(slotSummary(slot), style = editorLabelStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         when (slot) {
             is KeySlot -> {
@@ -354,7 +353,7 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
 
         val pageLabel = if (path.page < 0) "base" else "alt${path.page}"
         val breadcrumb = "$pageLabel · row ${path.row}, col ${path.col}" + path.fields.joinToString("") { " › $it" }
-        Text(breadcrumb, style = mono, modifier = Modifier.padding(16.dp, 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(breadcrumb, style = editorLabelStyle(), modifier = Modifier.padding(16.dp, 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         PickerRow("Type", TYPE_OPTIONS, keyTypeName(key), { it }) { t ->
             if (t != keyTypeName(key)) put(convertTo(t, key))

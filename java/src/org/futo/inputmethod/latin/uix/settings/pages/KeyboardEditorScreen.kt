@@ -168,7 +168,7 @@ private fun applyLayout(context: Context, idx: Int) {
 fun KeyboardEditorScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
     var customLayouts by remember { mutableStateOf(getCustomLayouts(context)) }
-    val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+    val mono = editorLabelStyle()
     var showApplyAsNew by remember { mutableStateOf(false) }
     // The global "Suggestion bar candidates" list — used to pre-fill the per-layout box for in-place
     // editing when this layout hasn't customized its own topBar (see the topBar section below).
