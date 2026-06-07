@@ -15,6 +15,8 @@ theming, an instant layout switcher, and deep terminal / Emacs support.
 
 Installs **side-by-side** with the official FUTO Keyboard. *(不倒 — “indomitable - does not fall!”.)*
 
+**📥 Latest release: [`0.1.29+10`](https://github.com/ShiroiKuma0/shiroikuma-futokxkb/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-futokxkb/releases)
+
 </div>
 
 <!--
