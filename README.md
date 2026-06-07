@@ -18,14 +18,12 @@ Installs **side-by-side** with the official FUTO Keyboard. *(不倒 — “indom
 </div>
 
 <!--
-  README VIDEOS — playback on GitHub
-  ----------------------------------
-  The <video> tags below stream the clips committed under videos/ via their raw URLs, which
-  GitHub plays inline on the rendered README. If a clip ever fails to load inline, the most
-  reliable fallback is to open this file in GitHub's web editor, delete the <video> line, then
-  drag-and-drop the .mp4 from videos/ into the editor — GitHub uploads it and inserts an
-  official attachment URL that always plays. (Note: GitHub rejects any single file over 100 MB
-  on push, so keep the clips compressed.)
+  README VIDEOS
+  -------------
+  Each clip below is a GitHub user-attachment URL (uploaded via the web UI), which GitHub
+  renders as an inline player when the URL sits alone on its own line. The source .mp4 files
+  also live under videos/ for provenance. To replace a clip, drag a new .mp4 into any GitHub
+  comment/editor box to mint a fresh attachment URL and swap it in here.
 -->
 
 ---
@@ -37,7 +35,7 @@ duplicate or delete keys and whole rows; edit the symbol and AltGr pages; tune p
 size and spacing. A **real-size preview updates as you type**, and you can apply your changes
 live or export the layout as YAML.
 
-<video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_201147_1.mp4" controls muted width="360"></video>
+https://github.com/user-attachments/assets/e21ddcb4-f107-4d06-afc7-8c030a772cb6
 
 ---
 
@@ -50,7 +48,7 @@ Far more than one letter per button:
 - **Modifier-chord keys** fire Emacs-style `Ctrl-`, `Meta-` and `Shift-` combinations straight
   from the keyboard — ideal for a real shell or editor on your phone.
 
-<video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_195916_1.mp4" controls muted width="360"></video>
+https://github.com/user-attachments/assets/9a5c369d-3191-4e6a-a6a1-a775e7a2c5f4
 
 ---
 
@@ -61,7 +59,7 @@ dictionary trie-walk with accent-folding makes prediction and autocorrect work e
 languages that have **no neural model and lots of diacritics** (Czech, Russian, …) — and it
 keeps working in terminal fields where keyboards normally go silent.
 
-<video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_200100_1.mp4" controls muted width="360"></video>
+https://github.com/user-attachments/assets/f1f6183c-c0d7-4982-829d-cdfeeb6335cd
 
 ---
 
@@ -71,7 +69,7 @@ keeps working in terminal fields where keyboards normally go silent.
 off the bottom edge, width, key gaps, cluster spacing and key roundedness, and watch the
 keyboard change **underneath your finger** in real time.
 
-<video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_200300_1.mp4" controls muted width="360"></video>
+https://github.com/user-attachments/assets/16af32a8-0897-40b8-bbf6-d28461c231ff
 
 ---
 
@@ -81,7 +79,7 @@ Recolour the **keyboard, keys, suggestion bar and fonts**, set the caps-lock ind
 adjust roundedness and transparency — all with a **live preview**, all saved per language and
 layout.
 
-<video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_200616_1.mp4" controls muted width="360"></video>
+https://github.com/user-attachments/assets/e575144c-fa38-463a-adc4-f59f778d2993
 
 ---
 
@@ -90,16 +88,13 @@ layout.
 Swipe the spacebar for an **instant menu**: jump between languages and your own custom layouts,
 or open the editor, resize, special keys and full settings — without digging through menus.
 
-<table>
-<tr>
-<td align="center"><b>Quick switcher</b></td>
-<td align="center"><b>Your custom layouts</b></td>
-</tr>
-<tr>
-<td><video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_200010_1.mp4" controls muted width="360"></video></td>
-<td><video src="https://raw.githubusercontent.com/ShiroiKuma0/shiroikuma-futokxkb/custom/videos/SVID_20260607_200954_1.mp4" controls muted width="360"></video></td>
-</tr>
-</table>
+**Quick switcher**
+
+https://github.com/user-attachments/assets/56dd0fb9-adc3-43dd-8bbe-842c34a2e8bf
+
+**Your custom layouts**
+
+https://github.com/user-attachments/assets/d39887ea-1280-46c1-acc2-f9c79c1bc332
 
 ---
 
