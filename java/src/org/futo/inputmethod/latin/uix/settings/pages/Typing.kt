@@ -157,6 +157,7 @@ import org.futo.inputmethod.v2keyboard.SavedKeyboardSizingSettings
 import org.futo.inputmethod.v2keyboard.getDefaultSettingForKind
 import org.futo.inputmethod.v2keyboard.perComboSizingKey
 import org.futo.inputmethod.latin.ActiveSubtype
+import org.futo.inputmethod.latin.PerAppLayoutEnabled
 import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
 import kotlin.math.absoluteValue
@@ -1531,6 +1532,22 @@ val KeyboardSettingsMenu = UserSettingsMenu(
         userSettingToggleDataStore(
             title = R.string.keyboard_settings_hide_when_hardware_keyboard_is_connected,
             setting = HideKeyboardWhenHardKeyboardConnected
+        ),
+        // kxkb: per-app layout memory — remember & auto-restore the layout last used in each app.
+        userSettingToggleDataStore(
+            title = R.string.keyboard_settings_per_app_layout,
+            subtitle = R.string.keyboard_settings_per_app_layout_subtitle,
+            setting = PerAppLayoutEnabled,
+            icon = {
+                Icon(painterResource(id = R.drawable.keyboard_gear), contentDescription = null)
+            }
+        ),
+        userSettingNavigationItem(
+            title = R.string.keyboard_settings_per_app_layout_forget,
+            subtitle = R.string.keyboard_settings_per_app_layout_forget_subtitle,
+            style = NavigationItemStyle.Misc,
+            icon = R.drawable.close,
+            navigate = { nav -> Subtypes.clearAppLayouts(nav.context) }
         )
     )
 )

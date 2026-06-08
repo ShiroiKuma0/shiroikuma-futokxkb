@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import org.futo.inputmethod.latin.common.Constants
@@ -91,6 +92,23 @@ val MultilingualBucketSetting = SettingsKey(
 // "last-used layout per language" and recency ordering.
 val LayoutRecency = SettingsKey(
     stringPreferencesKey("kxkb_layout_recency"),
+    ""
+)
+
+// kxkb: per-app layout memory. When on, focusing a text field in an app restores the (language·layout)
+// subtype last used in that app, and any layout switch made while an app is focused (re)binds that app
+// to the now-active layout (last-used-wins). On by default — it can be turned off in Keyboard settings.
+// See Subtypes.getAppLayout / recordAppLayout and LatinIME.maybeApplyPerAppLayout.
+val PerAppLayoutEnabled = SettingsKey(
+    booleanPreferencesKey("kxkb_per_app_layout_enabled"),
+    true
+)
+
+// kxkb: the package -> subtype-string bindings backing PerAppLayoutEnabled, encoded one per line as
+// "package<TAB>subtype" (package names contain no tab/newline; subtype strings contain no newline —
+// same guarantee LayoutRecency relies on).
+val PerAppLayoutMap = SettingsKey(
+    stringPreferencesKey("kxkb_per_app_layout_map"),
     ""
 )
 
@@ -393,6 +411,42 @@ object Subtypes {
     // LatinIME, which performs the actual keyboard switch (and records recency).
     fun switchToSubtypeString(context: Context, subtypeString: String) {
         context.setSettingBlocking(ActiveSubtype.key, subtypeString)
+    }
+
+    // kxkb: per-app layout memory (see PerAppLayoutEnabled / PerAppLayoutMap) -----------------------
+    private fun decodeAppLayoutMap(raw: String): LinkedHashMap<String, String> {
+        val map = LinkedHashMap<String, String>()
+        raw.split("\n").forEach { line ->
+            val tab = line.indexOf('\t')
+            if (tab > 0 && tab < line.length - 1) {
+                map[line.substring(0, tab)] = line.substring(tab + 1)
+            }
+        }
+        return map
+    }
+
+    private fun encodeAppLayoutMap(map: Map<String, String>): String =
+        map.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+
+    // Blocking read of the subtype bound to an app package (null if none). Called on the input thread
+    // from LatinIME.onStartInput, so it must not suspend.
+    fun getAppLayout(context: Context, packageName: String): String? =
+        decodeAppLayoutMap(context.getSettingBlocking(PerAppLayoutMap))[packageName]
+            ?.takeIf { it.isNotEmpty() }
+
+    // Bind (or rebind) an app package to a subtype (last-used-wins). Suspend so it can be called from
+    // the ActiveSubtype observer coroutine without runBlocking nesting. No-op when unchanged.
+    suspend fun recordAppLayout(context: Context, packageName: String, subtypeString: String) {
+        if (packageName.isEmpty() || subtypeString.isEmpty()) return
+        val map = decodeAppLayoutMap(context.getSetting(PerAppLayoutMap))
+        if (map[packageName] == subtypeString) return
+        map[packageName] = subtypeString
+        context.setSetting(PerAppLayoutMap.key, encodeAppLayoutMap(map))
+    }
+
+    // Forget every per-app binding.
+    fun clearAppLayouts(context: Context) {
+        context.setSettingBlocking(PerAppLayoutMap.key, "")
     }
 
     // kxkb: cycle to the NEXT enabled layout sharing the active subtype's language (in enabled order,

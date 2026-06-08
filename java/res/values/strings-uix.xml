@@ -541,6 +541,11 @@
     <string name="keyboard_settings_period_key">Quick period key</string>
     <string name="keyboard_settings_period_key_subtitle2">Replaces the layout of long-pressed period key with a flickable layout: ! , . ?</string>
 
+    <string name="keyboard_settings_per_app_layout">Remember layout per app</string>
+    <string name="keyboard_settings_per_app_layout_subtitle">Each app reopens with the layout you last used in it. Switching layouts while an app is focused rebinds that app.</string>
+    <string name="keyboard_settings_per_app_layout_forget">Forget remembered layouts</string>
+    <string name="keyboard_settings_per_app_layout_forget_subtitle">Clear all saved per-app layout bindings</string>
+
     <string name="keyboard_settings_number_row_title">Number row</string>
     <string name="keyboard_settings_number_row_style">Number row style</string>
     <!-- Slightly more compact than a full key, has no background -->

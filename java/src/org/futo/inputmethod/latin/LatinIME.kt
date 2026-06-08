@@ -595,6 +595,15 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
                     // kxkb: record the switch for the swipe-space layout switcher's recency ordering.
                     Subtypes.pushLayoutRecency(this@LatinIME, activeSubtype)
 
+                    // kxkb: per-app layout memory — bind the focused app to the now-active layout
+                    // (last-used-wins). currentInputPackage is null unless an app's field is focused, so
+                    // programmatic switches with nothing focused, and switches in our own UI, are skipped.
+                    currentInputPackage?.let { pkg ->
+                        if (getSetting(PerAppLayoutEnabled)) {
+                            Subtypes.recordAppLayout(this@LatinIME, pkg, activeSubtype)
+                        }
+                    }
+
                     withContext(Dispatchers.Main) {
                         val subtype = Subtypes.convertToSubtype(activeSubtype)
                         changeInputMethodSubtype(subtype)
@@ -802,8 +811,38 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         return latinIMELegacy.setCandidatesView(view)
     }
 
+    // kxkb: per-app layout memory. The package of the field currently being edited, captured on every
+    // onStartInput and cleared on onFinishInput, so the ActiveSubtype observer knows which app to bind a
+    // layout switch to. @Volatile because it's written on the main thread but read from the observer
+    // coroutine. Null when no field is focused, or when the focused field belongs to our own app (so the
+    // settings UI / layout editor never records a binding).
+    @Volatile private var currentInputPackage: String? = null
+
+    // kxkb: on entering a field, restore the layout last used in its app — if the feature is on, a
+    // binding exists, that subtype is still enabled, and it differs from the active one. Writing
+    // ActiveSubtype is picked up by the observer in onCreate, which performs the live keyboard switch
+    // (the same path as a manual switch), so there is no separate switch call here.
+    private fun maybeApplyPerAppLayout(attribute: EditorInfo?) {
+        val pkg = attribute?.packageName
+        currentInputPackage = if (pkg.isNullOrEmpty() || pkg == packageName) null else pkg
+
+        val app = currentInputPackage ?: return
+        if (!getSettingBlocking(PerAppLayoutEnabled)) return
+
+        val remembered = Subtypes.getAppLayout(this, app) ?: return
+        if (remembered !in getSettingBlocking(SubtypesSetting)) return
+        if (remembered == Subtypes.getActiveSubtypeString(this)) return
+
+        // Write ActiveSubtype OFF the main thread — the observer in onCreate performs the live switch.
+        // A blocking write here (switchToSubtypeString -> setSettingBlocking -> runBlocking) stalls the
+        // IME's main thread during cold start, now that the feature is on from the very first
+        // onStartInput; the reads above are cheap in-memory cache lookups, only the write must not block.
+        lifecycleScope.launch { setSetting(ActiveSubtype.key, remembered) }
+    }
+
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        maybeApplyPerAppLayout(attribute) // kxkb: per-app layout memory — restore before the keyboard builds
         latinIMELegacy.onStartInput(attribute, restarting)
         uixManager.inputStarted(attribute)
         //imeManager.onStartInput() // TODO: Is this call needed or not?
@@ -829,6 +868,10 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         super.onFinishInput()
         latinIMELegacy.onFinishInput()
         uixManager.onInputFinishing()
+        // kxkb: per-app layout memory — forget the focused app once input ends, so a layout switch made
+        // later (e.g. via our own settings/editor, where no app field is focused) is not mis-recorded
+        // against the app we were last typing in.
+        currentInputPackage = null
     }
 
     private fun changeInputMethodSubtype(newSubtype: InputMethodSubtype?) {
