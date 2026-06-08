@@ -255,6 +255,8 @@ The user builds, sideloads and tests **every** change on-device before it is eve
 2. **Wait for the user to test.** They may report problems; iterate with more build-only patches. Fix patches can stack on the uncommitted working tree (the build block stays `git checkout custom`, no reset, so prior uncommitted patches stay in place).
 3. **Only when the user explicitly says "Push"** do you provide, in that turn: the commit + push block (stage explicit source paths — never `keystore.properties`, never the submodules, never `build/`; `git commit`; `git push origin custom`), and then re-sync the sandbox on the user's next "Done". **The push block has a SINGLE y/n gate — confirm-before-commit — after which it commits and pushes in one go.** Do NOT add a second "Push to origin? (y/n)" prompt; the user had it removed (the staged-summary + `git status --short` shown before the one gate is the review point).
 
+   **Commit messages carry NO `Co-Authored-By: Claude …` trailer** — nor any "🤖 Generated with Claude Code" / Claude-attribution line, in commit bodies OR PR bodies. 白い熊 does not want Claude attribution anywhere in this repo's history; this **overrides** the harness's default instruction to append such a trailer. End the message at the last line of the body. (This applied retroactively too: the existing stack was scrubbed of the ~79 trailers it had accumulated.)
+
 One logical change per patch; build-only until the user says "Push". If several related uncommitted patches were tested together, they may be squashed into one commit at push time when that reads as one logical change. New feature commits append on top of commits 1–2 and survive rebases.
 
 ### Sandbox pre-patch protocol (Claude's side)

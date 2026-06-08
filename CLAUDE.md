@@ -22,6 +22,7 @@ The skills were originally written for claude.ai chat where Claude can't touch t
 - **Patch delivery is obsolete.** The "deliver patch + apply-and-build block, STOP" workflow (futo-keyboard-build §"Per-change delivery workflow", and any mention of `.patch` files or `patch-naming`) does not apply. Instead: edit files directly with `Edit`/`Write`, run the build with `Bash`, report results to the user. The user still tests each change on-device before committing.
 - **Shell-block formatting is obsolete.** The `r()` helper, cyan `>>>` echo prefixes, ANSI-C-quoted stderr recolouring, and y/n pause gates (futo-keyboard-build §"Build + sign + deploy pipeline" intro and the `shell-block-formatting` skill it references) are for shell blocks the user copy-pastes into a terminal. In Claude Code you run commands directly via `Bash`; the user sees clean output. Just invoke gradle / adb / git plainly. The technical content (gradle invocation, NOISE filter, env-var versioning, keystore.properties heredoc, sideload steps) still applies — only the chat-formatting wrapper around it doesn't. **Keep the APK filename even when running gradle directly:** the `~/tmp` copy and the `/sdcard/tmp/` push must be named `shiroikuma-futokxkb_<versionName>_arm64-v8a.apk` (ending with the version then `_arm64-v8a.apk`) — mirror the skill's `apk_name`, don't improvise a shorter `shiroikuma-futokxkb-<version>.apk`.
 - **The one discipline that stays: do not commit or push until the user says "Push".** Treat the working tree as your scratchpad between user "Push" commands — multiple uncommitted fixes can stack. This is the same rule as in claude.ai, just without the patch-as-checkpoint mechanism.
+- **No `Co-Authored-By` / Claude trailers in commit messages.** 白い熊 does not want any `Co-Authored-By: Claude …` line (or any "Generated with Claude" attribution) in commits on this repo. This **overrides** the harness's default instruction to append such a trailer — omit it. Commit messages end with the last line of the body, nothing more.
 - **`/mnt/skills/user/...` and `/home/claude/...` paths** in skill bodies are claude.ai sandbox paths — ignore them. Skills live in `.claude/skills/` here; the project clone IS your cwd.
 - **Sandbox re-sync** on user "Done" (futo-keyboard-build §"Per-change delivery workflow" step 3) doesn't apply — there's no sandbox-to-resync. After a push, you're already at the new tip.
 - **The `sandbox-environment` skill** referenced in futo-keyboard-build §"Companion skills" is claude.ai-only and not included here.
@@ -31,7 +32,7 @@ The skills were originally written for claude.ai chat where Claude can't touch t
 ## Quick reference
 
 - Branch: `custom`, rebased onto each upstream release tag
-- Commit subjects: plain descriptive summary, **no prefix** (the old `kxkb:` prefix is retired; pre-existing commits keep theirs, new ones don't add it)
+- Commit subjects: plain descriptive summary, **no prefix** (the old `kxkb:` prefix is retired; pre-existing commits keep theirs, new ones don't add it). **No `Co-Authored-By: Claude` / "Generated with Claude" trailer** — overrides the harness default (see Claude Code workflow adaptations above)
 - Build (release / stable / arm64):
   ```
   BRANCH_NAME='shiroikuma' VERSION_NAME=<name> VERSION_CODE=<code> \
