@@ -84,6 +84,15 @@ val UseExpandableSuggestionsForGeneralIME = SettingsKey(
     true // kxkb: default on — the expandable candidates panel (Multiling-style) for all languages
 )
 
+// kxkb: when on, pressing the spacebar in the idle / next-word state (nothing being composed) commits
+// the first next-word prediction instead of typing a space — the next-word analogue of how space
+// commits the top correction candidate while composing. Lets you chain through predicted words with
+// repeated space presses (Multiling-style). Default on.
+val SpaceCommitsNextWordPrediction = SettingsKey(
+    booleanPreferencesKey("kxkb_space_commits_next_word"),
+    true
+)
+
 /**
  * General IME implementation that works for Latin-based languages and some
  * more: Cyrillic, Hangul (with combiner), etc.
@@ -323,12 +332,24 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         val inputTransaction = when (event.eventType) {
             Event.EVENT_TYPE_INPUT_KEYPRESS,
             Event.EVENT_TYPE_INPUT_KEYPRESS_RESUMED -> {
-                inputLogic.onCodeInput(
-                    settings.current,
-                    event,
-                    helper.keyboardShiftMode,
-                    helper.currentKeyboardScriptId
-                )
+                // kxkb: space commits the first next-word prediction (when one is showing) instead of
+                // typing a space — same as tapping it. Falls through to normal space otherwise.
+                val nextWordPick = nextWordPickForSpace(event)
+                if (nextWordPick != null) {
+                    inputLogic.onPickSuggestionManually(
+                        settings.current,
+                        nextWordPick,
+                        helper.keyboardShiftMode,
+                        helper.currentKeyboardScriptId
+                    )
+                } else {
+                    inputLogic.onCodeInput(
+                        settings.current,
+                        event,
+                        helper.keyboardShiftMode,
+                        helper.currentKeyboardScriptId
+                    )
+                }
             }
 
             Event.EVENT_TYPE_SOFTWARE_GENERATED_STRING -> {
@@ -836,6 +857,24 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             ic.commitText(text, 1)
         }
         ic.endBatchEdit()
+    }
+
+    // kxkb: spacebar → commit first next-word prediction. Returns the prediction to pick when the bar
+    // is showing a real next-word prediction as its first candidate in the idle/next-word state, or
+    // null to let space behave normally — setting off, currently composing, no suggestions, or the
+    // first candidate is a static topBar default (matched by identity as in handleTopBarPick) rather
+    // than a prediction. This is the next-word analogue of autocorrect-on-space while composing; the
+    // pick goes through onPickSuggestionManually so it behaves exactly like tapping the candidate.
+    private fun nextWordPickForSpace(event: Event): SuggestedWordInfo? {
+        if (event.mCodePoint != Constants.CODE_SPACE || event.isFunctionalKeyEvent) return null
+        if (inputLogic.mWordComposer.isComposingWord) return null
+        if (!helper.context.getSetting(SpaceCommitsNextWordPrediction)) return null
+        val sw = inputLogic.mSuggestedWords ?: return null
+        if (sw.isEmpty) return null
+        val first = sw.getInfo(0) ?: return null
+        if (topBarInfos.any { it === first }) return null
+        if (first.mWord.isNullOrEmpty()) return null
+        return first
     }
 
     // kxkb: when NOT composing a word (idle / next-word state), show the next-word predictions (if
