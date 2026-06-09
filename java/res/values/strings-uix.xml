@@ -534,8 +534,8 @@
     <string name="keyboard_settings_show_suggestion_row_subtitle">Show the bar containing suggestions. Recommended to keep enabled</string>
     <string name="keyboard_settings_expandable_suggestions">Expandable suggestions panel</string>
     <string name="keyboard_settings_expandable_suggestions_subtitle">Scroll the suggestion bar for more candidates, or tap ▲ to expand all of them over the keyboard. Useful on cluster layouts when the word you want isn\'t in the first few.</string>
-    <string name="keyboard_settings_space_commits_next_word">Space accepts next-word prediction</string>
-    <string name="keyboard_settings_space_commits_next_word_subtitle">After a word, pressing space inserts the first next-word prediction (the same way space accepts the top correction while typing). Tap a letter instead to ignore the prediction.</string>
+    <string name="keyboard_settings_space_commits_next_word">Space / Tab candidate selection</string>
+    <string name="keyboard_settings_space_commits_next_word_subtitle">When candidates are showing, space inserts the highlighted candidate and Tab moves the highlight to the next one — so space, Tab+space, Tab+Tab+space pick the 1st, 2nd, 3rd. Type a letter to ignore. When off, or when no candidate is showing (e.g. GNU layout), space and Tab behave normally.</string>
     <string name="keyboard_settings_topbar_editor">Suggestion bar candidates</string>
     <string name="keyboard_settings_topbar_editor_subtitle">Edit the entries shown when nothing is typed — emoji, snippets, bracket pairs, paste, date/time</string>
     <string name="keyboard_settings_inline_autofill">Inline autofill</string>

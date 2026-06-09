@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ButtonDefaults
@@ -1092,8 +1093,10 @@ class ExampleListener : SuggestionStripViewListener {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CandidateItem(modifier: Modifier, it: SuggestedWordInfo, listener: SuggestionStripViewListener, width: Dp, last: Boolean = false) {
+private fun CandidateItem(modifier: Modifier, it: SuggestedWordInfo, listener: SuggestionStripViewListener, width: Dp, last: Boolean = false, isHighlighted: Boolean = false) {
     val word = it.mWord
+    // kxkb: the space/Tab-selected candidate gets a rounded accent box so it's clear which one space commits.
+    val highlightColor = LocalKeyboardScheme.current.primary.copy(alpha = 0.28f)
     val description = it.mCandidateDescription
     val color = LocalKeyboardScheme.current.extended.suggestionTextColorOverride ?: LocalKeyboardScheme.current.onSurface
     val textStyle =
@@ -1122,6 +1125,7 @@ private fun CandidateItem(modifier: Modifier, it: SuggestedWordInfo, listener: S
             modifier = Modifier
                 .fillMaxHeight()
                 //.widthIn(min = width ?: 48.dp, max = width ?: Dp.Unspecified)
+                .then(if (isHighlighted) Modifier.padding(vertical = 5.dp).background(highlightColor, RoundedCornerShape(8.dp)) else Modifier)
                 .testTag("SuggestionItem"),
         ) {
             CompositionLocalProvider(LocalContentColor provides color) {
@@ -1233,6 +1237,7 @@ private fun RowScope.InlineCandidates(
     wordList: List<SuggestedWordInfo>,
     widths: CachedCharacterWidthValues,
     extraSpaceForFirstItem: Boolean,
+    highlightedInfo: SuggestedWordInfo? = null,
 ) {
     val view = LocalView.current
     val expandHeight = with(LocalDensity.current) { 120.dp.toPx().coerceAtMost(keyboardHeight / 2.0f) }
@@ -1285,7 +1290,8 @@ private fun RowScope.InlineCandidates(
                     last = i == wordList.size-1,
                     width = with(LocalDensity.current) {
                         measureWord(this, widths, it).toDp()
-                    }.coerceAtLeast(if(i == 0 && extraSpaceForFirstItem) 120.dp else 48.dp)
+                    }.coerceAtLeast(if(i == 0 && extraSpaceForFirstItem) 120.dp else 48.dp),
+                    isHighlighted = (highlightedInfo != null && it === highlightedInfo)
                 )
             }
         }
@@ -1323,6 +1329,20 @@ private fun measureWord(density: Density, widths: CachedCharacterWidthValues, wo
     return (wordWidth + with(density) { 10.dp.toPx() } + extraDescWidth).coerceAtLeast(minWidth).toInt()
 }
 
+// kxkb: the displayed candidate order the expandable bar renders — predictions/corrections with the
+// literal typed word filtered out and re-inserted as the 2nd entry (so it stays selectable). Pulled
+// out of ActionBarWithExpandableCandidates so GeneralIME's space/Tab candidate navigation can index
+// the SAME order the user sees on screen.
+fun displayCandidateList(words: SuggestedWords?): List<SuggestedWordInfo> {
+    val infos = words?.mSuggestedWordInfoList?.toList() ?: emptyList()
+    val nonTyped = infos.filterNot { it.isKindOf(KIND_TYPED) }.toMutableList()
+    val typed = infos.firstOrNull { it.isKindOf(KIND_TYPED) }
+    if (typed != null && !typed.mWord.isNullOrEmpty() && nonTyped.getOrNull(0)?.mWord != typed.mWord) {
+        nonTyped.add(minOf(1, nonTyped.size), typed)
+    }
+    return nonTyped
+}
+
 const val START_OF_CANDIDATES = 1 // The 0th element is the show/hide action bar button
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class,
@@ -1339,19 +1359,17 @@ fun BoxScope.ActionBarWithExpandableCandidates(
     keyboardHeight: Int = 1000,
     expandableSuggestionCfg: ExpandableSuggestionBarConfiguration,
 ) {
-    val wordList = remember(words) {
-        val infos = words?.mSuggestedWordInfoList?.toList() ?: emptyList()
-        val nonTyped = infos.filterNot { it.isKindOf(KIND_TYPED) }.toMutableList()
-        // kxkb: re-insert the literal typed word as the 2nd candidate (after the top prediction) so it
-        // stays selectable in the expandable bar. Essential on cluster layouts, where SPACE autocorrects
-        // to the top prediction but the literal may be the out-of-dictionary word the user actually
-        // wants; harmless elsewhere (only added when it differs from the top prediction). Candidate taps
-        // pick by identity (CandidateItem -> pickSuggestionManually(it)), so position never mis-targets.
-        val typed = infos.firstOrNull { it.isKindOf(KIND_TYPED) }
-        if (typed != null && !typed.mWord.isNullOrEmpty() && nonTyped.getOrNull(0)?.mWord != typed.mWord) {
-            nonTyped.add(minOf(1, nonTyped.size), typed)
-        }
-        nonTyped
+    // kxkb: the displayed candidate order (literal typed word re-inserted as the 2nd entry so it stays
+    // selectable — essential on cluster layouts where SPACE autocorrects to the top prediction but the
+    // literal may be the out-of-dictionary word wanted). Shared with GeneralIME via displayCandidateList
+    // so space/Tab navigation indexes this exact order. Candidate taps pick by identity, so position
+    // never mis-targets.
+    val wordList = remember(words) { displayCandidateList(words) }
+
+    // kxkb: the candidate the space/Tab navigation has selected (carried in mHighlightedCandidate as a
+    // wordList index by GeneralIME); matched by identity below so the marker survives any reordering.
+    val highlightedInfo = remember(words, wordList) {
+        words?.mHighlightedCandidate?.let { wordList.getOrNull(it) }
     }
 
     val suggestionsExpansion = remember { mutableFloatStateOf(0.0f) }
@@ -1418,7 +1436,7 @@ fun BoxScope.ActionBarWithExpandableCandidates(
                 listToRender ?: emptyList(),
                 itemMeasurer = { measureWord(density, widths, it) }
             ) { allocatedWidth, item, isLast ->
-                CandidateItem(Modifier.height(LocalActionBarHeight.current), item, listener = suggestionStripListener, width=with(density) { allocatedWidth.toDp()  }, last=isLast)
+                CandidateItem(Modifier.height(LocalActionBarHeight.current), item, listener = suggestionStripListener, width=with(density) { allocatedWidth.toDp()  }, last=isLast, isHighlighted = (highlightedInfo != null && item === highlightedInfo))
             }
         }
     }
@@ -1449,7 +1467,8 @@ fun BoxScope.ActionBarWithExpandableCandidates(
                         suggestionStripListener,
                         wordList,
                         widths,
-                        expandableSuggestionCfg.addExtraSpaceForFirstEntry
+                        expandableSuggestionCfg.addExtraSpaceForFirstEntry,
+                        highlightedInfo
                     )
                 }
 

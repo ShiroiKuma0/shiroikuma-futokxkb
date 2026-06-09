@@ -48,6 +48,7 @@ import org.futo.inputmethod.latin.inputlogic.InputLogic
 import org.futo.inputmethod.latin.settings.Settings
 import org.futo.inputmethod.latin.suggestions.SuggestionStripViewAccessor
 import org.futo.inputmethod.latin.uix.SettingsKey
+import org.futo.inputmethod.latin.uix.displayCandidateList
 import org.futo.inputmethod.latin.uix.actions.throwIfDebug
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.isDirectBootUnlocked
@@ -84,10 +85,14 @@ val UseExpandableSuggestionsForGeneralIME = SettingsKey(
     true // kxkb: default on — the expandable candidates panel (Multiling-style) for all languages
 )
 
-// kxkb: when on, pressing the spacebar in the idle / next-word state (nothing being composed) commits
-// the first next-word prediction instead of typing a space — the next-word analogue of how space
-// commits the top correction candidate while composing. Lets you chain through predicted words with
-// repeated space presses (Multiling-style). Default on.
+// kxkb: candidate navigation by space + Tab. When on, and the suggestion bar is showing real
+// candidates (predictions while composing, or next-word predictions when idle — NOT the static topBar
+// defaults), SPACE commits the currently-selected candidate (the first one by default — the same idea
+// as autocorrect-on-space) and TAB moves the selection to the next candidate. So space / Tab+space /
+// Tab+Tab+space commit the 1st / 2nd / 3rd. The selected candidate is marked in the bar. When no real
+// candidate is showing (e.g. GNU layout, or only the pinned topBar defaults), space and Tab behave
+// normally. Requires the expandable suggestion bar (the default), whose visual order the navigation
+// indexes. Default on. (Key name kept for back-compat with the original space-accept setting.)
 val SpaceCommitsNextWordPrediction = SettingsKey(
     booleanPreferencesKey("kxkb_space_commits_next_word"),
     true
@@ -332,18 +337,37 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         val inputTransaction = when (event.eventType) {
             Event.EVENT_TYPE_INPUT_KEYPRESS,
             Event.EVENT_TYPE_INPUT_KEYPRESS_RESUMED -> {
-                // kxkb: space commits the first next-word prediction (when one is showing) instead of
-                // typing a space — same as tapping it. Falls through to normal space otherwise.
-                val nextWordPick = nextWordPickForSpace(event)
-                if (nextWordPick != null) {
-                    inputLogic.onPickSuggestionManually(
-                        settings.current,
-                        nextWordPick,
-                        helper.keyboardShiftMode,
-                        helper.currentKeyboardScriptId
-                    )
-                } else {
-                    inputLogic.onCodeInput(
+                // kxkb: space + Tab candidate navigation (see SpaceCommitsNextWordPrediction). When real
+                // candidates are showing: TAB cycles the selection (consuming the Tab) and SPACE commits
+                // the selected candidate (like tapping it). Otherwise both fall through to normal input.
+                val cp = event.mCodePoint
+                val nav = !event.isFunctionalKeyEvent
+                        && (cp == Constants.CODE_SPACE || cp == Constants.CODE_TAB)
+                        && candidateNavEnabled()
+                val selectable = if (nav) selectableCandidates() else emptyList()
+                when {
+                    // TAB: move the selection to the next candidate (wraps). Only engages with ≥2
+                    // selectable candidates; with fewer (incl. none — GNU / no prediction) Tab passes
+                    // through as a real Tab.
+                    nav && cp == Constants.CODE_TAB && selectable.size >= 2 -> {
+                        selectedCandidate = (selectedCandidate + 1) % selectable.size
+                        renderSelectionHighlight()
+                        null
+                    }
+                    // SPACE: commit the selected candidate. While composing at the default selection (0)
+                    // we DON'T intercept, so the normal autocorrect-on-space path runs unchanged.
+                    nav && cp == Constants.CODE_SPACE && selectable.isNotEmpty()
+                            && !(inputLogic.mWordComposer.isComposingWord && selectedCandidate == 0) -> {
+                        val pick = selectable[selectedCandidate.coerceIn(0, selectable.size - 1)]
+                        selectedCandidate = 0
+                        inputLogic.onPickSuggestionManually(
+                            settings.current,
+                            pick,
+                            helper.keyboardShiftMode,
+                            helper.currentKeyboardScriptId
+                        )
+                    }
+                    else -> inputLogic.onCodeInput(
                         settings.current,
                         event,
                         helper.keyboardShiftMode,
@@ -859,22 +883,49 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         ic.endBatchEdit()
     }
 
-    // kxkb: spacebar → commit first next-word prediction. Returns the prediction to pick when the bar
-    // is showing a real next-word prediction as its first candidate in the idle/next-word state, or
-    // null to let space behave normally — setting off, currently composing, no suggestions, or the
-    // first candidate is a static topBar default (matched by identity as in handleTopBarPick) rather
-    // than a prediction. This is the next-word analogue of autocorrect-on-space while composing; the
-    // pick goes through onPickSuggestionManually so it behaves exactly like tapping the candidate.
-    private fun nextWordPickForSpace(event: Event): SuggestedWordInfo? {
-        if (event.mCodePoint != Constants.CODE_SPACE || event.isFunctionalKeyEvent) return null
-        if (inputLogic.mWordComposer.isComposingWord) return null
-        if (!helper.context.getSetting(SpaceCommitsNextWordPrediction)) return null
-        val sw = inputLogic.mSuggestedWords ?: return null
-        if (sw.isEmpty) return null
-        val first = sw.getInfo(0) ?: return null
-        if (topBarInfos.any { it === first }) return null
-        if (first.mWord.isNullOrEmpty()) return null
-        return first
+    // kxkb: space + Tab candidate navigation. The index (into selectableCandidates) of the candidate
+    // SPACE will commit; 0 = the first. TAB advances it; reset to 0 on every input-driven suggestion
+    // update so a new word/context starts from the first candidate again.
+    private var selectedCandidate = 0
+
+    // Gated on the expandable suggestion bar (default) because the navigation indexes that bar's visual
+    // candidate order (displayCandidateList); the 3-slot bar uses a different arrangement.
+    private fun candidateNavEnabled(): Boolean =
+        helper.context.getSetting(SpaceCommitsNextWordPrediction)
+                && helper.context.getSetting(UseExpandableSuggestionsForGeneralIME)
+
+    // The candidates space/Tab navigate: the bar's visual order minus the static topBar defaults (which
+    // are always appended at the tail), so a bar showing only the pinned defaults still types a plain
+    // space/Tab. selectableCandidates()[i] is at displayed/wordList index i (the dropped defaults trail
+    // it), so the index doubles as the UI highlight index.
+    private fun selectableCandidates(): List<SuggestedWordInfo> {
+        val display = displayCandidateList(inputLogic.mSuggestedWords)
+        if (display.isEmpty()) return emptyList()
+        return display.filter { d -> topBarInfos.none { it === d } }
+    }
+
+    // The wordList index to mark, or null for no marker: none when there's nothing selectable, and —
+    // while composing — none at the default selection (0), where space just does the normal
+    // autocorrect-on-space and a marker would be misleading (autocorrect may keep the literal).
+    private fun highlightIndexForSelection(): Int? {
+        val selectable = selectableCandidates()
+        if (selectable.isEmpty()) return null
+        val i = selectedCandidate.coerceIn(0, selectable.size - 1)
+        if (inputLogic.mWordComposer.isComposingWord && i == 0) return null
+        return i
+    }
+
+    // Re-render the bar with the current selection highlighted, WITHOUT recomputing predictions (so a
+    // Tab press just moves the marker). Reuses the current words, swapping in the highlight index.
+    private fun renderSelectionHighlight() {
+        val cur = inputLogic.mSuggestedWords ?: return
+        val copy = SuggestedWords(
+            cur.mSuggestedWordInfoList, cur.mRawSuggestions, cur.mTypedWordInfo,
+            cur.mTypedWordValid, cur.mWillAutoCorrect, cur.mIsObsoleteSuggestions,
+            cur.mInputStyle, cur.mSequenceNumber, highlightIndexForSelection()
+        )
+        inputLogic.mSuggestedWords = copy
+        helper.showSuggestionStrip(copy, expandableCfg)
     }
 
     // kxkb: when NOT composing a word (idle / next-word state), show the next-word predictions (if
@@ -884,6 +935,7 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     // pure correction candidates so the defaults don't pollute the 3-slot correction strip.) Routing
     // every empty/neutral path through here also keeps the bar from flashing blank between words.
     private fun showPredictionsWithTopBar(predWords: SuggestedWords?) {
+        selectedCandidate = 0 // input-driven update: restart candidate navigation at the first candidate
         // kxkb: when isolating for cluster-prediction testing, blank the idle/next-word bar entirely
         // (no next-word predictions, no topBar defaults) so only the WHILE-COMPOSING correction
         // candidates -- the cluster prediction -- ever appear on screen. (See ClusterPredictionDebug.)
@@ -903,8 +955,11 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         val combined = ArrayList<SuggestedWordInfo>(preds.size + topBarInfos.size)
         combined.addAll(preds)
         combined.addAll(topBarInfos)
+        // Mark the first prediction (what space commits by default) when navigation is on and there is
+        // a real prediction; the topBar defaults at the tail are never marked / committed by space.
+        val highlight: Int? = if (candidateNavEnabled() && preds.isNotEmpty()) 0 else null
         val sw = SuggestedWords(combined, null, null, false, false, false,
-            SuggestedWords.INPUT_STYLE_NONE, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+            SuggestedWords.INPUT_STYLE_NONE, SuggestedWords.NOT_A_SEQUENCE_NUMBER, highlight)
         inputLogic.setSuggestedWords(sw)
         helper.showSuggestionStrip(sw, expandableCfg)
     }
@@ -918,6 +973,9 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         // While composing a word: pure correction candidates, no topBar (it's for the idle/next-word
         // state). Otherwise: next-word predictions (if any) + the topBar defaults appended.
         if (inputLogic.mWordComposer.isComposingWord) {
+            selectedCandidate = 0 // input-driven update: restart candidate navigation at the first candidate
+            // No default marker while composing (selection 0 = the normal autocorrect-on-space); a marker
+            // appears once Tab selects an alternate. So show `words` as-is (no highlight index).
             inputLogic.setSuggestedWords(words)
             if (settings.current.isSuggestionsEnabledPerUserSettings && words != null && words.size() > 0) {
                 helper.showSuggestionStrip(words, expandableCfg)
