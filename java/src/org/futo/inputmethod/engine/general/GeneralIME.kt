@@ -350,13 +350,19 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
                     // selectable candidates; with fewer (incl. none — GNU / no prediction) Tab passes
                     // through as a real Tab.
                     nav && cp == Constants.CODE_TAB && selectable.size >= 2 -> {
-                        selectedCandidate = (selectedCandidate + 1) % selectable.size
+                        // From the unmarked line-start default (-1) Tab engages the FIRST candidate;
+                        // otherwise it advances to the next (wraps).
+                        selectedCandidate = if (selectedCandidate < 0) 0
+                            else (selectedCandidate + 1) % selectable.size
                         renderSelectionHighlight()
                         null
                     }
-                    // SPACE: commit the selected candidate. While composing at the default selection (0)
-                    // we DON'T intercept, so the normal autocorrect-on-space path runs unchanged.
+                    // SPACE: commit the selected candidate. Never at an unmarked default: while
+                    // composing at selection 0 we DON'T intercept (the normal autocorrect-on-space
+                    // path runs unchanged), and at a line start (selection -1) a literal space is the
+                    // likelier intent, so it passes through until Tab engages the selection.
                     nav && cp == Constants.CODE_SPACE && selectable.isNotEmpty()
+                            && selectedCandidate >= 0
                             && !(inputLogic.mWordComposer.isComposingWord && selectedCandidate == 0) -> {
                         val pick = selectable[selectedCandidate.coerceIn(0, selectable.size - 1)]
                         selectedCandidate = 0
@@ -884,9 +890,25 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     }
 
     // kxkb: space + Tab candidate navigation. The index (into selectableCandidates) of the candidate
-    // SPACE will commit; 0 = the first. TAB advances it; reset to 0 on every input-driven suggestion
-    // update so a new word/context starts from the first candidate again.
+    // SPACE will commit; 0 = the first. TAB advances it; reset on every input-driven suggestion
+    // update so a new word/context starts from the first candidate again. -1 = the unmarked
+    // line-start default: space types a literal space there until Tab engages the selection.
     private var selectedCandidate = 0
+
+    // True when the cursor sits at the start of a line (or of the field, or after only leading
+    // whitespace) in the idle state — there a literal space (indentation / a leading space) is more
+    // often wanted than the first prediction, so the candidate selection starts unmarked. The text
+    // check covers ordinary editors; the last-input-was-Enter signal covers editors that hide the
+    // trailing newline from the text they report (the Emacs Android port — the same trick
+    // force-auto-caps uses, see InputLogic.getCurrentAutoCapsState).
+    private fun atLineStart(): Boolean {
+        if (inputLogic.mWordComposer.isComposingWord) return false
+        if (inputLogic.wasLastInputEnter()) return true
+        val before = inputLogic.mConnection.getTextBeforeCursor(48, 0) ?: return true
+        var i = before.length
+        while (i > 0 && (before[i - 1] == ' ' || before[i - 1] == '\t')) i--
+        return i == 0 || before[i - 1] == '\n'
+    }
 
     // Gated on the expandable suggestion bar (default) because the navigation indexes that bar's visual
     // candidate order (displayCandidateList); the 3-slot bar uses a different arrangement.
@@ -908,6 +930,7 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     // while composing — none at the default selection (0), where space just does the normal
     // autocorrect-on-space and a marker would be misleading (autocorrect may keep the literal).
     private fun highlightIndexForSelection(): Int? {
+        if (selectedCandidate < 0) return null // unmarked line-start default
         val selectable = selectableCandidates()
         if (selectable.isEmpty()) return null
         val i = selectedCandidate.coerceIn(0, selectable.size - 1)
@@ -957,7 +980,14 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         combined.addAll(topBarInfos)
         // Mark the first prediction (what space commits by default) when navigation is on and there is
         // a real prediction; the topBar defaults at the tail are never marked / committed by space.
-        val highlight: Int? = if (candidateNavEnabled() && preds.isNotEmpty()) 0 else null
+        // At a line start the default starts UNMARKED (selectedCandidate -1) — space types the literal
+        // space wanted there (indentation / a leading space) and Tab engages the first prediction —
+        // the idle analogue of the composing state's unmarked default.
+        var highlight: Int? = if (candidateNavEnabled() && preds.isNotEmpty()) 0 else null
+        if (highlight != null && atLineStart()) {
+            selectedCandidate = -1
+            highlight = null
+        }
         val sw = SuggestedWords(combined, null, null, false, false, false,
             SuggestedWords.INPUT_STYLE_NONE, SuggestedWords.NOT_A_SEQUENCE_NUMBER, highlight)
         inputLogic.setSuggestedWords(sw)

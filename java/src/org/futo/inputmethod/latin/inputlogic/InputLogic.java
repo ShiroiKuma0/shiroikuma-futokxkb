@@ -94,6 +94,14 @@ public final class InputLogic {
     // handleNonFunctionalEvent. Used by force-auto-caps to capitalize after a newline even when the
     // editor hides the line break from the text it reports to us (see getCurrentAutoCapsState).
     private int mLastInputCodePoint = Constants.NOT_A_CODE;
+
+    // kxkb: whether the last code point we input was Enter — i.e. the cursor sits on a fresh line we
+    // just created. Editor-independent (some editors hide the trailing newline from the text they
+    // report, see getCurrentAutoCapsState); consumed by force-auto-caps and by the space/Tab
+    // candidate navigation's line-start detection (GeneralIME.atLineStart).
+    public boolean wasLastInputEnter() {
+        return mLastInputCodePoint == Constants.CODE_ENTER;
+    }
     // Never null
     public SuggestedWords mSuggestedWords = SuggestedWords.getEmptyInstance();
     public final Suggest mSuggest;
@@ -376,6 +384,13 @@ public final class InputLogic {
             final Event event = Event.createPunctuationSuggestionPickedEvent(suggestionInfo);
             return onCodeInput(settingsValues, event, keyboardShiftState,
                     currentKeyboardScriptId);
+        }
+
+        // kxkb: a picked word lands on the line, so any "last input was Enter" fresh-line state ends
+        // here — record the pick's last code point just as typing it would have (consumers: the
+        // force-auto-caps newline rule, the candidate navigation's line-start detection).
+        if (suggestion.length() > 0) {
+            mLastInputCodePoint = Character.codePointBefore(suggestion, suggestion.length());
         }
 
         final Event event = Event.createSuggestionPickedEvent(suggestionInfo);
