@@ -719,6 +719,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                         ),
                         default = 1.4f, range = 0.5f..3.0f, transform = { it }, indicator = { "%.2fx".format(it) }
                     )
+                    // Key label boldness — Android Typeface weight (100–900; ~500 = the theme default).
+                    // Stored -1 = inherit; the slider shows the effective value (HighContrastYellow's 500)
+                    // until set. Feeds keyLabelWeight via withPerKindLook.
+                    SettingSliderForDataStoreItem(
+                        title = "Key label weight (boldness)",
+                        item = floatItem(
+                            { if (it.labelWeight in 1..1000) it.labelWeight.toFloat() else 500f },
+                            { s, v -> s.copy(labelWeight = v.toInt()) }
+                        ),
+                        default = 500f, range = 100f..900f, transform = { it }, indicator = { "%.0f".format(it) }
+                    )
                     ColorSetting(
                         title = stringResource(R.string.kxkb_color_font),
                         current = parsed.fontColor,
@@ -738,6 +749,17 @@ fun KxkbSizingScreen(navController: NavHostController = rememberNavController())
                             { s, v -> s.copy(keyRoundness = v) }
                         ),
                         default = 0f, range = 0f..5f, transform = { it }, indicator = { "%.2f".format(it) }
+                    )
+                    // Key border (stroke) width in dp (0 = no border). Stored -1 = inherit; the slider
+                    // shows the theme's effective width (1.0 for HighContrastYellow) until set. Feeds
+                    // keyStrokeWidthDp via withPerKindLook — pairs with the border colour below.
+                    SettingSliderForDataStoreItem(
+                        title = "Key border width",
+                        item = floatItem(
+                            { if (it.borderWidthDp >= 0f) it.borderWidthDp else 1.0f },
+                            { s, v -> s.copy(borderWidthDp = v) }
+                        ),
+                        default = 1.0f, range = 0f..8f, transform = { it }, indicator = { "%.1f dp".format(it) }
                     )
                     ColorSetting(
                         title = stringResource(R.string.kxkb_color_key_bg),

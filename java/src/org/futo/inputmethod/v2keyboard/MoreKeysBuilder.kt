@@ -18,7 +18,11 @@ private fun getNumForCoordinate(keyCoordinate: KeyCoordinate): String {
     if(!keyCoordinate.element.kind.isAlphabet) return ""
 
     if(keyCoordinate.regularRow == 0) {
-        val colOffset = (keyCoordinate.measurement.numColumnsByRow[keyCoordinate.regularRow] - 10) / 2
+        // kxkb: a letter row whose keys are all non-counting (clusters / compass) leaves regularRow
+        // past the end of numColumnsByRow; index it safely (mirrors the QwertySymbols.getOrNull guard
+        // in symsForCoord) instead of crashing layout build with IndexOutOfBounds.
+        val numCols = keyCoordinate.measurement.numColumnsByRow.getOrNull(keyCoordinate.regularRow) ?: return ""
+        val colOffset = (numCols - 10) / 2
         val centeredCol = keyCoordinate.regularColumn - colOffset
 
         if(centeredCol == 9) {
@@ -38,7 +42,10 @@ private fun symsForCoord(keyCoordinate: KeyCoordinate): String {
 
     val row = QwertySymbols.getOrNull(keyCoordinate.regularRow) ?: return ""
 
-    val colOffset = (keyCoordinate.measurement.numColumnsByRow[keyCoordinate.regularRow] - row.size) / 2
+    // kxkb: same guard as getNumForCoordinate — an all-non-counting letter row can leave regularRow
+    // past the end of numColumnsByRow.
+    val numCols = keyCoordinate.measurement.numColumnsByRow.getOrNull(keyCoordinate.regularRow) ?: return ""
+    val colOffset = (numCols - row.size) / 2
     val centeredCol = keyCoordinate.regularColumn - colOffset.coerceAtLeast(0)
     if(centeredCol < 0) return ""
 
