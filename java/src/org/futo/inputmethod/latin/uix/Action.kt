@@ -100,10 +100,6 @@ interface KeyboardManagerForAction {
     fun getSizingCalculator(): KeyboardSizingCalculator
     fun showResizer()
 
-    // kxkb: show our on-keyboard live-resize overlay (draggable hot-points), triggered by the
-    // "Resize" action. Distinct from showResizer() (FUTO's menu-driven resizer).
-    fun showLiveResizer()
-
     // kxkb: SEAMLESS live resize driven by the "…" button's long-pressing finger. begin = enter resize
     // mode (the "…" finger keeps sliding); liveResizeMove = apply that finger's slide live (vertical =
     // height, horizontal = width); end = release → save + back to normal. Extra fingers (padding/split)

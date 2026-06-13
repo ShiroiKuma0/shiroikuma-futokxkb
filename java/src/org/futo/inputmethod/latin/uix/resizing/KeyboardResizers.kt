@@ -329,10 +329,6 @@ private fun secondaryResizeTarget(pos: Offset, w: Float, h: Float): CurrentDragg
 class KeyboardResizers(val latinIME: LatinIME) {
     private val resizing = mutableStateOf(false)
 
-    // kxkb: separate state for our on-keyboard live-resize overlay (triggered by the "Resize" action),
-    // distinct from FUTO's menu-driven resizer above.
-    private val kxkbResizing = mutableStateOf(false)
-
     private fun finishResizer() {
         resizing.value = false
     }
@@ -490,22 +486,8 @@ class KeyboardResizers(val latinIME: LatinIME) {
         if(resizing.value) finishResizer()
     }
 
-    // --- kxkb: on-keyboard live resize (the "Resize" action) -----------------------------------
-
-    fun displayKxkbResizer() {
-        // Don't let both overlays show at once.
-        resizing.value = false
-        kxkbResizing.value = true
-    }
-
-    fun hideKxkbResizer() {
-        kxkbResizing.value = false
-    }
-
-    fun isKxkbResizing(): Boolean = kxkbResizing.value
-
     // --- kxkb: SEAMLESS live resize (long-press the "…" button and KEEP sliding) -------------------
-    // The "…" button owns the long-pressing finger and drives keyboard HEIGHT directly (seamlessHeight)
+    // The "…" button owns the long-pressing finger and drives the keyboard directly (seamlessPrimaryMove)
     // — no separate overlay grabs it, so the same finger flows from long-press into the slide. While
     // active, KxkbSeamlessOverlay shows blue zones and lets EXTRA fingers grab bottom-right (padding)
     // and centre (split). Releasing the primary finger ends the session (endSeamlessResize). Live
@@ -516,8 +498,7 @@ class KeyboardResizers(val latinIME: LatinIME) {
     private val primaryDelta = mutableStateOf(Offset.Zero)
 
     fun beginSeamlessResize() {
-        resizing.value = false
-        kxkbResizing.value = false
+        resizing.value = false   // hide FUTO's menu resizer if it's open
         primaryDelta.value = Offset.Zero
         seamlessActive.value = true
     }
@@ -706,25 +687,5 @@ class KeyboardResizers(val latinIME: LatinIME) {
         }
 
         return ok
-    }
-
-    @Composable
-    fun KxkbResizer(boxScope: BoxScope, size: ComputedKeyboardSize, shape: RoundedCornerShape = RoundedCornerShape(4.dp)) = with(boxScope) {
-        if (!kxkbResizing.value) return
-        // Floating keyboards have their own drag/resize affordances; our hot-points target docked modes.
-        if (size is FloatingKeyboardSize) return
-
-        val modifier = Modifier.matchParentSize()
-            .safeKeyboardPadding()
-            .keyboardBottomPadding(size)
-            .absolutePadding(bottom = navBarHeight())
-
-        Box(modifier) {
-            KxkbResizerRect(
-                onApply = { target, amount -> applyKxkbDrag(target, amount) },
-                onDone = { hideKxkbResizer() },
-                shape = shape
-            )
-        }
     }
 }

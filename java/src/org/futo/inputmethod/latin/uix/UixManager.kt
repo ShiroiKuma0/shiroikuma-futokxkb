@@ -539,12 +539,6 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         }
     }
 
-    override fun showLiveResizer() {
-        uixManager.resizers.displayKxkbResizer()
-        // Drop any open action window so the overlay sits over the bare keyboard.
-        uixManager.closeActionWindow()
-    }
-
     override fun beginLiveResize() {
         uixManager.closeActionWindow()
         uixManager.resizers.beginSeamlessResize()

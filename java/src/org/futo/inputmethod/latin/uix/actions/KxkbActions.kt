@@ -129,21 +129,6 @@ val ForceAutoCapsToggleAction = Action(
     activeStateProvider = { forceAutoCapsEnabledState() },
 )
 
-// kxkb: live, on-keyboard resize. Tapping this shows draggable hot-points over the live keyboard
-// (top = height, bottom = lift / bottom padding, left/right = width, centre = progressive split) that
-// drive our own per-geometry sizing settings — the same fields the Settings → Keyboard UI sliders do,
-// so it splits/unsplits and resizes exactly like that page, just by dragging on the keyboard. Changes
-// apply live as you drag; "Done" dismisses the overlay. The full slider page is still reachable via
-// Settings → Keyboard UI. See KeyboardResizers.KxkbResizer.
-val LiveResizeAction = Action(
-    icon = R.drawable.aspect_ratio,
-    name = R.string.action_live_resize,
-    simplePressImpl = { manager, _ ->
-        manager.showLiveResizer()
-    },
-    windowImpl = null,
-)
-
 // kxkb: hide the keyboard — the old Multiling "[HIDE]". Simple-press (no window) so it can sit on a
 // key / flick target via `!code/action_hide_keyboard` (icon `!icon/action_hide_keyboard`, auto-
 // registered from this action's drawable). Calls InputMethodService.requestHideSelf via the manager.
@@ -170,8 +155,8 @@ val NextLanguageLayoutAction = Action(
 )
 
 // Open the kxkb "Special keys" reference page (Esc / Ctrl / 4D) directly, deep-linked via the
-// SettingsActivity "navDest" extra to the "specialKeys" route. Same flags as LiveResizeAction so a
-// reused SettingsActivity still navigates there (handled by SettingsActivity.onNewIntent).
+// SettingsActivity "navDest" extra to the "specialKeys" route (the SINGLE_TOP + CLEAR_TOP flags below
+// force SettingsActivity through onCreate so the "navDest" extra is read).
 val SpecialKeysAction = Action(
     icon = R.drawable.book,
     name = R.string.action_special_keys,
