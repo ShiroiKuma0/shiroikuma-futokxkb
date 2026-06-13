@@ -493,7 +493,8 @@
     <string name="key_sliding_subtitle">Short-slide a key in any of 8 directions to type its side characters. Replaces swipe typing while on.</string>
     <string name="action_key_sliding_toggle">Key sliding on/off</string>
     <string name="action_terminal_prediction_toggle">Terminal prediction on/off</string>
-    <string name="action_live_resize">Keyboard UI</string>
+    <string name="action_live_resize">Resize</string>
+    <string name="kxkb_live_resize_done">Done</string>
     <string name="action_hide_keyboard_title">Hide keyboard</string>
     <string name="action_special_keys">Special keys</string>
     <string name="action_custom_layouts">Custom layouts</string>

@@ -539,6 +539,12 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         }
     }
 
+    override fun showLiveResizer() {
+        uixManager.resizers.displayKxkbResizer()
+        // Drop any open action window so the overlay sits over the bare keyboard.
+        uixManager.closeActionWindow()
+    }
+
     override fun getTutorialMode(): TutorialMode {
         return uixManager.tutorialMode
     }
@@ -1286,6 +1292,7 @@ class UixManager(private val latinIME: LatinIME) {
                 CompositionLocalProvider(LocalKeyboardPadding provides paddingOverride) {
                     content(size.padding.top.toDp().coerceAtLeast(4.dp))
                     resizers.Resizer(this, size)
+                    resizers.KxkbResizer(this, size)
                 }
 
                 if(size is OneHandedKeyboardSize) {

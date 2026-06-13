@@ -129,24 +129,17 @@ val ForceAutoCapsToggleAction = Action(
     activeStateProvider = { forceAutoCapsEnabledState() },
 )
 
-// Open the kxkb "Live sizing" settings page (per-geometry sizes, gaps, colours) directly, deep-linked
-// via the SettingsActivity "navDest" extra to the existing "kxkbSizing" route.
+// kxkb: live, on-keyboard resize. Tapping this shows draggable hot-points over the live keyboard
+// (top = height, bottom = lift / bottom padding, left/right = width, centre = progressive split) that
+// drive our own per-geometry sizing settings — the same fields the Settings → Keyboard UI sliders do,
+// so it splits/unsplits and resizes exactly like that page, just by dragging on the keyboard. Changes
+// apply live as you drag; "Done" dismisses the overlay. The full slider page is still reachable via
+// Settings → Keyboard UI. See KeyboardResizers.KxkbResizer.
 val LiveResizeAction = Action(
     icon = R.drawable.aspect_ratio,
     name = R.string.action_live_resize,
     simplePressImpl = { manager, _ ->
-        val intent = Intent()
-        intent.setClass(manager.getContext(), SettingsActivity::class.java)
-        intent.putExtra("navDest", "kxkbSizing")
-        // SINGLE_TOP + CLEAR_TOP (not RESET_TASK_IF_NEEDED): with the default launchMode this forces
-        // SettingsActivity through onCreate, where the "navDest" extra is read. RESET_TASK_IF_NEEDED
-        // could reuse an existing instance without re-running onCreate, landing on the root page.
-        intent.setFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK
-                    or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        )
-        manager.getContext().startActivity(intent)
+        manager.showLiveResizer()
     },
     windowImpl = null,
 )

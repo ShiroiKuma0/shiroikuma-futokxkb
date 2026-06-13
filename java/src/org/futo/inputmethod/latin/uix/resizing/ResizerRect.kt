@@ -150,3 +150,81 @@ fun BoxScope.ResizerRect(onDragged: (DragDelta) -> Boolean, showResetApply: Bool
         }
     }
 }
+
+
+// kxkb: live-resize overlay variant. Same look as ResizerRect (dim backdrop, lit handle circles that
+// turn red at a limit) but the drag callback is told WHICH handle is being dragged, so the caller can
+// map each hot-point onto our own SavedKeyboardSizingSettings fields (top = height, bottom = lift,
+// left/right = width, center = progressive split) instead of FUTO's resize helpers. Changes apply
+// live as you drag (persisted on each delta); the overlay stays up until "Done". `onDrag` returns
+// false to flag the drag was clamped at a limit (drives the red highlight).
+@Composable
+fun BoxScope.KxkbResizerRect(
+    onDrag: (CurrentDraggingTarget, Offset) -> Boolean,
+    onDone: () -> Unit,
+    onReset: () -> Unit,
+    shape: RoundedCornerShape = RoundedCornerShape(4.dp)
+) {
+    val draggingState = remember { mutableStateOf<CurrentDraggingTarget?>(null) }
+    val wasAccepted = remember { mutableStateOf(true) }
+
+    Box(Modifier
+        .matchParentSize()
+        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f), shape)
+        .border(
+            3.dp, if (!wasAccepted.value) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            }, shape
+        )
+        .pointerInput(Unit) {
+            detectDragGestures(
+                onDragStart = { offset ->
+                    draggingState.value = CurrentDraggingTarget.entries.minBy {
+                        offset.minus(it.computeOffset(size)).getDistanceSquared()
+                    }
+                },
+                onDrag = { _, amount ->
+                    draggingState.value?.let {
+                        wasAccepted.value = onDrag(it, amount)
+                    }
+                },
+                onDragEnd = {
+                    draggingState.value = null
+                    wasAccepted.value = true
+                }
+            )
+        }
+        .clip(shape)
+    ) {
+        val primaryColor = MaterialTheme.colorScheme.primary
+        val primaryInverseColor = MaterialTheme.colorScheme.inversePrimary
+        val errorColor = MaterialTheme.colorScheme.error
+        val radius = with(LocalDensity.current) { 24.dp.toPx() }
+
+        Canvas(Modifier.matchParentSize(), onDraw = {
+            CurrentDraggingTarget.entries.forEach {
+                drawCircle(
+                    color = if (!wasAccepted.value) {
+                        errorColor
+                    } else if (draggingState.value == it) {
+                        primaryInverseColor
+                    } else {
+                        primaryColor
+                    },
+                    radius = radius,
+                    center = it.computeOffset(size)
+                )
+            }
+        })
+
+        Row(Modifier
+            .align(Alignment.Center)
+            .absoluteOffset(y = 48.dp)) {
+            TextButton({ onReset() }) { Text(stringResource(R.string.action_keyboard_modes_resizing_reset_size)) }
+            Spacer(Modifier.width(16.dp))
+            TextButton({ onDone() }) { Text(stringResource(R.string.kxkb_live_resize_done)) }
+        }
+    }
+}

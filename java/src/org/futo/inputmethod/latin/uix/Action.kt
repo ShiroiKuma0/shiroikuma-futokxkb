@@ -100,6 +100,10 @@ interface KeyboardManagerForAction {
     fun getSizingCalculator(): KeyboardSizingCalculator
     fun showResizer()
 
+    // kxkb: show our on-keyboard live-resize overlay (draggable hot-points), triggered by the
+    // "Resize" action. Distinct from showResizer() (FUTO's menu-driven resizer).
+    fun showLiveResizer()
+
     fun getTutorialMode(): TutorialMode
     fun setTutorialArrowPosition(coordinates: LayoutCoordinates)
     fun markTutorialCompleted()

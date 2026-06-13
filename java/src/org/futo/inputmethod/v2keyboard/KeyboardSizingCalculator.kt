@@ -534,7 +534,19 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
     private fun Int.coerceInLoosely(min: Int, max: Int) = coerceAtLeast(min).coerceAtMost(max)
 
     fun calculate(layoutName: String, settings: SettingsValues): ComputedKeyboardSize? {
-        val savedSettings = getSavedSettings()
+        // kxkb: snap a NEAR-docked keyboard fully back to docked (margin -> 0) before computing the
+        // size. Any side margin (widthFraction < 1) or bottom lift (> 0) flips the keyboard into
+        // see-through / floating-style insets (onComputeInsets), so the app draws behind it instead of
+        // reserving its height. A slight on-keyboard resize nudge would otherwise leave a tiny margin
+        // and un-dock the keyboard. Within the dead-zone we treat it as fully docked (full width, no
+        // lift) so it docks normally; deliberate, larger narrow/lift values stay untouched and still
+        // show the app behind the margins. Read-only coercion — also re-docks an already-nudged blob.
+        val savedSettings = getSavedSettings().let { s ->
+            s.copy(
+                widthFraction = if (s.widthFraction >= 0.98f) 1.0f else s.widthFraction,
+                bottomLiftDp = if (s.bottomLiftDp <= 5.0f) 0.0f else s.bottomLiftDp
+            )
+        }
 
         val layout = try {
             LayoutManager.getLayout(context, layoutName)

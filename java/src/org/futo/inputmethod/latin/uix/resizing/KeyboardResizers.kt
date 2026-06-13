@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
@@ -308,6 +309,14 @@ class SplitKeyboardResizeHelper(
 class KeyboardResizers(val latinIME: LatinIME) {
     private val resizing = mutableStateOf(false)
 
+    // kxkb: separate state for our on-keyboard live-resize overlay (triggered by the "Resize" action),
+    // distinct from FUTO's menu-driven resizer above.
+    private val kxkbResizing = mutableStateOf(false)
+
+    // kxkb: the sizing settings captured the moment the overlay opened, so "Reset" restores the
+    // dimensions as they were before THIS resize session (an undo), not the keyboard's factory defaults.
+    private var kxkbResizeSnapshot: SavedKeyboardSizingSettings? = null
+
     private fun finishResizer() {
         resizing.value = false
     }
@@ -463,5 +472,137 @@ class KeyboardResizers(val latinIME: LatinIME) {
 
     fun hideResizer() {
         if(resizing.value) finishResizer()
+    }
+
+    // --- kxkb: on-keyboard live resize (the "Resize" action) -----------------------------------
+
+    fun displayKxkbResizer() {
+        // Don't let both overlays show at once.
+        resizing.value = false
+        // Snapshot the current dimensions so "Reset" can undo this session back to here.
+        kxkbResizeSnapshot = latinIME.sizingCalculator.getSavedSettings()
+        kxkbResizing.value = true
+    }
+
+    fun hideKxkbResizer() {
+        kxkbResizing.value = false
+    }
+
+    fun isKxkbResizing(): Boolean = kxkbResizing.value
+
+    // Restore the dimensions captured when the overlay opened (undo this resize session). Keeps the
+    // overlay up so the user can keep adjusting from the restored baseline.
+    private fun resetKxkbResize() {
+        kxkbResizeSnapshot?.let { snap ->
+            latinIME.sizingCalculator.editSavedSettings { snap }
+        }
+    }
+
+    /**
+     * Map one incremental drag of a hot-point onto our own per-geometry sizing settings (the same
+     * fields the Settings → Keyboard UI sliders drive), so the live keyboard resizes/splits exactly
+     * the way that page does. Returns false when the drag was clamped at a limit (drives the red
+     * handle highlight). Reads the live `size`/view width fresh each call so it tracks the keyboard
+     * as it reflows mid-drag.
+     */
+    private fun applyKxkbDrag(target: CurrentDraggingTarget, amount: Offset): Boolean {
+        val density = latinIME.resources.displayMetrics.density.coerceAtLeast(0.5f)
+        val size = latinIME.size.value ?: return true
+        val viewWidth = latinIME.getViewWidth().toFloat().coerceAtLeast(1.0f)
+        var ok = true
+
+        latinIME.sizingCalculator.editSavedSettings { s ->
+            when (target) {
+                // Top edge → overall keyboard height (heightMultiplier). Drag up (amount.y < 0) = taller.
+                CurrentDraggingTarget.Top -> {
+                    val corePx = (size.height - size.padding.bottom).toFloat().coerceAtLeast(1.0f)
+                    val newMult = s.heightMultiplier * (corePx + (-amount.y)) / corePx
+                    val clamped = newMult.coerceIn(0.5f, 2.5f)
+                    if (clamped != newMult) ok = false
+                    s.copy(heightMultiplier = clamped)
+                }
+
+                // Bottom edge → lift off the bottom edge (bottomLiftDp). Drag up (amount.y < 0) = more lift.
+                CurrentDraggingTarget.Bottom -> {
+                    val newLift = s.bottomLiftDp + (-amount.y) / density
+                    val clamped = newLift.coerceIn(0.0f, 640.0f)
+                    if (clamped != newLift) ok = false
+                    // NB: the dock dead-zone lives in calculate() (the render/insets decision), NOT
+                    // here — snapping each incremental delta would pin the value and block the drag
+                    // from ever accumulating past the threshold.
+                    s.copy(bottomLiftDp = clamped)
+                }
+
+                // Left / right edge → symmetric keyboard width (widthFraction). Inward drag narrows.
+                CurrentDraggingTarget.Left, CurrentDraggingTarget.Right -> {
+                    val frac = s.widthFraction.coerceIn(0.3f, 1.0f)
+                    val fullWidthPx = (size.width / frac).coerceAtLeast(1.0f)
+                    val inwardPx = if (target == CurrentDraggingTarget.Left) amount.x else -amount.x
+                    val newFrac = s.widthFraction + (-2.0f * inwardPx / fullWidthPx)
+                    val clamped = newFrac.coerceIn(0.5f, 1.0f)
+                    if (clamped != newFrac) ok = false
+                    // NB: the dock dead-zone lives in calculate() (the render/insets decision), NOT
+                    // here — snapping each incremental delta would pin the value at 1.0 and block the
+                    // drag from ever accumulating past the threshold (the "can't narrow" bug).
+                    s.copy(widthFraction = clamped)
+                }
+
+                // Center → progressive split via horizontal drag. Rightward opens the centre gap (more
+                // split); from a non-split keyboard the first rightward drag switches into Split. Leftward
+                // closes the gap and, past the minimum, switches back to Regular (un-splits).
+                CurrentDraggingTarget.Center -> {
+                    val fracStep = amount.x / viewWidth
+                    when (s.currentMode) {
+                        KeyboardMode.Regular ->
+                            if (amount.x > 0.0f) {
+                                s.copy(
+                                    currentMode = KeyboardMode.Split,
+                                    prefersSplit = true,
+                                    splitWidthFraction = (1.0f - fracStep).coerceIn(0.4f, 1.0f)
+                                )
+                            } else s
+
+                        KeyboardMode.Split -> {
+                            val newFrac = s.splitWidthFraction - fracStep
+                            if (newFrac >= 1.0f && amount.x < 0.0f) {
+                                s.copy(
+                                    currentMode = KeyboardMode.Regular,
+                                    prefersSplit = false,
+                                    splitWidthFraction = 1.0f
+                                )
+                            } else {
+                                s.copy(splitWidthFraction = newFrac.coerceIn(0.4f, 1.0f))
+                            }
+                        }
+
+                        // One-handed / floating: centre drag is a no-op (no split concept).
+                        else -> s
+                    }
+                }
+            }
+        }
+
+        return ok
+    }
+
+    @Composable
+    fun KxkbResizer(boxScope: BoxScope, size: ComputedKeyboardSize, shape: RoundedCornerShape = RoundedCornerShape(4.dp)) = with(boxScope) {
+        if (!kxkbResizing.value) return
+        // Floating keyboards have their own drag/resize affordances; our hot-points target docked modes.
+        if (size is FloatingKeyboardSize) return
+
+        val modifier = Modifier.matchParentSize()
+            .safeKeyboardPadding()
+            .keyboardBottomPadding(size)
+            .absolutePadding(bottom = navBarHeight())
+
+        Box(modifier) {
+            KxkbResizerRect(
+                onDrag = { target, amount -> applyKxkbDrag(target, amount) },
+                onDone = { hideKxkbResizer() },
+                onReset = { resetKxkbResize() },
+                shape = shape
+            )
+        }
     }
 }
