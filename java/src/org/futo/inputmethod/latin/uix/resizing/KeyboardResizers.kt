@@ -1,14 +1,26 @@
 package org.futo.inputmethod.latin.uix.resizing
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.absolutePadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.coerceAtLeast
@@ -306,16 +318,20 @@ class SplitKeyboardResizeHelper(
     }
 }
 
+// kxkb: which seamless-resize zone an EXTRA finger landed in. Top-left (height) is the primary finger
+// driven by the "…" button, so it isn't a secondary zone here; centre = split, bottom-right = padding.
+private fun secondaryResizeTarget(pos: Offset, w: Float, h: Float): CurrentDraggingTarget? = when {
+    pos.x in (w * 0.35f)..(w * 0.65f) && pos.y in (h * 0.30f)..(h * 0.70f) -> CurrentDraggingTarget.Center
+    pos.x > w * 0.55f && pos.y > h * 0.50f -> CurrentDraggingTarget.Bottom
+    else -> null
+}
+
 class KeyboardResizers(val latinIME: LatinIME) {
     private val resizing = mutableStateOf(false)
 
     // kxkb: separate state for our on-keyboard live-resize overlay (triggered by the "Resize" action),
     // distinct from FUTO's menu-driven resizer above.
     private val kxkbResizing = mutableStateOf(false)
-
-    // kxkb: the sizing settings captured the moment the overlay opened, so "Reset" restores the
-    // dimensions as they were before THIS resize session (an undo), not the keyboard's factory defaults.
-    private var kxkbResizeSnapshot: SavedKeyboardSizingSettings? = null
 
     private fun finishResizer() {
         resizing.value = false
@@ -479,8 +495,6 @@ class KeyboardResizers(val latinIME: LatinIME) {
     fun displayKxkbResizer() {
         // Don't let both overlays show at once.
         resizing.value = false
-        // Snapshot the current dimensions so "Reset" can undo this session back to here.
-        kxkbResizeSnapshot = latinIME.sizingCalculator.getSavedSettings()
         kxkbResizing.value = true
     }
 
@@ -490,11 +504,120 @@ class KeyboardResizers(val latinIME: LatinIME) {
 
     fun isKxkbResizing(): Boolean = kxkbResizing.value
 
-    // Restore the dimensions captured when the overlay opened (undo this resize session). Keeps the
-    // overlay up so the user can keep adjusting from the restored baseline.
-    private fun resetKxkbResize() {
-        kxkbResizeSnapshot?.let { snap ->
-            latinIME.sizingCalculator.editSavedSettings { snap }
+    // --- kxkb: SEAMLESS live resize (long-press the "…" button and KEEP sliding) -------------------
+    // The "…" button owns the long-pressing finger and drives keyboard HEIGHT directly (seamlessHeight)
+    // — no separate overlay grabs it, so the same finger flows from long-press into the slide. While
+    // active, KxkbSeamlessOverlay shows blue zones and lets EXTRA fingers grab bottom-right (padding)
+    // and centre (split). Releasing the primary finger ends the session (endSeamlessResize). Live
+    // throughout; the docking dead-zone applies via applyKxkbDrag/calculate().
+    private val seamlessActive = mutableStateOf(false)
+    // Accumulated movement of the PRIMARY ("…") finger since activation, so the top-left dot can
+    // follow it (the overlay doesn't otherwise see that finger).
+    private val primaryDelta = mutableStateOf(Offset.Zero)
+
+    fun beginSeamlessResize() {
+        resizing.value = false
+        kxkbResizing.value = false
+        primaryDelta.value = Offset.Zero
+        seamlessActive.value = true
+    }
+
+    fun endSeamlessResize() {
+        seamlessActive.value = false
+    }
+
+    fun isSeamlessActive(): Boolean = seamlessActive.value
+
+    // Primary finger (the "…" long-press): vertical slide = height, horizontal slide = width.
+    fun seamlessPrimaryMove(delta: Offset) {
+        primaryDelta.value += delta
+        applySeamless(CurrentDraggingTarget.Top, delta)
+    }
+
+    // Apply a finger's slide for its zone. Top-left = height + width; bottom-right = padding + width;
+    // centre = split. Width uses the symmetric widthFraction, signed so dragging a corner OUTWARD
+    // (top-left → left, bottom-right → right) widens it.
+    private fun applySeamless(zone: CurrentDraggingTarget, delta: Offset) {
+        when (zone) {
+            CurrentDraggingTarget.Top -> {
+                applyKxkbDrag(CurrentDraggingTarget.Top, delta)   // height (delta.y)
+                applyKxkbDrag(CurrentDraggingTarget.Left, delta)  // width (delta.x; left = wider)
+            }
+            CurrentDraggingTarget.Bottom -> {
+                applyKxkbDrag(CurrentDraggingTarget.Bottom, delta) // padding (delta.y)
+                applyKxkbDrag(CurrentDraggingTarget.Right, delta)  // width (delta.x; right = wider)
+            }
+            else -> applyKxkbDrag(CurrentDraggingTarget.Center, delta) // split (delta.x)
+        }
+    }
+
+    @Composable
+    fun KxkbSeamlessOverlay(boxScope: BoxScope, kbSize: ComputedKeyboardSize) = with(boxScope) {
+        if (!seamlessActive.value) return
+        // Floating mode has its own drag affordances.
+        if (kbSize is FloatingKeyboardSize) return
+
+        // current position of each grabbed secondary finger (for the lit highlight); also the set of
+        // grabbed targets so the zones light up while held.
+        val grabbed = remember { mutableStateMapOf<CurrentDraggingTarget, Offset>() }
+        val haptic = LocalHapticFeedback.current
+
+        Box(Modifier.matchParentSize()
+            .safeKeyboardPadding()
+            .keyboardBottomPadding(kbSize)
+            .absolutePadding(bottom = navBarHeight())
+            // A faint dim marks resize mode AND blocks typing while resizing; consume every touch.
+            .background(Color.Black.copy(alpha = 0.15f))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    val assigns = HashMap<PointerId, CurrentDraggingTarget>()
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { change ->
+                            when {
+                                change.changedToDown() -> {
+                                    val t = secondaryResizeTarget(change.position, size.width.toFloat(), size.height.toFloat())
+                                    if (t != null && !assigns.containsValue(t)) {
+                                        assigns[change.id] = t
+                                        grabbed[t] = change.position
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    change.consume()   // block typing under the resize overlay
+                                }
+                                change.changedToUp() -> {
+                                    assigns.remove(change.id)?.let { grabbed.remove(it) }
+                                    change.consume()
+                                }
+                                change.pressed -> {
+                                    assigns[change.id]?.let { t ->
+                                        val d = change.positionChange()
+                                        if (d != Offset.Zero) {
+                                            applySeamless(t, d)
+                                            grabbed[t] = change.position
+                                            change.consume()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ) {
+            val dot = Color(0xFF2962FF).copy(alpha = 0.85f)
+            val radius = with(LocalDensity.current) { 28.dp.toPx() }
+            Canvas(Modifier.matchParentSize()) {
+                val w = this.size.width
+                val h = this.size.height
+                // Top-left follows the "…" finger; bottom-right sits deep in the corner; centre = split.
+                // A grabbed secondary follows its finger. All three the same colour.
+                val tl = Offset(w * 0.08f, h * 0.10f) + primaryDelta.value
+                val br = grabbed[CurrentDraggingTarget.Bottom] ?: Offset(w * 0.92f, h * 0.90f)
+                val ce = grabbed[CurrentDraggingTarget.Center] ?: Offset(w * 0.5f, h * 0.5f)
+                drawCircle(dot, radius, tl)
+                drawCircle(dot, radius, br)
+                drawCircle(dot, radius, ce)
+            }
         }
     }
 
@@ -598,9 +721,8 @@ class KeyboardResizers(val latinIME: LatinIME) {
 
         Box(modifier) {
             KxkbResizerRect(
-                onDrag = { target, amount -> applyKxkbDrag(target, amount) },
+                onApply = { target, amount -> applyKxkbDrag(target, amount) },
                 onDone = { hideKxkbResizer() },
-                onReset = { resetKxkbResize() },
                 shape = shape
             )
         }

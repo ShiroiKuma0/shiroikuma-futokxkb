@@ -11,6 +11,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -79,6 +82,9 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -617,6 +623,63 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
     }
 }
 
+// kxkb: the "…" (more actions) button, but with a raw gesture so a TAP opens more actions while a
+// LONG-PRESS-AND-SLIDE seamlessly resizes the keyboard HEIGHT with the SAME finger (it owns the
+// pointer from the long-press through the slide; releasing it saves + returns to normal). Extra
+// fingers (bottom-right = padding, centre = split) are caught by KxkbSeamlessOverlay while active.
+@Composable
+fun MoreActionsSeamlessButton(onTap: () -> Unit) {
+    val manager = LocalManager.current
+    val haptic = LocalHapticFeedback.current
+    val bgCol = LocalKeyboardScheme.current.keyboardContainer
+    val fgCol = LocalKeyboardScheme.current.onKeyboardContainer
+    val circleRadius = with(LocalDensity.current) { 16.dp.toPx() }
+
+    Box(modifier = Modifier
+        .width(42.dp)
+        .fillMaxHeight()
+        .drawBehind { drawCircle(color = bgCol, radius = circleRadius, style = Fill) }
+        .clip(CircleShape)
+        .pointerInput(Unit) {
+            awaitEachGesture {
+                // requireUnconsumed = false + the canonical long-press primitive (what
+                // combinedClickable uses internally), so it fires reliably inside the action-bar row.
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val longPress = awaitLongPressOrCancellation(down.id)
+                if (longPress == null) {
+                    // released / moved before the long-press fired → it was a tap.
+                    onTap()
+                    return@awaitEachGesture
+                }
+                // Long press fired: buzz so you know the drag is armed, then this finger drives the
+                // keyboard height until it lifts (other zones are handled by KxkbSeamlessOverlay).
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                manager.beginLiveResize()
+                longPress.consume()
+                while (true) {
+                    val ev = awaitPointerEvent()
+                    val c = ev.changes.firstOrNull { it.id == down.id }
+                    if (c == null || !c.pressed) break
+                    val d = c.positionChange()
+                    if (d != Offset.Zero) {
+                        manager.liveResizeMove(d.x, d.y)
+                        c.consume()
+                    }
+                }
+                manager.endLiveResize()
+            }
+        },
+        contentAlignment = Center
+    ) {
+        Icon(
+            painter = painterResource(id = MoreActionsAction.icon),
+            contentDescription = stringResource(MoreActionsAction.name),
+            tint = fgCol,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
 
 @Composable
 fun ActionItems(onSelect: (Action) -> Unit, onLongSelect: (Action) -> Unit) {
@@ -665,9 +728,7 @@ fun ActionItems(onSelect: (Action) -> Unit, onLongSelect: (Action) -> Unit) {
     Box(Modifier.safeKeyboardPadding()) {
         LazyRow(state = lazyListState) {
             item {
-                ActionItemSmall(action = MoreActionsAction, onSelect = {
-                    onSelect(MoreActionsAction)
-                }, onLongSelect = { })
+                MoreActionsSeamlessButton(onTap = { onSelect(MoreActionsAction) })
 
             }
             items(actionItems.size, key = { actionItems[it].name }) {

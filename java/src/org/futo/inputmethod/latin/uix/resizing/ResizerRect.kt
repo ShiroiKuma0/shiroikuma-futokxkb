@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -22,7 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
@@ -152,79 +158,106 @@ fun BoxScope.ResizerRect(onDragged: (DragDelta) -> Boolean, showResetApply: Bool
 }
 
 
-// kxkb: live-resize overlay variant. Same look as ResizerRect (dim backdrop, lit handle circles that
-// turn red at a limit) but the drag callback is told WHICH handle is being dragged, so the caller can
-// map each hot-point onto our own SavedKeyboardSizingSettings fields (top = height, bottom = lift,
-// left/right = width, center = progressive split) instead of FUTO's resize helpers. Changes apply
-// live as you drag (persisted on each delta); the overlay stays up until "Done". `onDrag` returns
-// false to flag the drag was clamped at a limit (drives the red highlight).
+// kxkb: live-resize overlay variant. Same look as ResizerRect (dim backdrop, lit handle circles) but
+// MULTI-TOUCH and SET-ON-RELEASE, with NO Done/Reset buttons: several fingers can each grab the
+// nearest hot-point and drag it at once; nothing is applied to the keyboard while dragging — the
+// handles and a preview outline follow the fingers, and each hot-point's change is committed
+// (`onApply`) only when its finger lifts. When the LAST finger lifts, the overlay closes itself
+// (`onDone`) — straight back to the normal keyboard. The caller maps each target onto our own
+// SavedKeyboardSizingSettings (top = height, bottom = lift, left/right = width, center = split).
 @Composable
 fun BoxScope.KxkbResizerRect(
-    onDrag: (CurrentDraggingTarget, Offset) -> Boolean,
+    onApply: (CurrentDraggingTarget, Offset) -> Unit,
     onDone: () -> Unit,
-    onReset: () -> Unit,
     shape: RoundedCornerShape = RoundedCornerShape(4.dp)
 ) {
-    val draggingState = remember { mutableStateOf<CurrentDraggingTarget?>(null) }
-    val wasAccepted = remember { mutableStateOf(true) }
+    // Per-hot-point accumulated drag for the gesture(s) currently in progress (one entry per finger
+    // that is down on a handle). Drives the live handle/outline preview; consumed + cleared on release.
+    val accumulated = remember { mutableStateMapOf<CurrentDraggingTarget, Offset>() }
 
     Box(Modifier
         .matchParentSize()
         .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f), shape)
-        .border(
-            3.dp, if (!wasAccepted.value) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.primary
-            }, shape
-        )
+        .border(3.dp, MaterialTheme.colorScheme.primary, shape)
         .pointerInput(Unit) {
-            detectDragGestures(
-                onDragStart = { offset ->
-                    draggingState.value = CurrentDraggingTarget.entries.minBy {
-                        offset.minus(it.computeOffset(size)).getDistanceSquared()
+            awaitPointerEventScope {
+                // Which hot-point each active pointer is dragging. One pointer per target.
+                val assignments = HashMap<PointerId, CurrentDraggingTarget>()
+                while (true) {
+                    val event = awaitPointerEvent()
+                    event.changes.forEach { change ->
+                        when {
+                            // New finger down on the overlay (not on a button, which consumes first):
+                            // grab the nearest still-free hot-point.
+                            change.changedToDown() -> {
+                                val taken = assignments.values.toHashSet()
+                                val target = CurrentDraggingTarget.entries
+                                    .filter { it !in taken }
+                                    .minByOrNull {
+                                        change.position.minus(it.computeOffset(size)).getDistanceSquared()
+                                    }
+                                if (target != null) {
+                                    assignments[change.id] = target
+                                    accumulated[target] = Offset.Zero
+                                    change.consume()
+                                }
+                            }
+                            // Finger up: commit that hot-point's accumulated drag (set on release).
+                            // When the last finger lifts, close the overlay — back to the normal keyboard.
+                            change.changedToUp() -> {
+                                assignments.remove(change.id)?.let { target ->
+                                    onApply(target, accumulated[target] ?: Offset.Zero)
+                                    accumulated.remove(target)
+                                    change.consume()
+                                    if (assignments.isEmpty()) onDone()
+                                }
+                            }
+                            // Finger move: accumulate (preview only, no commit yet).
+                            change.pressed -> {
+                                assignments[change.id]?.let { target ->
+                                    val d = change.positionChange()
+                                    if (d != Offset.Zero) {
+                                        accumulated[target] = (accumulated[target] ?: Offset.Zero) + d
+                                        change.consume()
+                                    }
+                                }
+                            }
+                        }
                     }
-                },
-                onDrag = { _, amount ->
-                    draggingState.value?.let {
-                        wasAccepted.value = onDrag(it, amount)
-                    }
-                },
-                onDragEnd = {
-                    draggingState.value = null
-                    wasAccepted.value = true
                 }
-            )
+            }
         }
         .clip(shape)
     ) {
         val primaryColor = MaterialTheme.colorScheme.primary
         val primaryInverseColor = MaterialTheme.colorScheme.inversePrimary
-        val errorColor = MaterialTheme.colorScheme.error
         val radius = with(LocalDensity.current) { 24.dp.toPx() }
+        val strokePx = with(LocalDensity.current) { 2.dp.toPx() }
 
         Canvas(Modifier.matchParentSize(), onDraw = {
-            CurrentDraggingTarget.entries.forEach {
+            val active = accumulated.keys
+            // Preview outline of the resulting keyboard bounds — each dragged edge handle pushes that
+            // edge (top = height, bottom = lift, left/right = width). Centre (split) isn't outlined.
+            if (active.isNotEmpty()) {
+                val topD   = accumulated[CurrentDraggingTarget.Top]?.y ?: 0f
+                val botD   = accumulated[CurrentDraggingTarget.Bottom]?.y ?: 0f
+                val leftD  = accumulated[CurrentDraggingTarget.Left]?.x ?: 0f
+                val rightD = accumulated[CurrentDraggingTarget.Right]?.x ?: 0f
+                drawRect(
+                    color = primaryInverseColor,
+                    topLeft = Offset(leftD, topD),
+                    size = Size(size.width + rightD - leftD, size.height + botD - topD),
+                    style = Stroke(width = strokePx)
+                )
+            }
+            // Handle circles follow their finger; active ones light up.
+            CurrentDraggingTarget.entries.forEach { target ->
                 drawCircle(
-                    color = if (!wasAccepted.value) {
-                        errorColor
-                    } else if (draggingState.value == it) {
-                        primaryInverseColor
-                    } else {
-                        primaryColor
-                    },
+                    color = if (target in active) primaryInverseColor else primaryColor,
                     radius = radius,
-                    center = it.computeOffset(size)
+                    center = target.computeOffset(size) + (accumulated[target] ?: Offset.Zero)
                 )
             }
         })
-
-        Row(Modifier
-            .align(Alignment.Center)
-            .absoluteOffset(y = 48.dp)) {
-            TextButton({ onReset() }) { Text(stringResource(R.string.action_keyboard_modes_resizing_reset_size)) }
-            Spacer(Modifier.width(16.dp))
-            TextButton({ onDone() }) { Text(stringResource(R.string.kxkb_live_resize_done)) }
-        }
     }
 }

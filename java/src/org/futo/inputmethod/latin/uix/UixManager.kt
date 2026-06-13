@@ -545,6 +545,19 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         uixManager.closeActionWindow()
     }
 
+    override fun beginLiveResize() {
+        uixManager.closeActionWindow()
+        uixManager.resizers.beginSeamlessResize()
+    }
+
+    override fun liveResizeMove(dxPx: Float, dyPx: Float) {
+        uixManager.resizers.seamlessPrimaryMove(Offset(dxPx, dyPx))
+    }
+
+    override fun endLiveResize() {
+        uixManager.resizers.endSeamlessResize()
+    }
+
     override fun getTutorialMode(): TutorialMode {
         return uixManager.tutorialMode
     }
@@ -1292,7 +1305,9 @@ class UixManager(private val latinIME: LatinIME) {
                 CompositionLocalProvider(LocalKeyboardPadding provides paddingOverride) {
                     content(size.padding.top.toDp().coerceAtLeast(4.dp))
                     resizers.Resizer(this, size)
-                    resizers.KxkbResizer(this, size)
+                    // kxkb: seamless live resize — long-press the "…" button and keep sliding. The
+                    // overlay shows the blue zones and handles the extra (padding/split) fingers.
+                    resizers.KxkbSeamlessOverlay(this, size)
                 }
 
                 if(size is OneHandedKeyboardSize) {
