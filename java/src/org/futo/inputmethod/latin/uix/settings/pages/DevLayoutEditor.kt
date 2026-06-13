@@ -334,16 +334,13 @@ fun DevLayoutEditor(navController: NavHostController = rememberNavController()) 
             Text(stringResource(R.string.kxkb_sizing_close_to_keyboard))
         }
 
-        customLayouts.forEachIndexed { i, it ->
-            NavigationItem(
-                title = it.name,
-                style = NavigationItemStyle.MiscNoArrow,
-                subtitle = "Custom Layout $i",
-                navigate = {
-                    navController.navigate(Route.DevLayoutEdit(i))
-                }
-            )
-        }
+        // Unified grouped layout list (shared with the "Keyboard editor"): underlined language
+        // sections, alphabetical within, configurable font/padding (Settings → Keyboard UI →
+        // "Layout list font").
+        LayoutSelectionList(
+            layouts = customLayouts,
+            onClick = { i, _ -> navController.navigate(Route.DevLayoutEdit(i)) }
+        )
 
         NavigationItem(
             title = "Create new layout",

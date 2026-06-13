@@ -237,16 +237,13 @@ fun KeyboardEditorScreen(navController: NavHostController = rememberNavControlle
         }
 
         Text("Layout to edit", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp, 8.dp, 16.dp, 0.dp))
-        customLayouts.forEachIndexed { i, cl ->
-            Button(
-                onClick = { KeyboardEditorSession.load(i, cl) },
-                modifier = Modifier.fillMaxWidth().padding(16.dp, 2.dp),
-                colors = if (i == sourceIdx) ButtonDefaults.buttonColors()
-                         else ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("[$i] ${cl.name}", style = mono)
-            }
-        }
+        // Unified grouped layout list (shared with "Custom layouts"): underlined language sections,
+        // alphabetical within, configurable font/padding, no bracketed index.
+        LayoutSelectionList(
+            layouts = customLayouts,
+            selectedIndex = sourceIdx,
+            onClick = { i, cl -> KeyboardEditorSession.load(i, cl) }
+        )
 
         KeyboardEditorSession.loadError?.let {
             Text("Parse error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
