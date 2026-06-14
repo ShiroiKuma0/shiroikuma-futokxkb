@@ -428,6 +428,24 @@ fun KeyEditScreen(navController: NavHostController = rememberNavController(), pa
         when (key) {
             is BaseKey -> {
                 EditTextRow("spec  (label|!code/… or !icon/…|…)", key.spec, seed + "spec") { put(key.copy(spec = it)) }
+                // kxkb: pick a special key (action / layer key → full spec) or an internal icon (visual
+                // half only) instead of hand-typing the spec. Glyphs are rendered in the dialogs.
+                var showSpecialKeyPicker by remember(seed) { mutableStateOf(false) }
+                var showIconPicker by remember(seed) { mutableStateOf(false) }
+                Row(Modifier.fillMaxWidth().padding(16.dp, 2.dp)) {
+                    OutlinedButton(onClick = { showSpecialKeyPicker = true }, modifier = Modifier.weight(1f)) { Text("Special key…") }
+                    Spacer(Modifier.size(8.dp))
+                    OutlinedButton(onClick = { showIconPicker = true }, modifier = Modifier.weight(1f)) { Text("Icon…") }
+                }
+                if (showSpecialKeyPicker) SpecialKeyPickerDialog(
+                    onPick = { put(key.copy(spec = it)) },
+                    onDismiss = { showSpecialKeyPicker = false }
+                )
+                if (showIconPicker) IconPickerDialog(
+                    currentSpec = key.spec,
+                    onPick = { put(key.copy(spec = it)) },
+                    onDismiss = { showIconPicker = false }
+                )
                 EditTextRow("hint (blank = none)", key.hint ?: "", seed + "hint") { put(key.copy(hint = it.ifEmpty { null })) }
                 EditTextRow("code override (int, blank = none)", key.code?.toString() ?: "", seed + "code") { put(key.copy(code = it.trim().toIntOrNull())) }
                 EditTextRow("moreKeys (one per line)", key.moreKeys.joinToString("\n"), seed + "mk", singleLine = false) {
