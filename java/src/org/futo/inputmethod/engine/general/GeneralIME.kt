@@ -877,22 +877,30 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     }
 
     private fun commitTopBarText(text: String, cursorBack: Int) {
-        val ic = helper.getCurrentInputConnection() ?: return
-        ic.beginBatchEdit()
+        val conn = inputLogic.mConnection
+        conn.commitText(text, 1)
         if (cursorBack in 1 until text.length) {
-            val cut = text.length - cursorBack
-            ic.commitText(text.substring(0, cut), 1)
-            ic.commitText(text.substring(cut), 0) // caret lands just before this part
-        } else {
-            ic.commitText(text, 1)
+            // Place the caret BETWEEN the halves. This must work around the input-connection stack:
+            // (a) the composing wrapper forces commitText's newCursorPosition to 1, so the old
+            //     two-commit "position 0" trick can't put the caret mid-text; and
+            // (b) the buffering wrapper QUEUES commitText but applies setSelection immediately (it has
+            //     no setSelection override) — so a naive commit-then-setSelection runs setSelection
+            //     before the queued text exists, landing the caret then inserting the pair at it (the
+            //     "caret outside in every app" bug). Flushing the queue first (send()) materialises the
+            //     pair, then an ABSOLUTE setSelection lands the caret between. No key events (they race
+            //     the queue and jumped to the previous line).
+            conn.send()
+            val pos = conn.getExpectedSelectionStart() - cursorBack
+            if (pos >= 0) conn.setSelection(pos, pos)
         }
-        ic.endBatchEdit()
     }
 
     // kxkb: space + Tab candidate navigation. The index (into selectableCandidates) of the candidate
     // SPACE will commit; 0 = the first. TAB advances it; reset on every input-driven suggestion
     // update so a new word/context starts from the first candidate again. -1 = the unmarked
     // line-start default: space types a literal space there until Tab engages the selection.
+    // (Mid-line, a literal space comes from long-pressing the spacebar without sliding — see
+    // PointerTracker — not from Tab.)
     private var selectedCandidate = 0
 
     // True when the cursor sits at the start of a line (or of the field, or after only leading

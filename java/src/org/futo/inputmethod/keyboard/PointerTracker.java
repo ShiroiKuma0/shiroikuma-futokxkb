@@ -1218,6 +1218,20 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             mCursorMoved = false;
             return;
         }
+        // kxkb: a long-press of SPACE that never slid (the cursor hold-mode armed its lock but the
+        // finger didn't move) types a LITERAL space instead of the usual CODE_SPACE. Emitting it as
+        // text input makes it bypass the next-word candidate commit — GeneralIME only intercepts the
+        // CODE_SPACE keypress, not text input — so this is the easy "give me a real space, don't accept
+        // the prediction" gesture, while a slide still moves the cursor exactly as before.
+        if (currentKey != null && currentKey.getCode() == Constants.CODE_SPACE
+                && mSpacebarLongPressed) {
+            sListener.onTextInput(" ");
+            callListenerOnRelease(currentKey, currentKey.getCode(), false /* withSliding */);
+            if (isInSlidingKeyInput) {
+                callListenerOnFinishSlidingInput();
+            }
+            return;
+        }
         if (mIsTrackingForActionDisabled) {
             return;
         }
