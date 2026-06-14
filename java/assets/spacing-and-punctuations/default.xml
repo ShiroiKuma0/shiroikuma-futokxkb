@@ -23,12 +23,21 @@
     <!-- Symbols that are suggested between words -->
     <string name="suggested_punctuations">!,?,\\,,:,;,\",(,),\',-,/,@,_</string>
     <!-- Symbols that are normally preceded by a space (used to add an auto-space before these) -->
-    <string name="symbols_preceded_by_space"></string>
+    <!-- kxkb: the em dash "—" (U+2014) — paired with its entry in symbols_followed_by_space below — so
+         it lands spaced on BOTH sides ("word — word"). Being preceded-by-space also stops the
+         followed-by-space swap from STRIPPING a space the user already put in front of it. The en dash
+         "–" (U+2013) is deliberately NOT here, so ranges like "5–10" stay unspaced. -->
+    <string name="symbols_preceded_by_space">—</string>
     <!-- Symbols that are normally followed by a space (used to add an auto-space after these) -->
     <!-- kxkb: added the ellipsis "…" (U+2026) so it behaves like "." — the preceding auto-space is
          swapped away ("hello …" → "hello… ") and a space is added after. The three-dot "..." already
-         swapped (each "." is in this set); only the single ellipsis character was missing. -->
-    <string name="symbols_followed_by_space">.,;:!?)]}…</string>
+         swapped (each "." is in this set); only the single ellipsis character was missing.
+         Also added: the em dash "—" (U+2014; also in symbols_preceded_by_space, so it ends up spaced on
+         both sides), and the CLOSING typographic quotes — right curly double quote "”" (U+201D) and the
+         right angle quotes "»" (U+00BB) / "›" (U+203A). A closing quote now strips the trailing space in
+         front of it and re-adds it after, ahead of the next word — exactly like the closing ")" "]" "}"
+         (already in this set) do. Opening quotes are intentionally left out so they aren't stripped. -->
+    <string name="symbols_followed_by_space">.,;:!?)]}…—”»›</string>
     <!-- Symbols that may be preceded by a space and should have different auto-spacing rules, necessary for emoticons ;) :) -->
     <!-- kxkb: emptied (was ";:") so colon and semicolon behave exactly like a period — the preceding
          auto-space is swapped away and a space is always added after. This set's ONLY consumers are the
