@@ -99,7 +99,10 @@ rows:
     - { type: base, attributes: { width: Custom1, style: Spacebar }, spec: "!icon/space_key|!code/key_space" }
     - { type: base, spec: "!icon/tab_key|!code/key_tab" }
     - { type: base, spec: "?", moreKeys: ["!", ",", ";"] }
-    - { type: base, spec: ":", moreKeys: [";", "::"] }
+    # kxkb: settings cog (kxkb_settings icon, registered as the !icon/settings_key icon) → opens the
+    # keyboard settings (SettingsActivity) via the Settings action's keycode. Replaced the redundant
+    # bottom-row ":" (colon/semicolon stay in row 4); sits next to the language globe.
+    - { type: base, spec: "!icon/settings_key|!code/action_settings" }
     - { type: base, attributes: { longPressEnabled: true }, spec: "!icon/action_switch_language|!code/action_switch_language" }
     - { type: base, spec: "\\|" }
     - $delete

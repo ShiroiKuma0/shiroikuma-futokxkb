@@ -184,6 +184,13 @@ fun SpecialKeysScreen(navController: NavHostController = rememberNavController()
             Yaml("- { type: base, spec: \"!icon/settings_key|!code/action_next_language_layout\",\n    moreKeys: [\"%\", \"\\\"\", \":\", \"'\", \"@\"] }")
         }
 
+        CollapsibleSection("Open settings (cog)") {
+            Para("An action key whose tap opens the keyboard's OWN settings — the full app UI (themes, sizing, custom layouts, typing options). It's the Settings action bound to a key: a press launches SettingsActivity straight from the keyboard, no app drawer needed. Useful on a GNU/code layout where there's no system suggestion strip to reach settings from.")
+            Yaml("- { type: base, spec: \"!icon/settings_key|!code/action_settings\" }")
+            Para("Icon choices: !icon/settings_key is the kxkb cog glyph; !icon/action_settings is the Settings action's own gear. NOTE the next-layout cog above ALSO uses settings_key — so if you put BOTH on one layout, give them different icons (e.g. the gear here) so they're not confused. The icon is only the face; the !code/ decides what the key does — !code/action_settings opens settings, !code/action_next_language_layout cycles layouts.")
+            Yaml("- { type: base, spec: \"!icon/action_settings|!code/action_settings\" }")
+        }
+
         CollapsibleSection("Alt pages (extra layers) & return to letters") {
             Para("If your layout defines an altPages: block (up to four extra full pages, alt0–alt3), these keys switch the WHOLE keyboard to one of them. The page stays shown until you go back — a sticky layer, not a momentary one.")
             Para("Switch to a page — fires the alt-page code (the ${'$'}alt0 / ${'$'}alt1 / ${'$'}alt2 template keys do the same):")
